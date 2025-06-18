@@ -13,12 +13,12 @@ import {z} from 'genkit';
 
 const TranslateTextInputSchema = z.object({
   textToTranslate: z.string().describe('The text content to be translated.'),
-  targetLanguageCode: z.string().describe('The ISO 639-1 code of the language to translate the text into (e.g., "es" for Spanish, "fr" for French, "ar" for Arabic).'),
+  targetLanguageCode: z.string().describe('The ISO 639-1 code of the language to translate the text into (e.g., "es" for Spanish, "fr" for French, "ar" for Arabic). This will be provided as the full language name to the AI model (e.g., "Spanish").'),
 });
 export type TranslateTextInput = z.infer<typeof TranslateTextInputSchema>;
 
 const TranslateTextOutputSchema = z.object({
-  translatedText: z.string().describe('The translated text.'),
+  translatedText: z.string().describe('The translated text. If translation is not possible or the input is already in the target language, this may be the original text.'),
 });
 export type TranslateTextOutput = z.infer<typeof TranslateTextOutputSchema>;
 
@@ -30,24 +30,40 @@ const prompt = ai.definePrompt({
   name: 'translateTextPrompt',
   input: {schema: TranslateTextInputSchema},
   output: {schema: TranslateTextOutputSchema},
-  prompt: `You are a translation service. Your task is to translate the given text into the specified target language.
+  prompt: `You are an expert multilingual translation service.
+Your primary task is to translate the 'Input Text' provided below into the 'Target Language Name' specified.
 
 Input Text:
 {{{textToTranslate}}}
 
-Target Language: {{targetLanguageCode}}
+Target Language Name: {{targetLanguageCode}}
 
-You MUST respond with a JSON object adhering to the following schema:
+You MUST produce a JSON object as your output, strictly conforming to this schema:
 {
-  "translatedText": "string // The translated version of the input text."
+  "translatedText": "string"
 }
 
-Example: If translating "Hello" to Spanish, the output should be:
+The 'translatedText' field in the JSON object MUST contain the translated version of the 'Input Text' in the 'Target Language Name'.
+It is crucial that the 'translatedText' is DIFFERENT from the 'Input Text' if the 'Target Language Name' is different from the source language of the 'Input Text'.
+If the 'Input Text' is already in the 'Target Language Name', then 'translatedText' should be the same as 'Input Text'.
+If the 'Input Text' is empty, 'translatedText' should also be empty.
+
+For example, if Input Text is "Hello World" and Target Language Name is "Spanish", your response MUST be:
 {
-  "translatedText": "Hola"
+  "translatedText": "Hola Mundo"
 }
 
-Provide only the JSON object as your response.`,
+If Input Text is "Hola Mundo" and Target Language Name is "Spanish", your response MUST be:
+{
+  "translatedText": "Hola Mundo"
+}
+
+If Input Text is "" and Target Language Name is "French", your response MUST be:
+{
+  "translatedText": ""
+}
+
+Do not include any other text, explanations, or apologies in your response. Only the JSON object.`,
 });
 
 const translateTextFlow = ai.defineFlow(
@@ -57,6 +73,11 @@ const translateTextFlow = ai.defineFlow(
     outputSchema: TranslateTextOutputSchema,
   },
   async (input) => {
+    // Handle empty input text directly to avoid unnecessary AI calls
+    if (!input.textToTranslate.trim()) {
+      return { translatedText: "" };
+    }
+
     const languageMap: Record<string, string> = {
         'en': 'English',
         'es': 'Spanish',
@@ -66,6 +87,7 @@ const translateTextFlow = ai.defineFlow(
         'ja': 'Japanese',
         'zh-CN': 'Simplified Chinese',
     };
+    // The targetLanguageCode from input is 'es', 'fr' etc. We map it to "Spanish", "French" for the prompt.
     const targetLanguageName = languageMap[input.targetLanguageCode] || input.targetLanguageCode;
 
     const {output} = await prompt({
@@ -73,9 +95,10 @@ const translateTextFlow = ai.defineFlow(
         targetLanguageCode: targetLanguageName, 
     });
     
-    if (!output || !output.translatedText) {
-      // This condition also catches an empty string for translatedText
-      throw new Error('Translation failed. The AI model did not provide a translated text or the text was empty.');
+    if (!output || typeof output.translatedText !== 'string') {
+      // This condition catches null/undefined translatedText.
+      // Empty string is a valid translation (e.g. for empty input).
+      throw new Error('Translation failed. The AI model did not provide a valid translated text string.');
     }
     return output;
   }

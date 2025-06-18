@@ -2,7 +2,7 @@
 'use client';
 
 import type { PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
-import { translateText, TranslateTextInput, TranslateTextOutput } from '@/ai/flows/translate-text-flow';
+import { translateText } from '@/ai/flows/translate-text-flow';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -85,7 +85,7 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
     if (prediction) {
       setDisplayedAnalysisDetails(prediction.analysisDetails);
       setDisplayedReason(prediction.reason);
-      setSelectedLanguage('en'); // Reset language to original on new prediction
+      setSelectedLanguage('en'); 
       setTranslationError(null);
     } else {
       setDisplayedAnalysisDetails(null);
@@ -96,46 +96,45 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
   const handleTranslate = async () => {
     if (!prediction) return;
 
+    const originalDetails = prediction.analysisDetails || "";
+    const originalReason = prediction.reason || "";
+
     if (selectedLanguage === 'en') {
-      setDisplayedAnalysisDetails(prediction.analysisDetails);
-      setDisplayedReason(prediction.reason);
+      setDisplayedAnalysisDetails(originalDetails);
+      setDisplayedReason(originalReason);
       setTranslationError(null);
+      setIsTranslating(false); 
       return;
+    }
+
+    // If both original texts are empty, and target is not 'en', clear display
+    if (!originalDetails && !originalReason) {
+        setDisplayedAnalysisDetails("");
+        setDisplayedReason("");
+        setTranslationError(null);
+        setIsTranslating(false);
+        return;
     }
 
     setIsTranslating(true);
     setTranslationError(null);
 
     try {
-      const detailsToTranslate = prediction.analysisDetails || "";
-      const reasonToTranslate = prediction.reason || "";
-
       const [translatedDetailsResult, translatedReasonResult] = await Promise.all([
-        translateText({ textToTranslate: detailsToTranslate, targetLanguageCode: selectedLanguage }),
-        translateText({ textToTranslate: reasonToTranslate, targetLanguageCode: selectedLanguage })
+        originalDetails ? translateText({ textToTranslate: originalDetails, targetLanguageCode: selectedLanguage }) : Promise.resolve({ translatedText: "" }),
+        originalReason ? translateText({ textToTranslate: originalReason, targetLanguageCode: selectedLanguage }) : Promise.resolve({ translatedText: "" })
       ]);
 
-      if (translatedDetailsResult?.translatedText) {
-        setDisplayedAnalysisDetails(translatedDetailsResult.translatedText);
-      } else {
-        // Fallback or specific error if details translation fails to produce text
-         setDisplayedAnalysisDetails(detailsToTranslate); // Revert to original or previous
-         throw new Error('Failed to translate analysis details meaningfully.');
-      }
-       if (translatedReasonResult?.translatedText) {
-        setDisplayedReason(translatedReasonResult.translatedText);
-      } else {
-        // Fallback or specific error if reason translation fails to produce text
-        setDisplayedReason(reasonToTranslate); // Revert to original or previous
-        throw new Error('Failed to translate reason meaningfully.');
-      }
+      setDisplayedAnalysisDetails(translatedDetailsResult.translatedText);
+      setDisplayedReason(translatedReasonResult.translatedText);
 
     } catch (err: any) {
       console.error('Translation error:', err);
       const errorMessage = err.message || 'An error occurred during translation.';
       setTranslationError(errorMessage);
-      setDisplayedAnalysisDetails(prediction.analysisDetails); // Revert to original on error
-      setDisplayedReason(prediction.reason); // Revert to original on error
+      // Revert to original on error
+      setDisplayedAnalysisDetails(originalDetails);
+      setDisplayedReason(originalReason);
       toast({
         variant: 'destructive',
         title: 'Translation Failed',
@@ -234,6 +233,10 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
      trendTextClass = 'text-yellow-500';
   }
   
+  const isOriginalTextDisplayed = selectedLanguage === 'en' || 
+                                 (displayedAnalysisDetails === prediction.analysisDetails && 
+                                  displayedReason === prediction.reason);
+
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
@@ -256,7 +259,7 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
             </Select>
             <Button 
               onClick={handleTranslate} 
-              disabled={isTranslating || (selectedLanguage === 'en' && displayedAnalysisDetails === prediction.analysisDetails && displayedReason === prediction.reason)}
+              disabled={isTranslating || isOriginalTextDisplayed}
             >
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Translate
