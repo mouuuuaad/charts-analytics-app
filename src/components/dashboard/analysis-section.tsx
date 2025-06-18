@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,11 +6,11 @@ import { ImageUploader } from './image-uploader';
 import { TrendDisplay } from './trend-display';
 import { extractChartData, ExtractChartDataOutput } from '@/ai/flows/extract-chart-data';
 import { predictMarketTrend, PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
-import { useAuth } from '@/contexts/auth-context';
-import { addAnalysis } from '@/services/firestore';
+// import { useAuth } from '@/contexts/auth-context'; // user will be null
+// import { addAnalysis } from '@/services/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
-import { Separator } from '@/components/ui/separator';
+// import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 
 export function AnalysisSection() {
@@ -18,18 +19,18 @@ export function AnalysisSection() {
   const [currentError, setCurrentError] = useState<string | null>(null);
   const [currentChartImage, setCurrentChartImage] = useState<string | null>(null);
 
-  const { user } = useAuth();
+  // const { user } = useAuth(); // user will be null from the modified AuthContext
   const { toast } = useToast();
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
-    if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be logged in to analyze charts.',
-      });
-      return;
-    }
+    // if (!user) { // This check is removed as user is always null and auth is disabled
+    //   toast({
+    //     variant: 'destructive',
+    //     title: 'Authentication Error',
+    //     description: 'You must be logged in to analyze charts.',
+    //   });
+    //   return;
+    // }
 
     setIsLoading(true);
     setPrediction(null);
@@ -55,27 +56,34 @@ export function AnalysisSection() {
       
       setPrediction(trendPredictionResult);
 
-      // Step 3: Save analysis to Firestore
-      const analysisId = await addAnalysis(
-        user.uid,
-        dataUrl, // Storing base64 for now. In production, upload to storage and store URL.
-        extractedDataResult.extractedData,
-        trendPredictionResult,
-        file.name
-      );
+      // Step 3: Save analysis to Firestore - Temporarily disabled
+      // if (user) { // Check if user object exists, though it will be null here
+      //   const analysisId = await addAnalysis(
+      //     user.uid, 
+      //     dataUrl, 
+      //     extractedDataResult.extractedData,
+      //     trendPredictionResult,
+      //     file.name
+      //   );
 
-      if (analysisId) {
+      //   if (analysisId) {
+      //     toast({
+      //       title: 'Analysis Complete',
+      //       description: 'Market trend prediction is ready. History saving is disabled.',
+      //     });
+      //   } else {
+      //     toast({
+      //       variant: 'destructive',
+      //       title: 'Save Error',
+      //       description: 'Failed to save analysis to history (history saving is disabled).',
+      //     });
+      //   }
+      // } else {
         toast({
           title: 'Analysis Complete',
-          description: 'Market trend prediction is ready and saved to your history.',
+          description: 'Market trend prediction is ready. Saving to history is temporarily disabled.',
         });
-      } else {
-        toast({
-          variant: 'destructive',
-          title: 'Save Error',
-          description: 'Failed to save analysis to history.',
-        });
-      }
+      // }
     } catch (error: any) {
       console.error('Analysis pipeline error:', error);
       const errorMessage = error.message || 'An unexpected error occurred during analysis.';

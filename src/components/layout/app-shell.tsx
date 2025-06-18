@@ -43,7 +43,7 @@ const UserMenu = () => {
   const { user, logOut } = useAuth();
   const router = useRouter();
 
-  if (!user) return null;
+  if (!user) return null; // This will always be true now, so UserMenu won't render
 
   const getInitials = (email: string | null | undefined) => {
     if (!email) return 'U';
@@ -92,94 +92,85 @@ const UserMenu = () => {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
-  const router = useRouter();
+  const { user, loading } = useAuth(); // user will be null, loading will be false
+  // const router = useRouter(); // router might not be needed if redirection logic is removed
 
-  React.useEffect(() => {
-    if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
-      router.push('/login');
-    }
-  }, [user, loading, pathname, router]);
+  // React.useEffect(() => {
+  //   // This redirection logic is removed as auth is disabled
+  //   // if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
+  //   //   router.push('/login');
+  //   // }
+  // }, [user, loading, pathname, router]);
 
-  // If loading, show a loader or nothing to prevent flash of unstyled content/layout
-  if (loading) {
+
+  // Since auth is disabled, we always show the shell or the auth pages themselves.
+  // Loading state from useAuth is now always false.
+  if (loading) { // This condition will likely never be true
     return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  // For login/signup pages, if user is not authenticated, render the auth page itself
+  // If on login/signup, and user is (theoretically) not authenticated (always true now), show the page.
   if (!user && (pathname === '/login' || pathname === '/signup')) {
     return <>{children}</>;
   }
   
-  // If not loading, no user, and not on an auth page, show loader while useEffect redirects.
-  if (!user && pathname !== '/login' && pathname !== '/signup') {
-     return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
-
-  // If user is available, render the AppShell.
-  // This covers authenticated users on any page.
-  // Login/Signup pages themselves will redirect if an authenticated user tries to access them.
-  if (user) {
-    return (
-      <SidebarProvider defaultOpen>
-        <Sidebar
-          variant="sidebar" // "sidebar", "floating", "inset"
-          collapsible="icon" // "offcanvas", "icon", "none"
-          className="border-r dark:border-neutral-700"
-        >
-          <SidebarHeader>
-            <Logo />
-          </SidebarHeader>
-          <SidebarContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === '/'}
-                  tooltip="Dashboard"
-                >
-                  <Link href="/">
-                    <Home />
-                    <span>Dashboard</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === '/history'}
-                  tooltip="Analysis History"
-                >
-                  <Link href="/history">
-                    <History />
-                    <span>Analysis History</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarContent>
-          <SidebarFooter className="items-center">
-             {/* Can add footer items here if needed */}
-          </SidebarFooter>
-        </Sidebar>
-        <SidebarInset className="bg-background">
-          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
-              <SidebarTrigger className="md:hidden" />
-              <div className="ml-auto">
-                  <UserMenu />
-              </div>
-          </header>
-          <main className="flex-1 p-4 md:p-6">
-            {children}
-          </main>
-        </SidebarInset>
-      </SidebarProvider>
-    );
-  }
-
-  // Fallback: Should ideally not be reached if the logic above is exhaustive.
-  // Provides a loading state for any unhandled edge cases.
-  return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  // For all other pages, show the AppShell with content.
+  // User will be null, so UserMenu won't show.
+  return (
+    <SidebarProvider defaultOpen>
+      <Sidebar
+        variant="sidebar" 
+        collapsible="icon" 
+        className="border-r dark:border-neutral-700"
+      >
+        <SidebarHeader>
+          <Logo />
+        </SidebarHeader>
+        <SidebarContent>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === '/'}
+                tooltip="Dashboard"
+              >
+                <Link href="/">
+                  <Home />
+                  <span>Dashboard</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === '/history'}
+                tooltip="Analysis History"
+              >
+                <Link href="/history">
+                  <History />
+                  <span>Analysis History</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarContent>
+        <SidebarFooter className="items-center">
+           {/* Can add footer items here if needed */}
+        </SidebarFooter>
+      </Sidebar>
+      <SidebarInset className="bg-background">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
+            <SidebarTrigger className="md:hidden" />
+            <div className="ml-auto">
+                <UserMenu />
+            </div>
+        </header>
+        <main className="flex-1 p-4 md:p-6">
+          {children}
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }
 
 // Add a simple Loader2 component if not available globally
