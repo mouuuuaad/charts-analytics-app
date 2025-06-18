@@ -38,12 +38,29 @@ export function AnalysisSection() {
     setCurrentChartImage(dataUrl);
 
     try {
-      // Step 1: Extract chart data
+      // Step 1: Extract chart data and check if it's a trading chart
       const chartDataInput = { chartImage: dataUrl };
       const extractedDataResult: ExtractChartDataOutput = await extractChartData(chartDataInput);
       
-      if (!extractedDataResult || !extractedDataResult.extractedData) {
-        throw new Error('Failed to extract data from the chart image.');
+      if (!extractedDataResult) {
+        throw new Error('Failed to get a response from the data extraction service.');
+      }
+
+      if (!extractedDataResult.isTradingChart) {
+        const warning = extractedDataResult.warningMessage || 'The uploaded image does not appear to be a financial trading chart. This application only analyzes charts related to trading (stocks, forex, crypto, etc.).';
+        setCurrentError(warning);
+        setPrediction(null); 
+        toast({
+          variant: 'destructive',
+          title: 'Invalid Image Type',
+          description: warning,
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!extractedDataResult.extractedData) {
+        throw new Error('The image appears to be a trading chart, but data extraction failed.');
       }
 
       // Step 2: Predict market trend
@@ -88,6 +105,7 @@ export function AnalysisSection() {
       console.error('Analysis pipeline error:', error);
       const errorMessage = error.message || 'An unexpected error occurred during analysis.';
       setCurrentError(errorMessage);
+      setPrediction(null);
       toast({
         variant: 'destructive',
         title: 'Analysis Failed',
@@ -109,7 +127,7 @@ export function AnalysisSection() {
                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
                  <p className="text-lg font-medium text-muted-foreground">Analyzing chart, please wait...</p>
                  {currentChartImage && (
-                    <img src={currentChartImage} alt="Processing chart" className="mt-4 max-h-40 rounded-md opacity-50" />
+                    <img src={currentChartImage} alt="Processing chart" className="mt-4 max-h-40 rounded-md opacity-50" data-ai-hint="chart diagram"/>
                  )}
                </CardContent>
              </Card>
@@ -120,3 +138,4 @@ export function AnalysisSection() {
     </div>
   );
 }
+
