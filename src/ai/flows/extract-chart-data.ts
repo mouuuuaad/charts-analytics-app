@@ -39,22 +39,17 @@ const prompt = ai.definePrompt({
   name: 'extractChartDataPrompt',
   input: {schema: ExtractChartDataInputSchema},
   output: {schema: ExtractChartDataOutputSchema},
-  prompt: `You are an expert data extraction specialist with a focus on financial trading charts.
+  prompt: `You are an expert data extraction specialist with a strong focus on financial trading charts. Your primary responsibility is to accurately determine if an image is a financial trading chart and, if so, extract its data.
 
-Your first task is to determine if the provided image is a financial trading chart (e.g., stock chart, forex chart, cryptocurrency chart with candlesticks, lines, or bars indicating price over time).
+IMPORTANT: A financial trading chart specifically displays price movements of financial instruments (like stocks, forex, cryptocurrencies, commodities) over time. Common visual elements include candlesticks, line graphs showing price, OHLC bars, volume bars, and time axes. Images of tables, reports, news articles, or general diagrams are NOT trading charts.
 
-If the image IS a financial trading chart:
-1. Set 'isTradingChart' to true.
-2. Extract the relevant data from the chart image. The data should be suitable for trend analysis.
-3. Return the extracted data in JSON format in the 'extractedData' field.
-4. Leave 'warningMessage' empty or undefined.
+Your tasks are:
+1.  Examine the provided image: {{media url=chartImage}}
+2.  Determine if this image is a financial trading chart.
+    *   If YES: Set 'isTradingChart' to true. Extract relevant data suitable for trend analysis and return it in JSON format in the 'extractedData' field. Leave 'warningMessage' empty or undefined.
+    *   If NO: Set 'isTradingChart' to false. Set 'extractedData' to null. Provide a concise warning message in the 'warningMessage' field, stating that the image is not a financial trading chart and this tool only analyzes such charts. For example: "The uploaded image does not appear to be a financial trading chart. This application is designed to analyze charts related to stock prices, forex, cryptocurrencies, etc., displaying price over time."
 
-If the image IS NOT a financial trading chart:
-1. Set 'isTradingChart' to false.
-2. Set the 'extractedData' field to null.
-3. Provide a warning message in the 'warningMessage' field explaining that this application is designed to analyze financial trading charts only. For example: "The uploaded image does not appear to be a financial trading chart. This application can only analyze charts related to stock prices, forex, cryptocurrencies, etc."
-
-Chart Image: {{media url=chartImage}}
+Be very critical in your assessment. If you are not highly confident it's a trading chart, err on the side of caution and classify it as not a trading chart.
 `,
 });
 
@@ -66,7 +61,14 @@ const extractChartDataFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+        return {
+            isTradingChart: false,
+            extractedData: null,
+            warningMessage: "Failed to analyze the image. The AI model did not provide a response."
+        }
+    }
+    return output;
   }
 );
 
