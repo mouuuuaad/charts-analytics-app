@@ -18,19 +18,10 @@ export function AnalysisSection() {
   const [currentError, setCurrentError] = useState<string | null>(null);
   const [currentChartImage, setCurrentChartImage] = useState<string | null>(null);
 
-  const { user } = useAuth(); // user will be null
+  const { user } = useAuth(); // user will be null if auth is disabled
   const { toast } = useToast();
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
-    // if (!user) { // User check not needed if auth is disabled for analysis itself
-    //   toast({
-    //     variant: 'destructive',
-    //     title: 'Authentication Error',
-    //     description: 'You must be logged in to analyze charts.',
-    //   });
-    //   return;
-    // }
-
     setIsLoading(true);
     setPrediction(null);
     setCurrentError(null);
@@ -58,14 +49,27 @@ export function AnalysisSection() {
       }
       
       if (!extractedDataResult.extractedData) {
-        throw new Error('The image appears to be a trading chart, but data extraction failed.');
+        // This case might indicate an issue even if it's a trading chart but data couldn't be extracted.
+        // The AI prompt for extraction already handles this by setting extractedData to null if it's not a trading chart.
+        // So this specific error might be redundant if the AI follows instructions perfectly.
+        // However, keeping it as a fallback.
+        const extractionFailureMsg = "The image appears to be a trading chart, but data extraction failed. Please try a clearer image or a different chart.";
+        setCurrentError(extractionFailureMsg);
+        setPrediction(null);
+        toast({
+          variant: 'destructive',
+          title: 'Data Extraction Failed',
+          description: extractionFailureMsg,
+        });
+        setIsLoading(false);
+        return;
       }
 
       const trendInput = { extractedData: extractedDataResult.extractedData };
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
       
       if (!trendPredictionResult) {
-        throw new Error('Failed to predict market trend.');
+        throw new Error('Failed to predict market trend. The AI model may not have been able to process the extracted data.');
       }
       
       setPrediction(trendPredictionResult);
@@ -93,14 +97,20 @@ export function AnalysisSection() {
       //     });
       //   }
       // } else {
-         toast({
+         toast({ // Toast is only for errors, this is a success message
           title: 'Analysis Complete',
           description: 'Market trend prediction is ready. (Saving to history is disabled as authentication is off).',
         });
       // }
     } catch (error: any) {
       console.error('Analysis pipeline error:', error);
-      const errorMessage = error.message || 'An unexpected error occurred during analysis.';
+      let errorMessage = 'An unexpected error occurred during analysis.';
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       setCurrentError(errorMessage);
       setPrediction(null);
       toast({
@@ -120,11 +130,12 @@ export function AnalysisSection() {
         <div className="sticky top-20"> 
           {isLoading && !currentError && (
              <Card className="w-full shadow-lg">
-               <CardContent className="flex flex-col items-center justify-center min-h-[300px] space-y-4">
+               <CardContent className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
                  <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                 <p className="text-lg font-medium text-muted-foreground">Analyzing chart, please wait...</p>
+                 <p className="text-lg font-medium text-muted-foreground">Performing enhanced analysis...</p>
+                 <p className="text-sm text-muted-foreground">This may take a few moments.</p>
                  {currentChartImage && (
-                    <img src={currentChartImage} alt="Processing chart" className="mt-4 max-h-40 rounded-md opacity-50" data-ai-hint="chart diagram"/>
+                    <img src={currentChartImage} alt="Processing chart" className="mt-4 max-h-48 rounded-md opacity-50" data-ai-hint="chart diagram"/>
                  )}
                </CardContent>
              </Card>
@@ -135,3 +146,4 @@ export function AnalysisSection() {
     </div>
   );
 }
+
