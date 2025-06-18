@@ -94,9 +94,11 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
   }, [prediction]);
 
   const handleTranslate = async () => {
-    if (!prediction || selectedLanguage === 'en') {
-      setDisplayedAnalysisDetails(prediction?.analysisDetails ?? null);
-      setDisplayedReason(prediction?.reason ?? null);
+    if (!prediction) return;
+
+    if (selectedLanguage === 'en') {
+      setDisplayedAnalysisDetails(prediction.analysisDetails);
+      setDisplayedReason(prediction.reason);
       setTranslationError(null);
       return;
     }
@@ -105,20 +107,27 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
     setTranslationError(null);
 
     try {
+      const detailsToTranslate = prediction.analysisDetails || "";
+      const reasonToTranslate = prediction.reason || "";
+
       const [translatedDetailsResult, translatedReasonResult] = await Promise.all([
-        translateText({ textToTranslate: prediction.analysisDetails, targetLanguageCode: selectedLanguage }),
-        translateText({ textToTranslate: prediction.reason, targetLanguageCode: selectedLanguage })
+        translateText({ textToTranslate: detailsToTranslate, targetLanguageCode: selectedLanguage }),
+        translateText({ textToTranslate: reasonToTranslate, targetLanguageCode: selectedLanguage })
       ]);
 
       if (translatedDetailsResult?.translatedText) {
         setDisplayedAnalysisDetails(translatedDetailsResult.translatedText);
       } else {
-        throw new Error('Failed to translate analysis details.');
+        // Fallback or specific error if details translation fails to produce text
+         setDisplayedAnalysisDetails(detailsToTranslate); // Revert to original or previous
+         throw new Error('Failed to translate analysis details meaningfully.');
       }
        if (translatedReasonResult?.translatedText) {
         setDisplayedReason(translatedReasonResult.translatedText);
       } else {
-        throw new Error('Failed to translate reason.');
+        // Fallback or specific error if reason translation fails to produce text
+        setDisplayedReason(reasonToTranslate); // Revert to original or previous
+        throw new Error('Failed to translate reason meaningfully.');
       }
 
     } catch (err: any) {
@@ -245,7 +254,10 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
                 ))}
               </SelectContent>
             </Select>
-            <Button onClick={handleTranslate} disabled={isTranslating || selectedLanguage === 'en' && displayedAnalysisDetails === prediction.analysisDetails}>
+            <Button 
+              onClick={handleTranslate} 
+              disabled={isTranslating || (selectedLanguage === 'en' && displayedAnalysisDetails === prediction.analysisDetails && displayedReason === prediction.reason)}
+            >
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Translate
             </Button>
@@ -315,3 +327,4 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
     </Card>
   );
 }
+
