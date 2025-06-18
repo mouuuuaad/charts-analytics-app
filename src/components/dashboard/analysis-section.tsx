@@ -7,7 +7,7 @@ import { TrendDisplay } from './trend-display';
 import { extractChartData, ExtractChartDataOutput } from '@/ai/flows/extract-chart-data';
 import { predictMarketTrend, PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
 import { useAuth } from '@/contexts/auth-context'; 
-import { addAnalysis } from '@/services/firestore';
+// import { addAnalysis } from '@/services/firestore'; // Firestore not used when auth disabled
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
@@ -18,18 +18,18 @@ export function AnalysisSection() {
   const [currentError, setCurrentError] = useState<string | null>(null);
   const [currentChartImage, setCurrentChartImage] = useState<string | null>(null);
 
-  const { user } = useAuth(); 
+  const { user } = useAuth(); // user will be null
   const { toast } = useToast();
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
-    if (!user) { 
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be logged in to analyze charts.',
-      });
-      return;
-    }
+    // if (!user) { // User check not needed if auth is disabled for analysis itself
+    //   toast({
+    //     variant: 'destructive',
+    //     title: 'Authentication Error',
+    //     description: 'You must be logged in to analyze charts.',
+    //   });
+    //   return;
+    // }
 
     setIsLoading(true);
     setPrediction(null);
@@ -70,33 +70,34 @@ export function AnalysisSection() {
       
       setPrediction(trendPredictionResult);
 
-      if (user) { 
-        const analysisId = await addAnalysis(
-          user.uid, 
-          dataUrl, 
-          extractedDataResult.extractedData,
-          trendPredictionResult,
-          file.name
-        );
+      // Saving to Firestore is disabled if auth is off
+      // if (user) { 
+      //   const analysisId = await addAnalysis(
+      //     user.uid, 
+      //     dataUrl, 
+      //     extractedDataResult.extractedData,
+      //     trendPredictionResult,
+      //     file.name
+      //   );
 
-        if (analysisId) {
-          toast({
-            title: 'Analysis Complete',
-            description: 'Market trend prediction is ready and saved to your history.',
-          });
-        } else {
-          toast({
-            variant: 'destructive',
-            title: 'Save Error',
-            description: 'Failed to save analysis to history.',
-          });
-        }
-      } else {
+      //   if (analysisId) {
+      //     toast({
+      //       title: 'Analysis Complete',
+      //       description: 'Market trend prediction is ready and saved to your history.',
+      //     });
+      //   } else {
+      //     toast({
+      //       variant: 'destructive',
+      //       title: 'Save Error',
+      //       description: 'Failed to save analysis to history.',
+      //     });
+      //   }
+      // } else {
          toast({
-          title: 'Analysis Complete (Not Saved)',
-          description: 'Market trend prediction is ready, but could not be saved as user is not identified.',
+          title: 'Analysis Complete',
+          description: 'Market trend prediction is ready. (Saving to history is disabled as authentication is off).',
         });
-      }
+      // }
     } catch (error: any) {
       console.error('Analysis pipeline error:', error);
       const errorMessage = error.message || 'An unexpected error occurred during analysis.';

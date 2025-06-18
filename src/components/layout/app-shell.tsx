@@ -13,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
+  // SheetTitle, // Removed: No longer needed here
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -40,56 +41,61 @@ const Logo = () => (
 
 
 const UserMenu = () => {
-  const { user, logOut } = useAuth();
+  const { user, logOut } = useAuth(); // user will be null when auth is disabled
   const router = useRouter();
 
-  if (!user) return null; 
+  // If auth is disabled, we might not want to show the user menu at all
+  // or show a generic "Guest" or nothing. For now, let's return null.
+  return null; 
 
-  const getInitials = (email: string | null | undefined) => {
-    if (!email) return 'U';
-    return email.substring(0, 2).toUpperCase();
-  };
+  // Original UserMenu logic (kept for reference if re-enabled)
+  // if (!user) return null; 
 
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-9 w-9">
-            <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
-            <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
-          </Avatar>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user.displayName || user.email}
-            </p>
-            <p className="text-xs leading-none text-muted-foreground">
-              {user.email}
-            </p>
-          </div>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/')}> 
-          <UserCircle className="mr-2 h-4 w-4" />
-          Profile (Soon)
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => router.push('/')}>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings (Soon)
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={async () => {
-          await logOut();
-        }}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Log out
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+  // const getInitials = (email: string | null | undefined) => {
+  //   if (!email) return 'U';
+  //   return email.substring(0, 2).toUpperCase();
+  // };
+
+  // return (
+  //   <DropdownMenu>
+  //     <DropdownMenuTrigger asChild>
+  //       <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+  //         <Avatar className="h-9 w-9">
+  //           <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
+  //           <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
+  //         </Avatar>
+  //       </Button>
+  //     </DropdownMenuTrigger>
+  //     <DropdownMenuContent className="w-56" align="end" forceMount>
+  //       <DropdownMenuLabel className="font-normal">
+  //         <div className="flex flex-col space-y-1">
+  //           <p className="text-sm font-medium leading-none">
+  //             {user.displayName || user.email}
+  //           </p>
+  //           <p className="text-xs leading-none text-muted-foreground">
+  //             {user.email}
+  //           </p>
+  //         </div>
+  //       </DropdownMenuLabel>
+  //       <DropdownMenuSeparator />
+  //       <DropdownMenuItem onClick={() => router.push('/')}> 
+  //         <UserCircle className="mr-2 h-4 w-4" />
+  //         Profile (Soon)
+  //       </DropdownMenuItem>
+  //       <DropdownMenuItem onClick={() => router.push('/')}>
+  //         <Settings className="mr-2 h-4 w-4" />
+  //         Settings (Soon)
+  //       </DropdownMenuItem>
+  //       <DropdownMenuSeparator />
+  //       <DropdownMenuItem onClick={async () => {
+  //         await logOut();
+  //       }}>
+  //         <LogOut className="mr-2 h-4 w-4" />
+  //         Log out
+  //       </DropdownMenuItem>
+  //     </DropdownMenuContent>
+  //   </DropdownMenu>
+  // );
 };
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -97,24 +103,30 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth(); 
   const router = useRouter(); 
 
-  React.useEffect(() => {
-    if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
-      router.push('/login');
-    }
-  }, [user, loading, pathname, router]);
+  // useEffect for redirection is removed as auth is disabled.
+  // React.useEffect(() => {
+  //   if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
+  //     router.push('/login');
+  //   }
+  // }, [user, loading, pathname, router]);
 
-
-  if (loading) { 
-    return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
+  // Since auth is disabled, loading is always false and user is always null.
+  // The app should be accessible without login.
+  // if (loading) { 
+  //   return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  // }
   
-  if (!user && (pathname === '/login' || pathname === '/signup')) {
-    return <>{children}</>;
-  }
+  // if (!user && (pathname === '/login' || pathname === '/signup')) {
+  //   // If auth is disabled, login/signup pages might redirect to home or show a message.
+  //   // For now, allow rendering them, but they might be modified to redirect.
+  //   return <>{children}</>;
+  // }
   
-  if (!user && pathname !== '/login' && pathname !== '/signup') {
-    return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  }
+  // if (!user && pathname !== '/login' && pathname !== '/signup') {
+  //   // This condition is effectively always true if not on login/signup, as user is null.
+  //   // But we don't want to show a loader indefinitely.
+  //   // We can directly render the shell.
+  // }
   
   return (
     <SidebarProvider defaultOpen>
@@ -123,6 +135,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         collapsible="icon" 
         className="border-r dark:border-neutral-700"
       >
+        {/* <SheetTitle className="sr-only">Main Navigation</SheetTitle> Removed for Radix UI Sheet accessibility */}
         <SidebarHeader>
           <Logo />
         </SidebarHeader>
@@ -171,3 +184,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
+
