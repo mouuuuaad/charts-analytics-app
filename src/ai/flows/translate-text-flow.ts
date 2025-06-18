@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to translate text to a specified target language.
@@ -29,12 +30,24 @@ const prompt = ai.definePrompt({
   name: 'translateTextPrompt',
   input: {schema: TranslateTextInputSchema},
   output: {schema: TranslateTextOutputSchema},
-  prompt: `Translate the following text into {{targetLanguageCode}}:
+  prompt: `You are a translation service. Your task is to translate the given text into the specified target language.
 
-Text:
+Input Text:
 {{{textToTranslate}}}
 
-Provide only the translated text.`,
+Target Language: {{targetLanguageCode}}
+
+You MUST respond with a JSON object adhering to the following schema:
+{
+  "translatedText": "string // The translated version of the input text."
+}
+
+Example: If translating "Hello" to Spanish, the output should be:
+{
+  "translatedText": "Hola"
+}
+
+Provide only the JSON object as your response.`,
 });
 
 const translateTextFlow = ai.defineFlow(
@@ -44,9 +57,6 @@ const translateTextFlow = ai.defineFlow(
     outputSchema: TranslateTextOutputSchema,
   },
   async (input) => {
-    // For very short language codes (e.g. "ar", "en"), the model might sometimes just repeat the code.
-    // Providing a more descriptive target language name can help.
-    // This is a simple mapping, a more robust solution might involve a larger library or service.
     const languageMap: Record<string, string> = {
         'en': 'English',
         'es': 'Spanish',
@@ -55,18 +65,19 @@ const translateTextFlow = ai.defineFlow(
         'de': 'German',
         'ja': 'Japanese',
         'zh-CN': 'Simplified Chinese',
-        // Add other languages as needed
     };
     const targetLanguageName = languageMap[input.targetLanguageCode] || input.targetLanguageCode;
 
     const {output} = await prompt({
         textToTranslate: input.textToTranslate,
-        targetLanguageCode: targetLanguageName, // Use the more descriptive name
+        targetLanguageCode: targetLanguageName, 
     });
     
     if (!output || !output.translatedText) {
-      throw new Error('Translation failed. The AI model did not provide a translated text.');
+      // This condition also catches an empty string for translatedText
+      throw new Error('Translation failed. The AI model did not provide a translated text or the text was empty.');
     }
     return output;
   }
 );
+
