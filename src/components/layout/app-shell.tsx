@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -94,80 +95,91 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
 
+  React.useEffect(() => {
+    if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
+
   // If loading, show a loader or nothing to prevent flash of unstyled content/layout
   if (loading) {
     return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  // For login/signup pages, don't render the AppShell
+  // For login/signup pages, if user is not authenticated, render the auth page itself
   if (!user && (pathname === '/login' || pathname === '/signup')) {
     return <>{children}</>;
   }
   
-  // If not loading and no user, and not on auth pages, redirect.
-  // This acts as a secondary guard though useRequireAuth should handle it.
+  // If not loading, no user, and not on an auth page, show loader while useEffect redirects.
   if (!user && pathname !== '/login' && pathname !== '/signup') {
-     useEffect(() => { router.push('/login'); }, [router]); // eslint-disable-line react-hooks/rules-of-hooks
      return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
 
+  // If user is available, render the AppShell.
+  // This covers authenticated users on any page.
+  // Login/Signup pages themselves will redirect if an authenticated user tries to access them.
+  if (user) {
+    return (
+      <SidebarProvider defaultOpen>
+        <Sidebar
+          variant="sidebar" // "sidebar", "floating", "inset"
+          collapsible="icon" // "offcanvas", "icon", "none"
+          className="border-r dark:border-neutral-700"
+        >
+          <SidebarHeader>
+            <Logo />
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === '/'}
+                  tooltip="Dashboard"
+                >
+                  <Link href="/">
+                    <Home />
+                    <span>Dashboard</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === '/history'}
+                  tooltip="Analysis History"
+                >
+                  <Link href="/history">
+                    <History />
+                    <span>Analysis History</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarContent>
+          <SidebarFooter className="items-center">
+             {/* Can add footer items here if needed */}
+          </SidebarFooter>
+        </Sidebar>
+        <SidebarInset className="bg-background">
+          <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
+              <SidebarTrigger className="md:hidden" />
+              <div className="ml-auto">
+                  <UserMenu />
+              </div>
+          </header>
+          <main className="flex-1 p-4 md:p-6">
+            {children}
+          </main>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
 
-  // If user is available, render the shell
-  return (
-    <SidebarProvider defaultOpen>
-      <Sidebar
-        variant="sidebar" // "sidebar", "floating", "inset"
-        collapsible="icon" // "offcanvas", "icon", "none"
-        className="border-r dark:border-neutral-700"
-      >
-        <SidebarHeader>
-          <Logo />
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/'}
-                tooltip="Dashboard"
-              >
-                <Link href="/">
-                  <Home />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/history'}
-                tooltip="Analysis History"
-              >
-                <Link href="/history">
-                  <History />
-                  <span>Analysis History</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-        </SidebarContent>
-        <SidebarFooter className="items-center">
-           {/* Can add footer items here if needed */}
-        </SidebarFooter>
-      </Sidebar>
-      <SidebarInset className="bg-background">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
-            <SidebarTrigger className="md:hidden" />
-            <div className="ml-auto">
-                <UserMenu />
-            </div>
-        </header>
-        <main className="flex-1 p-4 md:p-6">
-          {children}
-        </main>
-      </SidebarInset>
-    </SidebarProvider>
-  );
+  // Fallback: Should ideally not be reached if the logic above is exhaustive.
+  // Provides a loading state for any unhandled edge cases.
+  return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
 }
 
 // Add a simple Loader2 component if not available globally
@@ -187,6 +199,3 @@ const Loader2 = (props: React.SVGProps<SVGSVGElement>) => (
     <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
-
-// Minimal useEffect to satisfy linter when used conditionally
-const useEffect = React.useEffect;
