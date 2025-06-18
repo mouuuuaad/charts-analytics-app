@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, Settings, UserCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -43,7 +43,7 @@ const UserMenu = () => {
   const { user, logOut } = useAuth();
   const router = useRouter();
 
-  if (!user) return null; // This will always be true now, so UserMenu won't render
+  if (!user) return null; 
 
   const getInitials = (email: string | null | undefined) => {
     if (!email) return 'U';
@@ -81,7 +81,9 @@ const UserMenu = () => {
           Settings (Soon)
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={logOut}>
+        <DropdownMenuItem onClick={async () => {
+          await logOut();
+        }}>
           <LogOut className="mr-2 h-4 w-4" />
           Log out
         </DropdownMenuItem>
@@ -92,30 +94,28 @@ const UserMenu = () => {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, loading } = useAuth(); // user will be null, loading will be false
-  // const router = useRouter(); // router might not be needed if redirection logic is removed
+  const { user, loading } = useAuth(); 
+  const router = useRouter(); 
 
-  // React.useEffect(() => {
-  //   // This redirection logic is removed as auth is disabled
-  //   // if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
-  //   //   router.push('/login');
-  //   // }
-  // }, [user, loading, pathname, router]);
+  React.useEffect(() => {
+    if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
+      router.push('/login');
+    }
+  }, [user, loading, pathname, router]);
 
 
-  // Since auth is disabled, we always show the shell or the auth pages themselves.
-  // Loading state from useAuth is now always false.
-  if (loading) { // This condition will likely never be true
+  if (loading) { 
     return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
   
-  // If on login/signup, and user is (theoretically) not authenticated (always true now), show the page.
   if (!user && (pathname === '/login' || pathname === '/signup')) {
     return <>{children}</>;
   }
   
-  // For all other pages, show the AppShell with content.
-  // User will be null, so UserMenu won't show.
+  if (!user && pathname !== '/login' && pathname !== '/signup') {
+    return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+  
   return (
     <SidebarProvider defaultOpen>
       <Sidebar
@@ -155,7 +155,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="items-center">
-           {/* Can add footer items here if needed */}
         </SidebarFooter>
       </Sidebar>
       <SidebarInset className="bg-background">
@@ -172,21 +171,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
-// Add a simple Loader2 component if not available globally
-const Loader2 = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="24"
-    height="24"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    {...props}
-  >
-    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-  </svg>
-);

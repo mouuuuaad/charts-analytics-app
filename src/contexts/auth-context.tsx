@@ -3,17 +3,16 @@
 
 import type { User as FirebaseUser, IdTokenResult } from 'firebase/auth';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-// import { auth } from '@/config/firebase';
-// import {
-//   onAuthStateChanged,
-//   createUserWithEmailAndPassword,
-//   signInWithEmailAndPassword,
-//   signOut,
-//   UserCredential,
-// } from 'firebase/auth';
-import type { UserCredential } from 'firebase/auth';
+import { auth } from '@/config/firebase';
+import {
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  UserCredential,
+} from 'firebase/auth';
 import type { AuthFormData } from '@/types';
-// import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 
 interface AuthContextType {
@@ -28,43 +27,51 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const user = null; // User is always null
-  const loading = false; // Loading is always false
-  // const router = useRouter(); // Not needed if logout doesn't redirect globally
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
-  // useEffect(() => {
-  //   // const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-  //   //   setUser(currentUser);
-  //   //   setLoading(false);
-  //   // });
-  //   // return () => unsubscribe();
-  //   // Authentication is disabled, so no listener needed.
-  // }, []);
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const signUp = async (data: AuthFormData): Promise<UserCredential | string> => {
-    console.log('Sign up disabled temporarily', data);
-    // Simulate a delay if needed, then return a message
-    // await new Promise(resolve => setTimeout(resolve, 500));
-    return "Authentication is temporarily disabled.";
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      return userCredential;
+    } catch (error: any) {
+      return error.message || "Failed to sign up.";
+    }
   };
 
   const logIn = async (data: AuthFormData): Promise<UserCredential | string> => {
-    console.log('Log in disabled temporarily', data);
-    // Simulate a delay if needed, then return a message
-    // await new Promise(resolve => setTimeout(resolve, 500));
-    return "Authentication is temporarily disabled.";
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      return userCredential;
+    } catch (error: any) {
+      return error.message || "Failed to log in.";
+    }
   };
 
   const logOut = async () => {
-    console.log('Log out disabled temporarily');
-    // setUser(null); // User is already always null
-    // No global redirect from here, pages should handle their state
-    return Promise.resolve();
+    try {
+      await signOut(auth);
+      setUser(null); 
+      router.push('/login'); 
+    } catch (error: any) {
+      console.error("Logout error:", error.message);
+    }
   };
   
   const getToken = async (): Promise<IdTokenResult | null> => {
-    console.log('Get token disabled temporarily');
-    return Promise.resolve(null);
+    if (auth.currentUser) {
+      return await auth.currentUser.getIdTokenResult();
+    }
+    return null;
   };
 
 

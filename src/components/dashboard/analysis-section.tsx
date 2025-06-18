@@ -6,11 +6,10 @@ import { ImageUploader } from './image-uploader';
 import { TrendDisplay } from './trend-display';
 import { extractChartData, ExtractChartDataOutput } from '@/ai/flows/extract-chart-data';
 import { predictMarketTrend, PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
-// import { useAuth } from '@/contexts/auth-context'; // user will be null
-// import { addAnalysis } from '@/services/firestore';
+import { useAuth } from '@/contexts/auth-context'; 
+import { addAnalysis } from '@/services/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
-// import { Separator } from '@/components/ui/separator';
 import { Loader2 } from 'lucide-react';
 
 export function AnalysisSection() {
@@ -19,18 +18,18 @@ export function AnalysisSection() {
   const [currentError, setCurrentError] = useState<string | null>(null);
   const [currentChartImage, setCurrentChartImage] = useState<string | null>(null);
 
-  // const { user } = useAuth(); // user will be null from the modified AuthContext
+  const { user } = useAuth(); 
   const { toast } = useToast();
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
-    // if (!user) { // This check is removed as user is always null and auth is disabled
-    //   toast({
-    //     variant: 'destructive',
-    //     title: 'Authentication Error',
-    //     description: 'You must be logged in to analyze charts.',
-    //   });
-    //   return;
-    // }
+    if (!user) { 
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'You must be logged in to analyze charts.',
+      });
+      return;
+    }
 
     setIsLoading(true);
     setPrediction(null);
@@ -38,7 +37,6 @@ export function AnalysisSection() {
     setCurrentChartImage(dataUrl);
 
     try {
-      // Step 1: Extract chart data and check if it's a trading chart
       const chartDataInput = { chartImage: dataUrl };
       const extractedDataResult: ExtractChartDataOutput = await extractChartData(chartDataInput);
       
@@ -63,7 +61,6 @@ export function AnalysisSection() {
         throw new Error('The image appears to be a trading chart, but data extraction failed.');
       }
 
-      // Step 2: Predict market trend
       const trendInput = { extractedData: extractedDataResult.extractedData };
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
       
@@ -73,34 +70,33 @@ export function AnalysisSection() {
       
       setPrediction(trendPredictionResult);
 
-      // Step 3: Save analysis to Firestore - Temporarily disabled
-      // if (user) { // Check if user object exists, though it will be null here
-      //   const analysisId = await addAnalysis(
-      //     user.uid, 
-      //     dataUrl, 
-      //     extractedDataResult.extractedData,
-      //     trendPredictionResult,
-      //     file.name
-      //   );
+      if (user) { 
+        const analysisId = await addAnalysis(
+          user.uid, 
+          dataUrl, 
+          extractedDataResult.extractedData,
+          trendPredictionResult,
+          file.name
+        );
 
-      //   if (analysisId) {
-      //     toast({
-      //       title: 'Analysis Complete',
-      //       description: 'Market trend prediction is ready. History saving is disabled.',
-      //     });
-      //   } else {
-      //     toast({
-      //       variant: 'destructive',
-      //       title: 'Save Error',
-      //       description: 'Failed to save analysis to history (history saving is disabled).',
-      //     });
-      //   }
-      // } else {
-        toast({
-          title: 'Analysis Complete',
-          description: 'Market trend prediction is ready. Saving to history is temporarily disabled.',
+        if (analysisId) {
+          toast({
+            title: 'Analysis Complete',
+            description: 'Market trend prediction is ready and saved to your history.',
+          });
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Save Error',
+            description: 'Failed to save analysis to history.',
+          });
+        }
+      } else {
+         toast({
+          title: 'Analysis Complete (Not Saved)',
+          description: 'Market trend prediction is ready, but could not be saved as user is not identified.',
         });
-      // }
+      }
     } catch (error: any) {
       console.error('Analysis pipeline error:', error);
       const errorMessage = error.message || 'An unexpected error occurred during analysis.';
@@ -120,7 +116,7 @@ export function AnalysisSection() {
     <div className="container mx-auto py-8 px-4 md:px-0">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         <ImageUploader onImageUpload={handleImageAnalysis} isProcessing={isLoading} />
-        <div className="sticky top-20"> {/* Make TrendDisplay sticky */}
+        <div className="sticky top-20"> 
           {isLoading && !currentError && (
              <Card className="w-full shadow-lg">
                <CardContent className="flex flex-col items-center justify-center min-h-[300px] space-y-4">
@@ -138,4 +134,3 @@ export function AnalysisSection() {
     </div>
   );
 }
-
