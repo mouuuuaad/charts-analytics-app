@@ -45,8 +45,7 @@ export function AnalysisSection() {
       localStorage.setItem('userTradingLevel', level);
     }
     setShowSurveyModal(false);
-     // Optionally, show a message confirming level set, but not using error toast
-    // toast({ title: "Experience Level Set", description: `Your experience level has been set to ${level}.` });
+    // No toast for success as per guidelines
   };
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
@@ -73,14 +72,40 @@ export function AnalysisSection() {
         throw new Error('Failed to get a response from the data extraction service.');
       }
 
-      if (!extractedDataResult.isTradingChart || !extractedDataResult.extractedData) {
-        const warning = extractedDataResult.warningMessage || 'The uploaded image does not appear to be a financial trading chart or data could not be extracted.';
+      if (!extractedDataResult.isTradingChart) {
+        const warning = extractedDataResult.warningMessage || 'The uploaded image is not a financial trading chart.';
         setCurrentError(warning);
         setPrediction(null); 
         toast({
           variant: 'destructive',
-          title: 'Invalid Image or Data',
+          title: 'Invalid Image Type',
           description: warning,
+        });
+        setIsLoading(false);
+        return;
+      }
+      
+      if (!extractedDataResult.imageQualitySufficient) {
+        const qualityWarning = extractedDataResult.qualityWarningMessage || 'The image quality is insufficient for analysis.';
+        setCurrentError(qualityWarning);
+        setPrediction(null);
+        toast({
+            variant: 'destructive',
+            title: 'Poor Image Quality',
+            description: qualityWarning,
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (!extractedDataResult.extractedData) {
+        const dataWarning = 'Could not extract data from the chart, even if it is a trading chart with good quality. The AI may not have been able to process it.';
+        setCurrentError(dataWarning);
+        setPrediction(null);
+        toast({
+            variant: 'destructive',
+            title: 'Data Extraction Failed',
+            description: dataWarning,
         });
         setIsLoading(false);
         return;
@@ -145,6 +170,7 @@ export function AnalysisSection() {
                  </CardContent>
                </Card>
             )}
+            {/* Render TrendDisplay if not loading OR if there's an error (TrendDisplay handles error messages) */}
             {(!isLoading || currentError) && <TrendDisplay prediction={prediction} isLoading={false} error={currentError} />}
           </div>
         </div>
