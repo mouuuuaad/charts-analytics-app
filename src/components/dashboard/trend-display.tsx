@@ -2,20 +2,35 @@
 'use client';
 
 import type { PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
+import { translateText, TranslateTextInput, TranslateTextOutput } from '@/ai/flows/translate-text-flow';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
   ArrowUpCircle, ArrowDownCircle, MinusCircle, HelpCircle, 
   TrendingUp, TrendingDown, AlertTriangle, ShieldAlert, 
-  LogIn, Target, StopCircle, Coins, OctagonX, CheckCircle2, ShieldQuestion
+  LogIn, Target, StopCircle, Coins, OctagonX, CheckCircle2, ShieldQuestion, Languages, Loader2
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { useState, useEffect } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 interface TrendDisplayProps {
   prediction: PredictMarketTrendOutput | null;
   isLoading: boolean;
   error?: string | null;
 }
+
+const languageOptions = [
+  { value: 'en', label: 'English (Original)' },
+  { value: 'es', label: 'Español (Spanish)' },
+  { value: 'fr', label: 'Français (French)' },
+  { value: 'ar', label: 'العربية (Arabic)' },
+  { value: 'de', label: 'Deutsch (German)' },
+  { value: 'ja', label: '日本語 (Japanese)' },
+  { value: 'zh-CN', label: '简体中文 (Simplified Chinese)' },
+];
 
 const RiskLevelIndicator: React.FC<{ level: 'low' | 'medium' | 'high' }> = ({ level }) => {
   switch (level) {
@@ -59,6 +74,70 @@ const LevelsList: React.FC<{ title: string; levels: string[]; icon?: React.Eleme
 
 
 export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps) {
+  const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
+  const [displayedAnalysisDetails, setDisplayedAnalysisDetails] = useState<string | null>(null);
+  const [displayedReason, setDisplayedReason] = useState<string | null>(null);
+  const [isTranslating, setIsTranslating] = useState(false);
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (prediction) {
+      setDisplayedAnalysisDetails(prediction.analysisDetails);
+      setDisplayedReason(prediction.reason);
+      setSelectedLanguage('en'); // Reset language to original on new prediction
+      setTranslationError(null);
+    } else {
+      setDisplayedAnalysisDetails(null);
+      setDisplayedReason(null);
+    }
+  }, [prediction]);
+
+  const handleTranslate = async () => {
+    if (!prediction || selectedLanguage === 'en') {
+      setDisplayedAnalysisDetails(prediction?.analysisDetails ?? null);
+      setDisplayedReason(prediction?.reason ?? null);
+      setTranslationError(null);
+      return;
+    }
+
+    setIsTranslating(true);
+    setTranslationError(null);
+
+    try {
+      const [translatedDetailsResult, translatedReasonResult] = await Promise.all([
+        translateText({ textToTranslate: prediction.analysisDetails, targetLanguageCode: selectedLanguage }),
+        translateText({ textToTranslate: prediction.reason, targetLanguageCode: selectedLanguage })
+      ]);
+
+      if (translatedDetailsResult?.translatedText) {
+        setDisplayedAnalysisDetails(translatedDetailsResult.translatedText);
+      } else {
+        throw new Error('Failed to translate analysis details.');
+      }
+       if (translatedReasonResult?.translatedText) {
+        setDisplayedReason(translatedReasonResult.translatedText);
+      } else {
+        throw new Error('Failed to translate reason.');
+      }
+
+    } catch (err: any) {
+      console.error('Translation error:', err);
+      const errorMessage = err.message || 'An error occurred during translation.';
+      setTranslationError(errorMessage);
+      setDisplayedAnalysisDetails(prediction.analysisDetails); // Revert to original on error
+      setDisplayedReason(prediction.reason); // Revert to original on error
+      toast({
+        variant: 'destructive',
+        title: 'Translation Failed',
+        description: errorMessage,
+      });
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+
   if (isLoading) {
     return (
       <Card className="w-full shadow-lg animate-pulse">
@@ -149,10 +228,36 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
   return (
     <Card className="w-full shadow-lg">
       <CardHeader>
-        <CardTitle className="font-headline text-2xl">Enhanced Market Analysis</CardTitle>
-        <CardDescription>AI-powered insights with risk assessment and trading levels.</CardDescription>
+        <div className="flex justify-between items-start">
+          <div>
+            <CardTitle className="font-headline text-2xl">Enhanced Market Analysis</CardTitle>
+            <CardDescription>AI-powered insights with risk assessment and trading levels.</CardDescription>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+              <SelectTrigger className="w-[180px]" aria-label="Select language">
+                <Languages className="mr-2 h-4 w-4" />
+                <SelectValue placeholder="Select language" />
+              </SelectTrigger>
+              <SelectContent>
+                {languageOptions.map(lang => (
+                  <SelectItem key={lang.value} value={lang.value}>{lang.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleTranslate} disabled={isTranslating || selectedLanguage === 'en' && displayedAnalysisDetails === prediction.analysisDetails}>
+              {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Translate
+            </Button>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
+        {translationError && (
+          <div className="p-3 bg-destructive/10 text-destructive border border-destructive rounded-md">
+            <p>Translation Error: {translationError}</p>
+          </div>
+        )}
         <div className="flex flex-col items-center space-y-3">
           {trendIcon}
           <Badge variant={isUp ? "default" : isDown ? "destructive" : "secondary"} className={`text-xl px-4 py-2 ${trendBadgeColor} text-white`}>
@@ -190,13 +295,13 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
 
         <div>
           <h3 className="text-md font-semibold mb-1 text-foreground">Summary:</h3>
-          <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md border italic">{prediction.reason || "No summary provided."}</p>
+          <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md border italic">{displayedReason || "No summary provided."}</p>
         </div>
 
         <div>
           <h3 className="text-lg font-semibold mb-2 text-foreground">Detailed Analysis:</h3>
           <div className="text-sm text-muted-foreground bg-muted/30 p-4 rounded-md border prose prose-sm max-w-none">
-            {prediction.analysisDetails.split('\n').map((paragraph, index) => (
+            {(displayedAnalysisDetails || "No detailed analysis provided.").split('\n').map((paragraph, index) => (
               <p key={index}>{paragraph}</p>
             ))}
           </div>
@@ -210,4 +315,3 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
     </Card>
   );
 }
-
