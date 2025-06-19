@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -47,12 +48,7 @@ export default function ProfilePage() {
       setIsStripeKeySet(false);
       if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
         console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder in .env file. Payment features are disabled.');
-        toast({
-          title: 'Stripe Configuration Error',
-          description: 'Stripe publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder. Please set your test publishable key in the .env file. Payment features are disabled.',
-          variant: 'destructive',
-          duration: 10000, 
-        });
+        // Toast is shown by handleUpgradeToPremiumViaStripe if needed
       }
     }
     
@@ -81,11 +77,9 @@ export default function ProfilePage() {
     const paymentSuccess = searchParams.get('payment_success');
     const paymentCanceled = searchParams.get('payment_canceled');
     const checkoutRedirect = searchParams.get('checkout_redirect');
-    const priceIdParam = searchParams.get('price_id'); // Renamed to avoid conflict
+    const priceIdParam = searchParams.get('price_id');
 
-    // Handle iframe breakout scenario
     if (checkoutRedirect === 'true' && priceIdParam) {
-      // We broke out of an iframe, now try server-side checkout
       handleServerSideCheckout(priceIdParam);
       return;
     }
@@ -177,24 +171,39 @@ export default function ProfilePage() {
 
       const { sessionId, url } = await response.json();
       
-      if (url) {
-        window.location.href = url;
-      } else if (sessionId) {
+      if (sessionId) {
         const stripe = await stripePromise;
         if (stripe) {
-          const { error } = await stripe.redirectToCheckout({ sessionId });
-          if (error) {
-            throw error; // This error will be caught by the caller's catch block
+          console.log(`Attempting Stripe.js redirectToCheckout with sessionId: ${sessionId}`);
+          const { error: stripeJsError } = await stripe.redirectToCheckout({ sessionId });
+          if (stripeJsError) {
+            console.error("Stripe.js redirectToCheckout error:", stripeJsError);
+            // If redirectToCheckout itself fails, re-throw its specific error
+            // This allows the main catch block in handleUpgradeToPremiumViaStripe to handle it
+            throw stripeJsError; 
           }
+          // If redirectToCheckout is called, it should navigate or handle errors internally.
+          // If it doesn't navigate and doesn't throw an error, Stripe.js might be handling it (e.g. modal).
+          return; // Assume Stripe.js handles navigation or shows its UI.
+        } else if (url) {
+          // Fallback to direct URL navigation if Stripe.js didn't load for some reason
+          console.warn("Stripe.js not loaded, falling back to direct URL navigation for Stripe Checkout.");
+          window.location.href = url;
+          return; // Navigation initiated
         } else {
-          throw new Error("Stripe.js has not loaded yet.");
+           throw new Error("Stripe.js not loaded and no fallback URL provided by server for session-based checkout.");
         }
+      } else if (url) {
+        // Fallback if only URL is provided (though backend should always send sessionId if possible)
+        console.log("Only URL provided by server (no sessionId), navigating directly.");
+        window.location.href = url;
+        return; // Navigation initiated
       } else {
         throw new Error("Server did not return a session ID or URL for checkout.");
       }
+
     } catch (error: any) {
       console.error('Error in handleServerSideCheckout:', error);
-      // Re-throw the error so the caller (handleUpgradeToPremiumViaStripe) can catch it and show a toast.
       if (error instanceof Error) {
           throw error; 
       } else {
@@ -217,171 +226,54 @@ export default function ProfilePage() {
     setIsRedirectingToCheckout(true);
     
     try {
-      console.log('Attempting server-side checkout with Price ID:', stripePriceId);
+      console.log('Attempting server-side checkout flow with Price ID:', stripePriceId);
       await handleServerSideCheckout(stripePriceId);
-      // If handleServerSideCheckout is successful, it will redirect, and this function's execution stops.
-      // If it throws an error, it will be caught below.
+      // If handleServerSideCheckout is successful and navigates, this function's execution stops here.
+      // If it throws an error (e.g., Stripe.js error or session creation error), it will be caught below.
+      // Note: If Stripe.js opens a modal, execution might also appear to stop here from the user's perspective.
+      // setIsRedirectingToCheckout(false); // Only set to false if navigation definitely did NOT occur or failed.
+      // This will be handled by the main finally or if an error is caught.
       return; 
     } catch (serverError: any) { 
-      console.log('Server-side checkout attempt failed. Details:', serverError);
+      console.error('Server-side checkout attempt failed. Details:', serverError);
+      // Error handling for serverError, including specific Stripe.js errors
+      let description: React.ReactNode = serverError.message || "Could not initiate checkout via server.";
+      let duration = 10000;
+
+      if (serverError.message && serverError.message.includes("The Checkout client-only integration is not enabled")) {
+           description = (
+              <div className="space-y-2">
+                  <p className="text-sm">{serverError.message}</p>
+                  <p className="text-sm">Please go to:{' '}
+                  <a href="https://dashboard.stripe.com/account/checkout/settings" target="_blank" rel="noopener noreferrer" className="font-bold text-primary underline">Stripe Checkout Settings</a>{' '}
+                  and enable "Client-only integration".</p>
+              </div>
+            );
+          duration = 30000;
+      } else if (serverError.message && (serverError.message.includes("permission to navigate") || serverError.message.includes("Location") || serverError.message.includes("target frame") || serverError.message.includes("cross-origin frame"))) {
+          description = (
+              <div className="space-y-2">
+                  <p className="text-sm">{serverError.message}</p>
+                  <p className="text-sm font-semibold">Please try opening this application in a new, standalone browser window or tab.</p>
+              </div>
+          );
+          duration = 20000;
+      }
+      
       toast({ 
-        title: "Server Checkout Attempt Failed",
-        description: serverError.message || "Could not initiate checkout via server. Trying client-only method.",
+        title: "Checkout Attempt Failed",
+        description: description,
         variant: "destructive",
-        duration: 10000,
+        duration: duration,
       });
-      // Fall through to client-side methods if server-side fails
-    }
-
-    // Client-side methods (popup, iframe breakout, traditional redirect)
-    // These are attempted if server-side checkout fails.
-    try {
-      console.log('Attempting popup window approach...');
-      const successUrlEnc = encodeURIComponent(`${window.location.origin}/profile?payment_success=true`);
-      const cancelUrlEnc = encodeURIComponent(`${window.location.origin}/profile?payment_canceled=true`);
-      
-      const checkoutUrl = `https://checkout.stripe.com/c/pay/${stripePriceId}?success_url=${successUrlEnc}&cancel_url=${cancelUrlEnc}&client_reference_id=${user?.uid || 'unknown_user'}`;
-      const popup = window.open(checkoutUrl, 'stripe-checkout', 'width=600,height=800,scrollbars=yes,resizable=yes');
-      
-      if (popup) {
-        const checkClosed = setInterval(() => {
-          if (popup.closed) {
-            clearInterval(checkClosed);
-            setIsRedirectingToCheckout(false);
-            window.location.reload(); 
-          }
-        }, 1000);
-        return;
-      }
-    } catch (popupError) {
-      console.log('Popup method failed, trying iframe breakout...', popupError);
-    }
-
-    try {
-      if (window.parent !== window) {
-        console.log('Detected iframe, attempting breakout...');
-        if (window.top) {
-          window.top.location.href = `${window.location.origin}/profile?checkout_redirect=true&price_id=${stripePriceId}`;
-          return;
-        }
-      }
-    } catch (iframeError) {
-      console.log('Iframe breakout failed, trying traditional Stripe client-only redirectToCheckout...', iframeError);
-    }
-
-    // Traditional client-only redirectToCheckout (if server-side and other methods fail)
-    try {
-      console.log('Attempting traditional Stripe client-only redirectToCheckout with Price ID:', stripePriceId);
-      const stripe = await stripePromise; 
-      
-      if (!stripe) {
-        throw new Error("Could not connect to Stripe. Please ensure your publishable key is correct.");
-      }
-
-      // This is the client-only integration.
-      // This might fail in sandboxed iframes with "Failed to set 'href'"
-      const { error } = await stripe.redirectToCheckout({
-        lineItems: [{ price: stripePriceId, quantity: 1 }],
-        mode: 'subscription', 
-        successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`, // session_id is a template var
-        cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
-      });
-
-      if (error) {
-         // Check for specific "The Checkout client-only integration is not enabled" error.
-        if (error.message && error.message.includes("The Checkout client-only integration is not enabled")) {
-             toast({
-                title: "Stripe Configuration Error",
-                description: (
-                <div className="space-y-2">
-                    <p className="text-sm">
-                    To use this client-only checkout method, you MUST enable it in your Stripe Dashboard.
-                    </p>
-                    <p className="text-sm">
-                    Please go to:{' '}
-                    <a
-                        href="https://dashboard.stripe.com/account/checkout/settings"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-bold text-primary underline"
-                    >
-                        Stripe Checkout Settings
-                    </a>{' '}
-                    and enable "Client-only integration".
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                        If this issue persists, try opening this app in a new standalone browser tab.
-                    </p>
-                </div>
-                ),
-                variant: "destructive",
-                duration: 30000, 
-            });
-        } else if (error.message && (error.message.includes("permission to navigate") || error.message.includes("Location") || error.message.includes("target frame") || error.message.includes("cross-origin frame"))) {
-            toast({
-                title: "Browser Navigation Blocked",
-                description: (
-                <div className="space-y-2">
-                    <p className="text-sm">
-                    Your browser (or the environment it's running in, like an iframe) blocked the redirection to Stripe.
-                    </p>
-                    <p className="text-sm font-semibold">
-                    Please try opening this application in a new, standalone browser window or tab.
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                    This often happens when the app is embedded. Using a standalone tab usually resolves it.
-                    </p>
-                </div>
-                ),
-                variant: "destructive",
-                duration: 20000,
-            });
-        } else {
-          throw error; // Re-throw other Stripe errors
-        }
-      }
-    } catch (e: any) { // Catch errors from traditional redirectToCheckout or other Stripe issues
-      console.error('All checkout methods failed:', e);
-      
-      let description: React.ReactNode = e.message || "An unknown error occurred during checkout.";
-      let solutions: string[] = [];
-      
-      if (e.message && e.message.includes('permission to navigate')) {
-        solutions.push("• Open this app in a new browser tab (not embedded).");
-        solutions.push("• Disable browser extensions that might block redirects.");
-        solutions.push("• Try a different browser.");
-      }
-       if (e.message && e.message.includes("The Checkout client-only integration is not enabled")) {
-        // Already handled with a specific toast, but can add to general solutions if needed
-        solutions.push("• Enable 'Client-only integration' in your Stripe Checkout settings.");
-      }
-      
-      if (solutions.length > 0) {
-        description = (
-          <div className="space-y-2">
-            <p className="text-sm">{e.message || "Checkout failed."}</p>
-            <p className="text-sm font-medium mt-2">Possible solutions:</p>
-            <ul className="list-disc list-inside text-xs space-y-1">
-              {solutions.map((solution, index) => (
-                <li key={index}>{solution}</li>
-              ))}
-            </ul>
-             <p className="text-xs text-muted-foreground mt-2">If the issue persists, please contact support or check console logs for more details.</p>
-          </div>
-        );
-      }
-
-      // Avoid showing a generic toast if a more specific one (like "Client-only integration not enabled") was already shown
-      if (!(e.message && e.message.includes("The Checkout client-only integration is not enabled")) && !(e.message && e.message.includes("permission to navigate"))) {
-        toast({ 
-          title: "Checkout Failed", 
-          description: description,
-          variant: "destructive",
-          duration: 20000 
-        });
-      }
+      // Do not fall through to client-side methods if server-side checkout itself failed due to Stripe.js or session issues
+      // as those are now handled within handleServerSideCheckout's throw.
+      // If handleServerSideCheckout completed without navigation (e.g. Stripe modal) then we should not try other methods.
     }
     
+    // This will only be reached if handleServerSideCheckout itself had an issue that wasn't a navigation or Stripe.js error
+    // OR if it completed but didn't navigate (less likely with current logic)
+    // For safety, keep isRedirectingToCheckout to false if we reach here unexpectedly
     setIsRedirectingToCheckout(false);
   };
 
@@ -513,3 +405,6 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+
+    
