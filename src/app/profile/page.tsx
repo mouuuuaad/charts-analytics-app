@@ -13,13 +13,14 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
-import Link from 'next/link'; // Added for the link in toast
+import Link from 'next/link'; 
 
 type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
 const MAX_FREE_ATTEMPTS = 2;
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+// Use the specific Price ID provided by the user if available, otherwise a placeholder.
 const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
@@ -137,7 +138,7 @@ export default function ProfilePage() {
         toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
         return;
     }
-    if (!stripePriceId) {
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE') { // Check for placeholder
       toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please contact support or check environment variables.", variant: "destructive" });
       console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder.');
       return;
@@ -322,6 +323,8 @@ export default function ProfilePage() {
     </div>
   );
 }
+    
+
     
 
     
