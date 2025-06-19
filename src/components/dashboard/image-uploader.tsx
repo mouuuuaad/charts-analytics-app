@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
-import { UploadCloud, XCircle, Camera, Video, VideoOff, Loader2 } from 'lucide-react';
+import { UploadCloud, XCircle, Camera, Video, VideoOff, Loader2, Sparkles } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
@@ -53,12 +53,10 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
 
       let streamAttempt: MediaStream | null = null;
       try {
-        // Try rear camera first
         streamAttempt = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       } catch (rearCameraError) {
         console.warn("Failed to get rear camera (environment), trying default camera:", rearCameraError);
         try {
-          // Fallback to any camera (usually front)
           streamAttempt = await navigator.mediaDevices.getUserMedia({ video: true });
         } catch (anyCameraError) {
           console.error('Error accessing any camera:', anyCameraError);
@@ -88,7 +86,6 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
         videoElement.onloadedmetadata = () => {
             videoElement.play().catch(playError => {
                 console.error("Error playing video:", playError);
-                // Potentially notify user if autoplay fails, though 'muted' usually helps.
             });
         };
       }
@@ -166,7 +163,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
-    setShowCameraView(false); // This will trigger useEffect cleanup for camera
+    setShowCameraView(false); 
     const fileInput = document.getElementById('chart-image-upload') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
@@ -194,7 +191,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
           setSelectedFile(file);
           setPreviewUrl(dataUrl);
           setError(null);
-          setShowCameraView(false); // Switch to preview view, triggers useEffect cleanup
+          setShowCameraView(false); 
         } catch (fileError) {
           console.error("Error creating file from data URL:", fileError);
           setError("Could not process captured image.");
@@ -208,70 +205,72 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
   };
 
   return (
-    <Card className="w-full shadow-lg">
-      <CardHeader>
-        <CardTitle className="font-headline text-2xl">Upload or Capture Chart Image</CardTitle>
-        <CardDescription>Select, drag & drop, or use your webcam to capture a chart image.</CardDescription>
+    <Card className="w-full shadow-xl border border-border/20 overflow-hidden">
+      <CardHeader className="bg-muted/30">
+        <CardTitle className="font-headline text-2xl text-foreground">Upload or Capture Chart</CardTitle>
+        <CardDescription>Drag & drop, select a file, or use your webcam.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex gap-2 mb-4">
-          <Button variant={!showCameraView ? "default" : "outline"} onClick={() => { clearSelection(); setShowCameraView(false);}} className="flex-1">
-            <UploadCloud className="mr-2 h-4 w-4" /> Upload File
+      <CardContent className="p-6 space-y-6">
+        <div className="grid grid-cols-2 gap-3">
+          <Button variant={!showCameraView ? "default" : "outline"} onClick={() => { clearSelection(); setShowCameraView(false);}} className="flex-1 py-3 text-sm">
+            <UploadCloud className="mr-2 h-5 w-5" /> Upload File
           </Button>
-          <Button variant={showCameraView ? "default" : "outline"} onClick={() => { clearSelection(); setShowCameraView(true); }} className="flex-1">
-            <Camera className="mr-2 h-4 w-4" /> Use Webcam
+          <Button variant={showCameraView ? "default" : "outline"} onClick={() => { clearSelection(); setShowCameraView(true); }} className="flex-1 py-3 text-sm">
+            <Camera className="mr-2 h-5 w-5" /> Use Webcam
           </Button>
         </div>
 
         {showCameraView ? (
           <div className="space-y-4">
             <canvas ref={canvasRef} style={{ display: 'none' }} />
-            <div className="w-full aspect-video bg-muted rounded-md overflow-hidden relative flex items-center justify-center">
+            <div className="w-full aspect-[4/3] bg-muted rounded-lg overflow-hidden relative flex items-center justify-center border border-border">
                 <video ref={videoRef} className={`w-full h-full object-cover ${isCameraInitializing || hasCameraPermission === false || hasCameraPermission === null ? 'hidden' : ''}`} autoPlay playsInline muted />
 
                 {isCameraInitializing && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white p-4 rounded-md">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm text-foreground p-4 rounded-lg">
                         <Loader2 className="w-10 h-10 animate-spin mb-3 text-primary" />
-                        <p className="font-medium">Initializing Camera...</p>
-                        <p className="text-xs text-gray-300">Attempting to access rear camera first.</p>
+                        <p className="font-semibold text-lg">Initializing Camera...</p>
+                        <p className="text-xs text-muted-foreground">Attempting to access camera.</p>
                     </div>
                 )}
 
                 {!isCameraInitializing && hasCameraPermission === false && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/90 text-destructive-foreground p-4 rounded-md text-center">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/90 text-destructive-foreground p-4 rounded-lg text-center">
                         <VideoOff className="w-12 h-12 mb-3" />
                         <p className="font-semibold text-lg">Camera Access Problem</p>
-                        <p className="text-sm">{cameraError || "Could not access the camera. Please check permissions and ensure a camera is connected."}</p>
+                        <p className="text-sm">{cameraError || "Could not access the camera."}</p>
                     </div>
                 )}
-                {/* Fallback for when camera is simply not active yet, but view is selected */}
                  {!isCameraInitializing && hasCameraPermission === null && showCameraView && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white p-4 rounded-md">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-muted/50 text-muted-foreground p-4 rounded-lg">
                         <VideoOff className="w-12 h-12 mb-2" />
-                        <p>Camera is not active. Waiting for permission or device.</p>
+                        <p>Waiting for camera permission...</p>
                     </div>
                 )}
             </div>
             
-            {/* Persistent alert if there was a camera error, might be useful even if overlay hides */}
             {cameraError && hasCameraPermission === false && !isCameraInitializing && (
-                 <Alert variant="destructive">
+                 <Alert variant="destructive" className="mt-2">
                     <VideoOff className="h-4 w-4" />
                     <AlertTitle>Camera Error</AlertTitle>
                     <AlertDescription>{cameraError}</AlertDescription>
                 </Alert>
             )}
 
-            <Button onClick={handleCapturePhoto} disabled={!hasCameraPermission || isProcessing || isCameraInitializing} className="w-full">
-              <Video className="mr-2 h-4 w-4" /> Capture Photo
+            <Button 
+              onClick={handleCapturePhoto} 
+              disabled={!hasCameraPermission || isProcessing || isCameraInitializing} 
+              className="w-full py-3 text-base transition-all duration-300 ease-in-out hover:shadow-glow-primary-hover focus:shadow-glow-primary-focus"
+            >
+              <Camera className="mr-2 h-5 w-5" /> Capture Photo
             </Button>
           </div>
         ) : (
           // File Upload View
           <div
-            className={`flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg transition-colors
-              ${isDragging ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/70'}
-              ${error ? 'border-destructive' : ''}`}
+            className={`flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg transition-all duration-200 ease-in-out min-h-[200px]
+              ${isDragging ? 'border-primary bg-primary/10 ring-2 ring-primary/50' : 'border-border hover:border-primary/70'}
+              ${error ? 'border-destructive bg-destructive/5' : ''}`}
             onDragEnter={() => setIsDragging(true)}
             onDragLeave={() => setIsDragging(false)}
             onDragOver={(e) => e.preventDefault()}
@@ -279,11 +278,13 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
           >
             {!previewUrl ? (
               <>
-                <UploadCloud className={`w-12 h-12 mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-                <p className="mb-2 text-sm text-muted-foreground">
-                  <span className="font-semibold">Click to upload</span> or drag and drop
+                <UploadCloud className={`w-16 h-16 mb-4 animate-float ${isDragging ? 'text-primary' : 'text-muted-foreground/70'}`} />
+                <p className="mb-2 text-md text-center text-foreground">
+                  <label htmlFor="chart-image-upload" className="font-semibold text-primary cursor-pointer hover:underline">
+                    Click to upload
+                  </label> or drag and drop
                 </p>
-                <p className="text-xs text-muted-foreground">PNG, JPG, GIF, WEBP up to 5MB</p>
+                <p className="text-xs text-muted-foreground">PNG, JPG, GIF, WEBP (Max 5MB)</p>
                 <Input
                   id="chart-image-upload"
                   type="file"
@@ -292,49 +293,59 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
                   className="sr-only"
                   disabled={isProcessing}
                 />
-                <Button variant="outline" size="sm" className="mt-4" onClick={() => document.getElementById('chart-image-upload')?.click()} disabled={isProcessing}>
-                  Select Image
-                </Button>
               </>
             ) : (
-              <div className="relative w-full max-w-sm mx-auto">
-                <Image
-                  src={previewUrl}
-                  alt="Chart preview"
-                  width={400}
-                  height={300}
-                  className="rounded-md object-contain max-h-[300px] w-auto"
-                  data-ai-hint="chart diagram"
-                />
+              <div className="relative w-full max-w-xs mx-auto text-center">
+                <div className="overflow-hidden rounded-lg border border-border shadow-md">
+                  <Image
+                    src={previewUrl}
+                    alt="Chart preview"
+                    width={320}
+                    height={240}
+                    className="object-contain max-h-[240px] w-full bg-muted/20"
+                    data-ai-hint="chart diagram"
+                  />
+                </div>
                 <Button
-                  variant="ghost"
+                  variant="destructive"
                   size="icon"
-                  className="absolute top-2 right-2 bg-background/70 hover:bg-background rounded-full"
+                  className="absolute -top-3 -right-3 bg-destructive/90 hover:bg-destructive text-destructive-foreground rounded-full h-8 w-8 shadow-lg transition-all hover:scale-110"
                   onClick={clearSelection}
                   disabled={isProcessing}
                   aria-label="Clear selection"
                 >
-                  <XCircle className="h-5 w-5 text-destructive" />
+                  <XCircle className="h-5 w-5" />
                 </Button>
+                 {selectedFile && <p className="text-xs text-muted-foreground mt-3 truncate">File: {selectedFile.name}</p>}
               </div>
             )}
           </div>
         )}
 
-        {error && !showCameraView && <p className="text-sm text-destructive text-center">{error}</p>}
+        {error && !showCameraView && <p className="text-sm text-destructive text-center mt-2">{error}</p>}
 
         {previewUrl && !showCameraView && ( 
-          <div className="text-center">
-            {selectedFile && <p className="text-sm text-muted-foreground truncate">Selected: {selectedFile.name}</p>}
-            <Button onClick={handleUpload} disabled={!selectedFile || isProcessing} className="mt-4 w-full sm:w-auto">
-              Analyze Chart
+          <div className="text-center mt-6">
+            <Button 
+              onClick={handleUpload} 
+              disabled={!selectedFile || isProcessing} 
+              className="w-full sm:w-auto py-3 px-8 text-base font-semibold transition-all duration-300 ease-in-out hover:shadow-glow-primary-hover focus:shadow-glow-primary-focus disabled:hover:shadow-none"
+            >
+              {isProcessing ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Sparkles className="mr-2 h-5 w-5" />
+              )}
+              Analyze Chart with AI
             </Button>
           </div>
+        )}
+         {!previewUrl && !showCameraView && !error && (
+            <p className="text-center text-xs text-muted-foreground mt-4">
+                Upload an image of a financial chart for AI analysis.
+            </p>
         )}
       </CardContent>
     </Card>
   );
 }
-
-
-    

@@ -30,7 +30,7 @@ export function AnalysisSection() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
-      if (savedLevel) {
+      if (savedLevel && ['beginner', 'intermediate', 'advanced'].includes(savedLevel)) {
         setUserLevel(savedLevel);
       } else {
         setShowSurveyModal(true);
@@ -50,7 +50,7 @@ export function AnalysisSection() {
     if (typeof window === 'undefined') return;
 
     const newAnalysis: Analysis = {
-      id: Date.now().toString(), // Simple unique ID
+      id: Date.now().toString(), 
       imageUrl: chartImage,
       prediction: analysisResult,
       extractedData: extractedChartData,
@@ -61,9 +61,9 @@ export function AnalysisSection() {
     try {
       const historyString = localStorage.getItem('chartSightAnalysesHistory');
       let history: Analysis[] = historyString ? JSON.parse(historyString) : [];
-      history.unshift(newAnalysis); // Add new analysis to the beginning
+      history.unshift(newAnalysis); 
       if (history.length > MAX_HISTORY_ITEMS) {
-        history = history.slice(0, MAX_HISTORY_ITEMS); // Keep only the latest N items
+        history = history.slice(0, MAX_HISTORY_ITEMS); 
       }
       localStorage.setItem('chartSightAnalysesHistory', JSON.stringify(history));
     } catch (e) {
@@ -142,7 +142,7 @@ export function AnalysisSection() {
       }
       
       const trendInput = { 
-        extractedData: extractedDataResult.extractedData || "{}", // Ensure extractedData is a string, even if null from AI
+        extractedData: extractedDataResult.extractedData || "{}", 
         userLevel: userLevel || 'intermediate'
       };
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
@@ -182,22 +182,16 @@ export function AnalysisSection() {
         onComplete={handleSurveyComplete} 
       />
       <div className="container mx-auto py-8 px-4 md:px-0">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr,450px] xl:grid-cols-[1fr,500px] gap-8 items-start">
           <ImageUploader onImageUpload={handleImageAnalysis} isProcessing={isLoading} />
           <div className="sticky top-20"> 
-            {isLoading && !currentError && (
-               <Card className="w-full shadow-lg">
-                 <CardContent className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                   <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                   <p className="text-lg font-medium text-muted-foreground">Performing enhanced analysis...</p>
-                   <p className="text-sm text-muted-foreground">This may take a few moments, tailored for {userLevel || 'intermediate'} level.</p>
-                   {currentChartImage && (
-                      <img src={currentChartImage} alt="Processing chart" className="mt-4 max-h-48 rounded-md opacity-50" data-ai-hint="chart diagram"/>
-                   )}
-                 </CardContent>
-               </Card>
-            )}
-            {(!isLoading || currentError) && <TrendDisplay prediction={prediction} isLoading={false} error={currentError} />}
+             <TrendDisplay 
+                prediction={prediction} 
+                isLoading={isLoading} 
+                error={currentError} 
+                currentChartImage={currentChartImage} 
+                userLevel={userLevel}
+              />
           </div>
         </div>
       </div>
