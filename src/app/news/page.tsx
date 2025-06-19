@@ -3,7 +3,9 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import type { NewsArticle, NewsTopic, TrendingTicker, WatchlistItem } from '@/types';
-import { getMockNews, getMockTrendingTickers, getMockArticleById } from '@/lib/mockNewsData';
+// import { getMockNews, getMockTrendingTickers, getMockArticleById } from '@/lib/mockNewsData'; // Using newsService now
+import { getMockTrendingTickers } from '@/lib/mockNewsData'; // Keep for tickers
+import { fetchNewsFromAPI } from '@/lib/newsService'; // Import the new service
 import { NewsCard } from '@/components/news/NewsCard';
 import { TrendingTickersSidebar } from '@/components/news/TrendingTickersSidebar';
 import { FloatingAIButton } from '@/components/news/FloatingAIButton';
@@ -14,30 +16,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, Bitcoin, Landmark, BadgeDollarSign, Globe, LayoutGrid, AlertTriangle, Newspaper } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useDebounce } from '@/hooks/use-debounce'; // Assuming a useDebounce hook exists or will be created
+import { useDebounce } from '@/hooks/use-debounce';
 
 const WATCHLIST_STORAGE_KEY = 'newsWatchlist';
 const MAX_WATCHLIST_ITEMS = 50;
 
-// Simple debounce hook (can be moved to src/hooks/use-debounce.ts)
-function useDebounceValue<T>(value: T, delay: number): T {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-  return debouncedValue;
-}
-
-
 export default function NewsPage() {
   const [selectedTopic, setSelectedTopic] = useState<NewsTopic>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounceValue(searchTerm, 500);
+  const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
   const [trendingTickers, setTrendingTickers] = useState<TrendingTicker[]>([]);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
@@ -77,14 +64,27 @@ export default function NewsPage() {
     setIsLoadingNews(true);
     setError(null);
     try {
-      // Replace with actual API call
-      const articles = await getMockNews(topic, term);
+      const articles = await fetchNewsFromAPI(topic, term);
       setNewsArticles(articles);
-    } catch (err) {
+      if (articles.length === 0 && process.env.NEXT_PUBLIC_NEWS_API_KEY === "YOUR_NEWSAPI_ORG_KEY_HERE") {
+        setError("News API key is not configured. Please set NEXT_PUBLIC_NEWS_API_KEY in your .env file. Displaying no news.");
+        toast({
+          variant: 'destructive',
+          title: 'API Key Missing',
+          description: 'NewsAPI key is not configured. Please set it in .env to fetch live news.',
+          duration: 10000,
+        });
+      } else if (articles.length === 0 && term) {
+        // setError(`No news found for "${term}" in ${topicLabels[topic]}.`);
+      } else if (articles.length === 0) {
+        // setError(`No news found for ${topicLabels[topic]}.`);
+      }
+    } catch (err: any) {
       console.error("Failed to fetch news:", err);
-      setError('Failed to load news articles. Please try again later.');
+      const errorMessage = err.message || 'Failed to load news articles. Please try again later.';
+      setError(errorMessage);
       setNewsArticles([]); // Clear articles on error
-      toast({ variant: 'destructive', title: 'News Fetch Error', description: 'Could not load news articles.'});
+      toast({ variant: 'destructive', title: 'News Fetch Error', description: errorMessage, duration: 7000});
     } finally {
       setIsLoadingNews(false);
     }
@@ -93,8 +93,7 @@ export default function NewsPage() {
   const fetchTrendingTickers = useCallback(async () => {
     setIsLoadingTickers(true);
     try {
-      // Replace with actual API call
-      const tickers = await getMockTrendingTickers();
+      const tickers = await getMockTrendingTickers(); // Keep using mock for tickers
       setTrendingTickers(tickers);
     } catch (err) {
       console.error("Failed to fetch trending tickers:", err);
@@ -129,7 +128,7 @@ export default function NewsPage() {
             addedAt: new Date().toISOString(),
             headline: article.headline,
             source: article.source,
-            topic: article.topic,
+            topic: article.topic, // Persist the topic it was found under
             imageUrl: article.imageUrl,
             imageHint: article.imageHint,
             url: article.url,
@@ -197,15 +196,15 @@ export default function NewsPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-8 items-start">
         <section aria-labelledby="news-articles-heading">
-          <h2 id="news-articles-heading" className="sr-only">News Articles</h2>
+          <h2 id="news-articles-heading" className="sr-only">News Articles for {topicLabels[selectedTopic]} {debouncedSearchTerm && `matching "${debouncedSearchTerm}"`}</h2>
           {isLoadingNews && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {[...Array(6)].map((_, i) => (
                 <Card key={i} className="overflow-hidden">
                   <Skeleton className="h-48 w-full" />
-                  <CardHeader className="pb-2 pt-3"><Skeleton className="h-5 w-3/4" /></CardHeader>
-                  <CardContent className="space-y-2 pb-3"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-5/6" /></CardContent>
-                  <CardFooter className="py-3 flex justify-between items-center bg-muted/30">
+                  <CardHeader className="pb-2 pt-3 px-4"><Skeleton className="h-5 w-3/4" /></CardHeader>
+                  <CardContent className="px-4 space-y-2 pb-3"><Skeleton className="h-4 w-full" /><Skeleton className="h-4 w-5/6" /></CardContent>
+                  <CardFooter className="px-4 py-3 flex justify-between items-center bg-muted/30">
                     <Skeleton className="h-6 w-20" /> <Skeleton className="h-8 w-24" />
                   </CardFooter>
                 </Card>
@@ -217,7 +216,7 @@ export default function NewsPage() {
                 <CardContent className="py-12 flex flex-col items-center justify-center text-center">
                     <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
                     <p className="text-lg font-semibold text-destructive">Error Loading News</p>
-                    <p className="text-muted-foreground">{error}</p>
+                    <p className="text-muted-foreground whitespace-pre-line">{error}</p>
                     <Button onClick={() => fetchNews(selectedTopic, debouncedSearchTerm)} className="mt-4">Try Again</Button>
                 </CardContent>
             </Card>
@@ -227,7 +226,12 @@ export default function NewsPage() {
                 <CardContent className="py-12 flex flex-col items-center justify-center text-center">
                      <Search className="w-12 h-12 text-muted-foreground mb-4" />
                     <p className="text-lg font-semibold">No News Found</p>
-                    <p className="text-muted-foreground">Try adjusting your search or topic selection.</p>
+                    <p className="text-muted-foreground">
+                        {debouncedSearchTerm ? 
+                            `No articles found for "${debouncedSearchTerm}" in ${topicLabels[selectedTopic]}. Try a different search or topic.` :
+                            `No articles found for ${topicLabels[selectedTopic]}. Try a different topic or check back later.`
+                        }
+                    </p>
                 </CardContent>
             </Card>
           )}
@@ -259,4 +263,3 @@ export default function NewsPage() {
     </div>
   );
 }
-

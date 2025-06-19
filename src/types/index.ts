@@ -20,16 +20,16 @@ export interface Analysis {
 export type NewsTopic = 'all' | 'crypto' | 'stocks' | 'forex' | 'global-economy';
 
 export interface NewsArticle {
-  id: string;
+  id: string; // Will use article.url from NewsAPI as ID
   headline: string;
   source: string;
   publishedAt: string; // ISO string format
-  summary: string;
+  summary: string; // Will map from 'description' field
   url: string;
-  sentiment: 'positive' | 'negative' | 'neutral';
-  topic: NewsTopic;
-  ticker?: string;
-  imageUrl?: string;
+  // sentiment: 'positive' | 'negative' | 'neutral'; // Removed: Not directly available from NewsAPI
+  topic: NewsTopic; // The topic used for fetching this article
+  ticker?: string; // If the search was for a specific ticker
+  imageUrl?: string | null; // Will map from 'urlToImage', can be null
   imageHint?: string;
 }
 
@@ -41,12 +41,12 @@ export interface TrendingTicker {
 }
 
 export interface WatchlistItem {
-  articleId: string;
+  articleId: string; // Corresponds to NewsArticle.id (which is article.url)
   addedAt: string; // ISO string
   headline?: string;
   source?: string;
   topic?: NewsTopic;
-  imageUrl?: string;
+  imageUrl?: string | null;
   imageHint?: string;
   url?: string;
 }
