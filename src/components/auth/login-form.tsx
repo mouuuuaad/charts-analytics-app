@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +19,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import type { UserCredential } from 'firebase/auth'; // Import UserCredential
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Invalid email address.' }),
@@ -40,20 +42,20 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const result = await logIn(values);
+    const result: UserCredential | string = await logIn(values); // Expect UserCredential or string
     setIsLoading(false);
-    if (typeof result === 'string') {
+    if (typeof result === 'string') { // Error case
       toast({
         variant: 'destructive',
         title: 'Login Failed',
-        description: result,
+        description: result, // result is errorMessage
       });
-    } else {
+    } else { // Success case (result is UserCredential)
       toast({
         title: 'Login Successful',
         description: 'Welcome back!',
       });
-      router.push('/');
+      router.push('/dashboard'); // Redirect to dashboard on successful login
     }
   }
 

@@ -11,7 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarInset,
+  // SidebarInset, // Replaced by direct main tag in RootLayout logic
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -24,13 +24,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap } from 'lucide-react'; // Added GraduationCap
+import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
 
 const Logo = () => (
-  <Link href="/" className="flex items-center gap-2 px-2" aria-label="ChartSight AI Home">
+  <Link href="/dashboard" className="flex items-center gap-2 px-2" aria-label="ChartSight AI Home">
      <BarChart3 className="h-8 w-8 text-primary" />
     <h1 className="text-xl font-headline font-semibold text-foreground group-data-[collapsible=icon]:hidden">
       ChartSight AI
@@ -40,67 +40,82 @@ const Logo = () => (
 
 
 const UserMenu = () => {
-  const { user, logOut } = useAuth(); // user will be null when auth is disabled
+  const { user, logOut, loading } = useAuth();
   const router = useRouter();
 
-  // If auth is disabled, we might not want to show the user menu at all
-  // or show a generic "Guest" or nothing. For now, let's return null.
-  return null; 
+  if (loading) {
+    return <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />;
+  }
 
-  // Original UserMenu logic (kept for reference if re-enabled)
-  // if (!user) return null; 
+  if (!user) {
+    // This could redirect to login or show a "Sign In" button if AppShell was visible to guests
+    // For now, with useRequireAuth, user should always exist here.
+    return (
+        <Button variant="outline" onClick={() => router.push('/')}>Sign In</Button>
+    );
+  }
 
-  // const getInitials = (email: string | null | undefined) => {
-  //   if (!email) return 'U';
-  //   return email.substring(0, 2).toUpperCase();
-  // };
+  const getInitials = (displayName: string | null | undefined, email: string | null | undefined) => {
+    if (displayName) {
+      const names = displayName.split(' ');
+      if (names.length > 1) {
+        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
+      }
+      return displayName.substring(0, 2).toUpperCase();
+    }
+    if (email) return email.substring(0, 2).toUpperCase();
+    return 'U';
+  };
 
-  // return (
-  //   <DropdownMenu>
-  //     <DropdownMenuTrigger asChild>
-  //       <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-  //         <Avatar className="h-9 w-9">
-  //           <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
-  //           <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
-  //         </Avatar>
-  //       </Button>
-  //     </DropdownMenuTrigger>
-  //     <DropdownMenuContent className="w-56" align="end" forceMount>
-  //       <DropdownMenuLabel className="font-normal">
-  //         <div className="flex flex-col space-y-1">
-  //           <p className="text-sm font-medium leading-none">
-  //             {user.displayName || user.email}
-  //           </p>
-  //           <p className="text-xs leading-none text-muted-foreground">
-  //             {user.email}
-  //           </p>
-  //         </div>
-  //       </DropdownMenuLabel>
-  //       <DropdownMenuSeparator />
-  //       <DropdownMenuItem onClick={() => router.push('/')}> 
-  //         <UserCircle className="mr-2 h-4 w-4" />
-  //         Profile (Soon)
-  //       </DropdownMenuItem>
-  //       <DropdownMenuItem onClick={() => router.push('/')}>
-  //         <Settings className="mr-2 h-4 w-4" />
-  //         Settings (Soon)
-  //       </DropdownMenuItem>
-  //       <DropdownMenuSeparator />
-  //       <DropdownMenuItem onClick={async () => {
-  //         await logOut();
-  //       }}>
-  //         <LogOut className="mr-2 h-4 w-4" />
-  //         Log out
-  //       </DropdownMenuItem>
-  //     </DropdownMenuContent>
-  //   </DropdownMenu>
-  // );
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
+          <Avatar className="h-9 w-9">
+            <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
+            <AvatarFallback>{getInitials(user.displayName, user.email)}</AvatarFallback>
+          </Avatar>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56" align="end" forceMount>
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">
+              {user.displayName || 'User'}
+            </p>
+            {user.email && (
+                <p className="text-xs leading-none text-muted-foreground">
+                {user.email}
+                </p>
+            )}
+          </div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem disabled>
+          <UserCircle className="mr-2 h-4 w-4" />
+          Profile (Soon)
+        </DropdownMenuItem>
+        <DropdownMenuItem disabled>
+          <Settings className="mr-2 h-4 w-4" />
+          Settings (Soon)
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={async () => {
+          await logOut();
+          // router.push('/'); // Auth context now handles redirect on logout
+        }}>
+          <LogOut className="mr-2 h-4 w-4" />
+          Log out
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 };
 
+// AppShell no longer needs to handle the main content area itself,
+// as RootLayout now conditionally renders AppShell or children directly.
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  // const { user, loading } = useAuth(); // Auth related logic can be simplified if auth is fully disabled
-  // const router = useRouter(); 
   
   return (
     <SidebarProvider defaultOpen>
@@ -117,10 +132,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={pathname === '/'}
+                isActive={pathname === '/dashboard'}
                 tooltip="Dashboard"
               >
-                <Link href="/">
+                <Link href="/dashboard">
                   <Home />
                   <span>Dashboard</span>
                 </Link>
@@ -155,8 +170,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SidebarFooter className="items-center">
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="bg-background">
-        <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
+      {/* SidebarInset is removed, main content is handled by RootLayout's children */}
+      <div className="flex min-h-svh flex-1 flex-col bg-background md:ml-[var(--sidebar-width-icon)] group-data-[state=expanded]:md:ml-[var(--sidebar-width)] transition-[margin-left] duration-200 ease-linear">
+         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
             <SidebarTrigger className="md:hidden" />
             <div className="ml-auto">
                 <UserMenu />
@@ -165,9 +181,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-4 md:p-6">
           {children}
         </main>
-      </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }
-
-    
