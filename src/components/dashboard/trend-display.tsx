@@ -107,15 +107,6 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
       return;
     }
 
-    // If both original texts are empty, and target is not 'en', clear display
-    if (!originalDetails && !originalReason) {
-        setDisplayedAnalysisDetails("");
-        setDisplayedReason("");
-        setTranslationError(null);
-        setIsTranslating(false);
-        return;
-    }
-
     setIsTranslating(true);
     setTranslationError(null);
 
@@ -129,10 +120,9 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
       setDisplayedReason(translatedReasonResult.translatedText);
 
     } catch (err: any) {
-      console.error('Translation error:', err);
+      console.error('Translation error in TrendDisplay:', err);
       const errorMessage = err.message || 'An error occurred during translation.';
       setTranslationError(errorMessage);
-      // Revert to original on error
       setDisplayedAnalysisDetails(originalDetails);
       setDisplayedReason(originalReason);
       toast({
@@ -233,9 +223,12 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
      trendTextClass = 'text-yellow-500';
   }
   
-  const isOriginalTextDisplayed = selectedLanguage === 'en' || 
-                                 (displayedAnalysisDetails === prediction.analysisDetails && 
-                                  displayedReason === prediction.reason);
+  const isDisplayingOriginalEnglish = 
+    selectedLanguage === 'en' &&
+    displayedAnalysisDetails === prediction.analysisDetails &&
+    displayedReason === prediction.reason;
+
+  const canTranslate = !isTranslating && !isDisplayingOriginalEnglish;
 
   return (
     <Card className="w-full shadow-lg">
@@ -259,7 +252,7 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
             </Select>
             <Button 
               onClick={handleTranslate} 
-              disabled={isTranslating || isOriginalTextDisplayed}
+              disabled={!canTranslate || isTranslating}
             >
               {isTranslating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Translate
@@ -330,4 +323,3 @@ export function TrendDisplay({ prediction, isLoading, error }: TrendDisplayProps
     </Card>
   );
 }
-

@@ -30,55 +30,38 @@ const prompt = ai.definePrompt({
   name: 'translateTextPrompt',
   input: {schema: TranslateTextInputSchema},
   output: {schema: TranslateTextOutputSchema},
-  prompt: `You are an expert multilingual translation AI. Your primary task is to translate the 'Input Text' into the 'Target Language Name'.
+  prompt: `You are an AI translation service. Your task is to translate text.
+You will be given "textToTranslate" and "targetLanguageName".
 
-Input Text:
-{{{textToTranslate}}}
+Output MUST be a JSON object: {"translatedText": "YOUR_TRANSLATION_HERE"}
 
-Target Language Name: {{targetLanguageCode}} <!-- This will be the full language name like "Spanish", "French", etc. -->
+If "textToTranslate" is empty or consists only of whitespace, "translatedText" must be an empty string.
+If "targetLanguageName" is "English", "translatedText" must be the original "textToTranslate".
 
-You MUST produce a JSON object as your output, strictly conforming to this schema:
-{
-  "translatedText": "string"
-}
+OTHERWISE (if "targetLanguageName" is NOT "English" AND "textToTranslate" is NOT empty):
+You MUST assume "textToTranslate" is in English.
+You MUST translate "textToTranslate" into "targetLanguageName".
+"translatedText" MUST contain this translation. If you cannot translate it, return the original text but still in the JSON format.
 
-Translation Logic:
-1.  If the 'Input Text' is empty or contains only whitespace, 'translatedText' in your JSON output MUST be an empty string.
-2.  If the 'Input Text' is NOT empty:
-    a.  **If the 'Target Language Name' is English:**
-        Return the 'Input Text' as is in the 'translatedText' field. (Example: Input "Hello", Target "English" -> Output "Hello")
-    b.  **If the 'Target Language Name' is NOT English:**
-        You MUST translate the 'Input Text' (which you can assume is in English) into the specified 'Target Language Name'.
-        The 'translatedText' field in your JSON output MUST contain this translation.
-        (Example: Input "Hello", Target "Spanish" -> Output "Hola Mundo")
-        (Example: Input "Hello", Target "French" -> Output "Bonjour")
-    c.  **Edge case for non-English input already matching non-English target:** If you determine with high confidence that the 'Input Text' is already in the 'Target Language Name' (and the target is not English), then you can return the 'Input Text' as is. (Example: Input "Hola Mundo", Target "Spanish" -> Output "Hola Mundo"). Exercise this rule cautiously. Prioritize translation if unsure.
+Example if targetLanguageName is "Spanish":
+Input: {"textToTranslate": "Hello", "targetLanguageName": "Spanish"}
+Output: {"translatedText": "Hola"}
 
-Do not include any other text, explanations, or apologies in your response. Only the JSON object.
+Example if targetLanguageName is "French":
+Input: {"textToTranslate": "The market is up.", "targetLanguageName": "French"}
+Output: {"translatedText": "Le marché est en hausse."}
 
-Example - Translation to Spanish:
-Input Text: "The market is volatile."
-Target Language Name: "Spanish"
-Correct JSON Output:
-{
-  "translatedText": "El mercado está volátil."
-}
+Example if targetLanguageName is "English":
+Input: {"textToTranslate": "This is a test.", "targetLanguageName": "English"}
+Output: {"translatedText": "This is a test."}
 
-Example - Input already in Spanish, Target Spanish:
-Input Text: "El mercado está volátil."
-Target Language Name: "Spanish"
-Correct JSON Output:
-{
-  "translatedText": "El mercado está volátil."
-}
+Example if textToTranslate is empty:
+Input: {"textToTranslate": "", "targetLanguageName": "German"}
+Output: {"translatedText": ""}
 
-Example - Empty Input:
-Input Text: ""
-Target Language Name: "German"
-Correct JSON Output:
-{
-  "translatedText": ""
-}
+Input for this request:
+textToTranslate: {{{textToTranslate}}}
+targetLanguageName: {{targetLanguageCode}}
 `,
 });
 
@@ -89,7 +72,6 @@ const translateTextFlow = ai.defineFlow(
     outputSchema: TranslateTextOutputSchema,
   },
   async (input) => {
-    // Handle empty input text directly to avoid unnecessary AI calls
     if (!input.textToTranslate.trim()) {
       return { translatedText: "" };
     }
@@ -103,18 +85,18 @@ const translateTextFlow = ai.defineFlow(
         'ja': 'Japanese',
         'zh-CN': 'Simplified Chinese',
     };
-    // The targetLanguageCode from input is 'es', 'fr' etc. We map it to "Spanish", "French" for the prompt.
     const targetLanguageName = languageMap[input.targetLanguageCode] || input.targetLanguageCode;
 
     const {output} = await prompt({
         textToTranslate: input.textToTranslate,
-        targetLanguageCode: targetLanguageName, 
+        targetLanguageCode: targetLanguageName,
     });
     
     if (!output || typeof output.translatedText !== 'string') {
-      // This condition catches null/undefined translatedText.
-      // Empty string is a valid translation (e.g. for empty input).
-      throw new Error('Translation failed. The AI model did not provide a valid translated text string.');
+      console.error('Translation failed or output format incorrect from AI model. Input:', input, 'Output received:', output);
+      // Fallback to original text if AI fails to provide a valid string
+      // This ensures the function still resolves with the expected schema shape, even if translation itself failed.
+      return { translatedText: input.textToTranslate };
     }
     return output;
   }
