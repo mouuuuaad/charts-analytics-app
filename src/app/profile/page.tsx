@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -24,7 +23,6 @@ const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1Rb
 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
 
-
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
   useRequireAuth(); 
@@ -41,14 +39,13 @@ export default function ProfilePage() {
   const [isStripeKeySet, setIsStripeKeySet] = useState(false);
   const [stripePriceId, setStripePriceId] = useState<string>(stripePriceIdValue);
 
-
   useEffect(() => {
     setIsLoadingProfileData(true);
-    if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
+    if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") && !stripePublishableKeyValue.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
       setIsStripeKeySet(true);
     } else {
       setIsStripeKeySet(false);
-      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
+      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
         console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder in .env file. Payment features are disabled.');
         toast({
           title: 'Stripe Configuration Error',
@@ -59,8 +56,9 @@ export default function ProfilePage() {
       }
     }
     
-    if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'YOUR_STRIPE_PRICE_ID_HERE') {
+    if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'YOUR_STRIPE_PRICE_ID_HERE' || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID.trim() === '') {
       console.warn('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default test Price ID. Please set this in your .env file for correct operation.');
+      // Keep stripePriceIdValue as default if env var is bad
     } else {
       setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     }
@@ -82,6 +80,15 @@ export default function ProfilePage() {
   useEffect(() => {
     const paymentSuccess = searchParams.get('payment_success');
     const paymentCanceled = searchParams.get('payment_canceled');
+    const checkoutRedirect = searchParams.get('checkout_redirect');
+    const priceIdParam = searchParams.get('price_id'); // Renamed to avoid conflict
+
+    // Handle iframe breakout scenario
+    if (checkoutRedirect === 'true' && priceIdParam) {
+      // We broke out of an iframe, now try server-side checkout
+      handleServerSideCheckout(priceIdParam);
+      return;
+    }
 
     if (paymentSuccess === 'true') {
       if (typeof window !== 'undefined') {
@@ -109,7 +116,6 @@ export default function ProfilePage() {
       router.replace('/profile', { scroll: false }); 
     }
   }, [searchParams, router, toast]);
-
 
   const getInitials = (displayName: string | null | undefined, email: string | null | undefined): string => {
     if (displayName) {
@@ -140,6 +146,63 @@ export default function ProfilePage() {
     toast({ title: "Level Updated", description: `Your trading level is now set to ${getLevelDisplayName(level)}.` });
   };
   
+  const handleServerSideCheckout = async (priceIdToCheckout: string) => {
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: priceIdToCheckout,
+          successUrl: `${window.location.origin}/profile?payment_success=true`,
+          cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
+        }),
+      });
+
+      if (!response.ok) {
+        let errorMessage = 'Failed to create checkout session. The server returned an error.';
+        try {
+          const errorBody = await response.json();
+          if (errorBody && errorBody.error) {
+            errorMessage = errorBody.error;
+          } else {
+            errorMessage = `Server error: ${response.status} ${response.statusText}`;
+          }
+        } catch (e) {
+          errorMessage = `Server error: ${response.status} ${response.statusText}. Could not parse error response.`;
+        }
+        throw new Error(errorMessage);
+      }
+
+      const { sessionId, url } = await response.json();
+      
+      if (url) {
+        window.location.href = url;
+      } else if (sessionId) {
+        const stripe = await stripePromise;
+        if (stripe) {
+          const { error } = await stripe.redirectToCheckout({ sessionId });
+          if (error) {
+            throw error; // This error will be caught by the caller's catch block
+          }
+        } else {
+          throw new Error("Stripe.js has not loaded yet.");
+        }
+      } else {
+        throw new Error("Server did not return a session ID or URL for checkout.");
+      }
+    } catch (error: any) {
+      console.error('Error in handleServerSideCheckout:', error);
+      // Re-throw the error so the caller (handleUpgradeToPremiumViaStripe) can catch it and show a toast.
+      if (error instanceof Error) {
+          throw error; 
+      } else {
+          throw new Error(String(error) || 'An unknown error occurred during the server-side checkout attempt.');
+      }
+    }
+  };
+  
   const handleUpgradeToPremiumViaStripe = async () => {
     if (!isStripeKeySet) {
         toast({ title: "Stripe Error", description: "Stripe is not configured correctly. Please ensure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set with a valid test key in your .env file. Cannot proceed to payment.", variant: "destructive", duration: 10000 });
@@ -152,76 +215,174 @@ export default function ProfilePage() {
     }
 
     setIsRedirectingToCheckout(true);
-    const stripe = await stripePromise; 
     
-    if (!stripe) {
-      toast({ title: "Stripe Error", description: "Could not connect to Stripe. Please ensure your publishable key is correct and try again.", variant: "destructive" });
-      setIsRedirectingToCheckout(false);
-      return;
+    try {
+      console.log('Attempting server-side checkout with Price ID:', stripePriceId);
+      await handleServerSideCheckout(stripePriceId);
+      // If handleServerSideCheckout is successful, it will redirect, and this function's execution stops.
+      // If it throws an error, it will be caught below.
+      return; 
+    } catch (serverError: any) { 
+      console.log('Server-side checkout attempt failed. Details:', serverError);
+      toast({ 
+        title: "Server Checkout Attempt Failed",
+        description: serverError.message || "Could not initiate checkout via server. Trying client-only method.",
+        variant: "destructive",
+        duration: 10000,
+      });
+      // Fall through to client-side methods if server-side fails
+    }
+
+    // Client-side methods (popup, iframe breakout, traditional redirect)
+    // These are attempted if server-side checkout fails.
+    try {
+      console.log('Attempting popup window approach...');
+      const successUrlEnc = encodeURIComponent(`${window.location.origin}/profile?payment_success=true`);
+      const cancelUrlEnc = encodeURIComponent(`${window.location.origin}/profile?payment_canceled=true`);
+      
+      const checkoutUrl = `https://checkout.stripe.com/c/pay/${stripePriceId}?success_url=${successUrlEnc}&cancel_url=${cancelUrlEnc}&client_reference_id=${user?.uid || 'unknown_user'}`;
+      const popup = window.open(checkoutUrl, 'stripe-checkout', 'width=600,height=800,scrollbars=yes,resizable=yes');
+      
+      if (popup) {
+        const checkClosed = setInterval(() => {
+          if (popup.closed) {
+            clearInterval(checkClosed);
+            setIsRedirectingToCheckout(false);
+            window.location.reload(); 
+          }
+        }, 1000);
+        return;
+      }
+    } catch (popupError) {
+      console.log('Popup method failed, trying iframe breakout...', popupError);
     }
 
     try {
-        // IMPORTANT: If you get an "IntegrationError: The Checkout client-only integration is not enabled."
-        // you MUST enable it in your Stripe Dashboard at:
-        // https://dashboard.stripe.com/account/checkout/settings
-        const { error } = await stripe.redirectToCheckout({
+      if (window.parent !== window) {
+        console.log('Detected iframe, attempting breakout...');
+        if (window.top) {
+          window.top.location.href = `${window.location.origin}/profile?checkout_redirect=true&price_id=${stripePriceId}`;
+          return;
+        }
+      }
+    } catch (iframeError) {
+      console.log('Iframe breakout failed, trying traditional Stripe client-only redirectToCheckout...', iframeError);
+    }
+
+    // Traditional client-only redirectToCheckout (if server-side and other methods fail)
+    try {
+      console.log('Attempting traditional Stripe client-only redirectToCheckout with Price ID:', stripePriceId);
+      const stripe = await stripePromise; 
+      
+      if (!stripe) {
+        throw new Error("Could not connect to Stripe. Please ensure your publishable key is correct.");
+      }
+
+      // This is the client-only integration.
+      // This might fail in sandboxed iframes with "Failed to set 'href'"
+      const { error } = await stripe.redirectToCheckout({
         lineItems: [{ price: stripePriceId, quantity: 1 }],
         mode: 'subscription', 
-        successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
+        successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`, // session_id is a template var
         cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
-        });
+      });
 
-        if (error) {
-            console.error('Stripe redirectToCheckout error:', error);
-            if (error.message && error.message.includes('The Checkout client-only integration is not enabled')) {
-                toast({
-                    title: "Stripe Configuration Needed",
-                    description: (
-                        <div className="flex flex-col gap-1">
-                            <p className="mb-1">The Stripe Checkout client-only integration is not enabled in your Stripe account.</p>
-                            <p className="mb-1">Please enable it in your Stripe Dashboard by visiting:</p>
-                            <Link
-                                href="https://dashboard.stripe.com/account/checkout/settings"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-primary-foreground underline hover:text-primary-foreground/80 font-semibold"
-                            >
-                                https://dashboard.stripe.com/account/checkout/settings
-                            </Link>
-                            <p className="mt-1 text-xs">This is a Stripe account setting, not an app issue. After enabling, please try again.</p>
-                        </div>
-                    ),
-                    variant: "destructive",
-                    duration: 30000, 
-                });
-            } else {
-                toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout. Please check Stripe Price ID and account settings.", variant: "destructive" });
-            }
-            setIsRedirectingToCheckout(false);
+      if (error) {
+         // Check for specific "The Checkout client-only integration is not enabled" error.
+        if (error.message && error.message.includes("The Checkout client-only integration is not enabled")) {
+             toast({
+                title: "Stripe Configuration Error",
+                description: (
+                <div className="space-y-2">
+                    <p className="text-sm">
+                    To use this client-only checkout method, you MUST enable it in your Stripe Dashboard.
+                    </p>
+                    <p className="text-sm">
+                    Please go to:{' '}
+                    <a
+                        href="https://dashboard.stripe.com/account/checkout/settings"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-bold text-primary underline"
+                    >
+                        Stripe Checkout Settings
+                    </a>{' '}
+                    and enable "Client-only integration".
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        If this issue persists, try opening this app in a new standalone browser tab.
+                    </p>
+                </div>
+                ),
+                variant: "destructive",
+                duration: 30000, 
+            });
+        } else if (error.message && (error.message.includes("permission to navigate") || error.message.includes("Location") || error.message.includes("target frame") || error.message.includes("cross-origin frame"))) {
+            toast({
+                title: "Browser Navigation Blocked",
+                description: (
+                <div className="space-y-2">
+                    <p className="text-sm">
+                    Your browser (or the environment it's running in, like an iframe) blocked the redirection to Stripe.
+                    </p>
+                    <p className="text-sm font-semibold">
+                    Please try opening this application in a new, standalone browser window or tab.
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                    This often happens when the app is embedded. Using a standalone tab usually resolves it.
+                    </p>
+                </div>
+                ),
+                variant: "destructive",
+                duration: 20000,
+            });
+        } else {
+          throw error; // Re-throw other Stripe errors
         }
-    } catch (e: any) {
-        console.error('Exception during Stripe checkout redirect:', e);
-        let description = "An unexpected error occurred while attempting to redirect to Stripe Checkout.";
-        
-        if (e.message && (
-            e.message.toLowerCase().includes('permission to navigate') || 
-            e.message.toLowerCase().includes('location') || 
-            e.message.toLowerCase().includes('target frame') || 
-            e.message.toLowerCase().includes('cross-origin frame') || 
-            e.message.toLowerCase().includes('failed to set a named property \'href\' on \'location\'')
-            )) {
-            description = "Could not redirect to Stripe for payment. This can happen if the app is running in a restricted environment (like an embedded frame or development sandbox). Please try opening the application in a new, standalone browser window/tab. If the problem continues, check your browser console for more details or contact support.";
-        } else if (e.message) {
-            description = e.message;
-        }
+      }
+    } catch (e: any) { // Catch errors from traditional redirectToCheckout or other Stripe issues
+      console.error('All checkout methods failed:', e);
+      
+      let description: React.ReactNode = e.message || "An unknown error occurred during checkout.";
+      let solutions: string[] = [];
+      
+      if (e.message && e.message.includes('permission to navigate')) {
+        solutions.push("• Open this app in a new browser tab (not embedded).");
+        solutions.push("• Disable browser extensions that might block redirects.");
+        solutions.push("• Try a different browser.");
+      }
+       if (e.message && e.message.includes("The Checkout client-only integration is not enabled")) {
+        // Already handled with a specific toast, but can add to general solutions if needed
+        solutions.push("• Enable 'Client-only integration' in your Stripe Checkout settings.");
+      }
+      
+      if (solutions.length > 0) {
+        description = (
+          <div className="space-y-2">
+            <p className="text-sm">{e.message || "Checkout failed."}</p>
+            <p className="text-sm font-medium mt-2">Possible solutions:</p>
+            <ul className="list-disc list-inside text-xs space-y-1">
+              {solutions.map((solution, index) => (
+                <li key={index}>{solution}</li>
+              ))}
+            </ul>
+             <p className="text-xs text-muted-foreground mt-2">If the issue persists, please contact support or check console logs for more details.</p>
+          </div>
+        );
+      }
+
+      // Avoid showing a generic toast if a more specific one (like "Client-only integration not enabled") was already shown
+      if (!(e.message && e.message.includes("The Checkout client-only integration is not enabled")) && !(e.message && e.message.includes("permission to navigate"))) {
         toast({ 
-            title: "Redirection to Payment Failed", 
-            description: description, 
-            variant: "destructive",
-            duration: 20000 
+          title: "Checkout Failed", 
+          description: description,
+          variant: "destructive",
+          duration: 20000 
         });
-        setIsRedirectingToCheckout(false);
+      }
     }
+    
+    setIsRedirectingToCheckout(false);
   };
 
   const handleDowngradeToFree = () => {
@@ -236,7 +397,6 @@ export default function ProfilePage() {
         });
     }
   };
-
 
   if (authLoading || isLoadingProfileData || !user) {
     return (
@@ -353,19 +513,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-    
-    
-
-    
-
-    
-
-    
-
-    
-
-
-
-
-
-    
