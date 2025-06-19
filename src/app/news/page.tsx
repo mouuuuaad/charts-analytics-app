@@ -10,7 +10,7 @@ import { FloatingAIButton } from '@/components/news/FloatingAIButton';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Search, Bitcoin, Landmark, BadgeDollarSign, Globe, LayoutGrid, AlertTriangle, Newspaper } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -259,3 +259,4 @@ export default function NewsPage() {
     </div>
   );
 }
+
