@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -8,25 +7,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star } from 'lucide-react';
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star, Copy, Clock, CalendarDays } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
-import { loadStripe, Stripe } from '@stripe/stripe-js';
-import Link from 'next/link'; 
+import { loadStripe, type Stripe } from '@stripe/stripe-js';
+import Link from 'next/link';
+import { format, addDays, differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns';
+
 
 type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
 const MAX_FREE_ATTEMPTS = 2;
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
+const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE';
 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  useRequireAuth(); 
+  useRequireAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -40,6 +41,11 @@ export default function ProfilePage() {
   const [isStripeKeySet, setIsStripeKeySet] = useState(false);
   const [stripePriceId, setStripePriceId] = useState<string>(stripePriceIdValue);
 
+  const [subscriptionStartDate, setSubscriptionStartDate] = useState<string | null>(null);
+  const [subscriptionNextBillingDate, setSubscriptionNextBillingDate] = useState<string | null>(null);
+  const [timeRemainingToNextBilling, setTimeRemainingToNextBilling] = useState<string | null>(null);
+
+
   useEffect(() => {
     setIsLoadingProfileData(true);
     if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") && !stripePublishableKeyValue.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
@@ -50,13 +56,12 @@ export default function ProfilePage() {
         console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder in .env file. Payment features are disabled.');
       }
     }
-    
+
     if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'YOUR_STRIPE_PRICE_ID_HERE' || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID.trim() === '') {
       console.warn('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default test Price ID. Please set this in your .env file for correct operation.');
     } else {
       setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     }
-
 
     if (typeof window !== 'undefined') {
       const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
@@ -64,30 +69,48 @@ export default function ProfilePage() {
 
       const attemptsString = localStorage.getItem('analysisAttempts');
       setAnalysisAttempts(attemptsString ? parseInt(attemptsString, 10) : 0);
-      
+
       const premiumStatus = localStorage.getItem('isUserPremium') === 'true';
       setIsPremium(premiumStatus);
+
+      if (premiumStatus) {
+        const storedStartDate = localStorage.getItem('subscriptionStartDate');
+        const storedNextBillingDate = localStorage.getItem('subscriptionNextBillingDate');
+        setSubscriptionStartDate(storedStartDate);
+        setSubscriptionNextBillingDate(storedNextBillingDate);
+      }
     }
     setIsLoadingProfileData(false);
-  }, [toast]);
+  }, []);
 
   useEffect(() => {
     const paymentSuccess = searchParams.get('payment_success');
     const paymentCanceled = searchParams.get('payment_canceled');
-    
+
     if (paymentSuccess === 'true') {
       if (typeof window !== 'undefined') {
         localStorage.setItem('isUserPremium', 'true');
         setIsPremium(true);
-        localStorage.setItem('analysisAttempts', '0'); 
+        localStorage.setItem('analysisAttempts', '0');
         setAnalysisAttempts(0);
+
+        const today = new Date();
+        const startDateISO = today.toISOString();
+        const nextBillingDate = addDays(today, 30);
+        const nextBillingDateISO = nextBillingDate.toISOString();
+
+        localStorage.setItem('subscriptionStartDate', startDateISO);
+        localStorage.setItem('subscriptionNextBillingDate', nextBillingDateISO);
+        setSubscriptionStartDate(startDateISO);
+        setSubscriptionNextBillingDate(nextBillingDateISO);
+
         toast({
             title: 'Payment Successful!',
             description: 'Welcome to ChartSight AI Premium! Enjoy unlimited analyses.',
             variant: 'default',
             duration: 8000,
         });
-        router.replace('/profile', { scroll: false }); 
+        router.replace('/profile', { scroll: false });
       }
     }
 
@@ -98,9 +121,39 @@ export default function ProfilePage() {
         variant: 'destructive',
         duration: 8000,
       });
-      router.replace('/profile', { scroll: false }); 
+      router.replace('/profile', { scroll: false });
     }
   }, [searchParams, router, toast]);
+
+  useEffect(() => {
+    if (!subscriptionNextBillingDate) {
+      setTimeRemainingToNextBilling(null);
+      return;
+    }
+
+    const calculateRemaining = () => {
+      const now = new Date();
+      const nextBilling = parseISO(subscriptionNextBillingDate);
+
+      if (now >= nextBilling) {
+        setTimeRemainingToNextBilling("Renewal due");
+        // Here you might want to trigger logic to revert to free or prompt for renewal in a real app
+        return;
+      }
+
+      const days = differenceInDays(nextBilling, now);
+      const hours = differenceInHours(nextBilling, now) % 24;
+      const minutes = differenceInMinutes(nextBilling, now) % 60;
+
+      setTimeRemainingToNextBilling(`${days}d ${hours}h ${minutes}m`);
+    };
+
+    calculateRemaining(); // Initial calculation
+    const intervalId = setInterval(calculateRemaining, 60000); // Update every minute
+
+    return () => clearInterval(intervalId); // Cleanup interval on unmount
+  }, [subscriptionNextBillingDate]);
+
 
   const getInitials = (displayName: string | null | undefined, email: string | null | undefined): string => {
     if (displayName) {
@@ -109,7 +162,7 @@ export default function ProfilePage() {
     }
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   };
-  
+
   const getLevelDisplayName = (level: UserLevel | null): string => {
     if (!level) return 'Not Assessed Yet';
     if (level === 'beginner') return 'Beginner';
@@ -130,9 +183,12 @@ export default function ProfilePage() {
     setShowSurveyModal(false);
     toast({ title: "Level Updated", description: `Your trading level is now set to ${getLevelDisplayName(level)}.` });
   };
-  
+
   const handleServerSideCheckout = async (priceIdToCheckout: string): Promise<void> => {
     try {
+      const isInIframe = window.self !== window.top;
+      const isRestrictedContext = isInIframe || !window.location.ancestorOrigins;
+
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -161,26 +217,41 @@ export default function ProfilePage() {
       }
 
       const { sessionId, url } = await response.json();
-      
+
+      if (isRestrictedContext && url) {
+        const newWindow = window.open(url, '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
+        if (newWindow) {
+          const checkClosed = setInterval(() => {
+            if (newWindow.closed) {
+              clearInterval(checkClosed);
+              window.location.reload();
+            }
+          }, 1000);
+          return;
+        }
+      }
+
       if (sessionId) {
         const stripe = await stripePromise;
         if (stripe) {
-          console.log(`Attempting Stripe.js redirectToCheckout with sessionId: ${sessionId}`);
           const { error: stripeJsError } = await stripe.redirectToCheckout({ sessionId });
           if (stripeJsError) {
-            console.error("Stripe.js redirectToCheckout error:", stripeJsError);
-            throw stripeJsError; 
+            if (stripeJsError.message && stripeJsError.message.includes('permission to navigate')) {
+              if (url) {
+                window.location.href = url;
+                return;
+              }
+            }
+            throw stripeJsError;
           }
-          return; 
+          return;
         } else if (url) {
-          console.warn("Stripe.js not loaded, falling back to direct URL navigation for Stripe Checkout.");
           window.location.href = url;
           return;
         } else {
-           throw new Error("Stripe.js not loaded and no fallback URL provided by server for session-based checkout.");
+          throw new Error("Stripe.js not loaded and no fallback URL provided by server for session-based checkout.");
         }
       } else if (url) {
-        console.log("Only URL provided by server (no sessionId), navigating directly.");
         window.location.href = url;
         return;
       } else {
@@ -188,48 +259,63 @@ export default function ProfilePage() {
       }
 
     } catch (error: any) {
-      console.error('Error in handleServerSideCheckout:', error);
       if (error instanceof Error) {
-          throw error; 
+        throw error;
       } else {
-          throw new Error(String(error?.message || error) || 'An unknown error occurred during the server-side checkout attempt.');
+        throw new Error(String(error?.message || error) || 'An unknown error occurred during the server-side checkout attempt.');
       }
     }
   };
-  
+
   const handleUpgradeToPremiumViaStripe = async () => {
     if (!isStripeKeySet) {
-        toast({ title: "Stripe Error", description: "Stripe is not configured correctly. Please ensure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set with a valid test key in your .env file. Cannot proceed to payment.", variant: "destructive", duration: 10000 });
+        toast({
+          title: "Stripe Error",
+          description: "Stripe is not configured correctly. Please ensure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set with a valid test key in your .env file. Cannot proceed to payment.",
+          variant: "destructive",
+          duration: 10000
+        });
         return;
     }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId.trim() === '') { 
-        toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please set NEXT_PUBLIC_STRIPE_PRICE_ID in your .env file with a valid Price ID.", variant: "destructive", duration: 10000 });
-        console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Current value:', stripePriceId);
-        return; 
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId.trim() === '') {
+        toast({
+          title: "Stripe Error",
+          description: "Stripe Price ID is not configured correctly. Please set NEXT_PUBLIC_STRIPE_PRICE_ID in your .env file with a valid Price ID.",
+          variant: "destructive",
+          duration: 10000
+        });
+        return;
     }
 
     setIsRedirectingToCheckout(true);
-    
+
     try {
-      console.log('Attempting server-side checkout flow with Price ID:', stripePriceId);
       await handleServerSideCheckout(stripePriceId);
-    } catch (serverError: any) { 
-      console.error('Server-side checkout attempt failed. Details:', serverError);
+    } catch (serverError: any) {
       let description: React.ReactNode = serverError.message || "Could not initiate checkout via server.";
       let duration = 10000;
 
       if (serverError.message && (
           serverError.message.includes("permission to navigate") ||
-          serverError.message.includes("Location") || 
-          serverError.message.includes("target frame") || 
+          serverError.message.includes("Location") ||
+          serverError.message.includes("target frame") ||
           serverError.message.includes("cross-origin frame") ||
           serverError.message.includes("Failed to set a named property 'href' on 'Location'")
         )) {
-           description = (
-              <div className="space-y-2">
-                  <p className="text-sm">{serverError.message}</p>
-                  <p className="text-sm font-semibold">This can happen if the app is in a restricted frame (like an iframe). Please try opening this application in a new, standalone browser window or tab.</p>
+          description = (
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Checkout Blocked by Browser Security</p>
+              <p className="text-sm">This appears to be running in a restricted environment (like an iframe or development platform).</p>
+              <div className="text-sm space-y-1">
+                <p className="font-medium">Try these solutions:</p>
+                <ul className="list-disc list-inside space-y-1 ml-2">
+                  <li>Open this app in a new browser tab/window</li>
+                  <li>Allow popups for this site</li>
+                  <li>Use a different browser</li>
+                  <li>Use the "Copy Payment Link" button below</li>
+                </ul>
               </div>
+            </div>
           );
           duration = 20000;
       } else if (serverError.message && serverError.message.includes("The Checkout client-only integration is not enabled")) {
@@ -243,24 +329,66 @@ export default function ProfilePage() {
             );
           duration = 30000;
       }
-      
-      toast({ 
-        title: "Checkout Attempt Failed",
+
+      toast({
+        title: "Checkout Failed",
         description: description,
         variant: "destructive",
         duration: duration,
       });
     }
-    
+
     setIsRedirectingToCheckout(false);
+  };
+
+  const handleCopyCheckoutLink = async () => {
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          priceId: stripePriceId,
+          successUrl: `${window.location.origin}/profile?payment_success=true`,
+          cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+
+      if (url) {
+        await navigator.clipboard.writeText(url);
+        toast({
+          title: "Checkout Link Copied!",
+          description: "The payment link has been copied to your clipboard. Paste it in a new browser tab to complete payment.",
+          duration: 8000,
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to create checkout link. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDowngradeToFree = () => {
     if (typeof window !== 'undefined') {
         localStorage.setItem('isUserPremium', 'false');
         setIsPremium(false);
-        localStorage.setItem('analysisAttempts', '0'); 
+        localStorage.setItem('analysisAttempts', '0');
         setAnalysisAttempts(0);
+        localStorage.removeItem('subscriptionStartDate');
+        localStorage.removeItem('subscriptionNextBillingDate');
+        setSubscriptionStartDate(null);
+        setSubscriptionNextBillingDate(null);
+        setTimeRemainingToNextBilling(null);
         toast({
             title: 'Subscription Changed',
             description: 'You are now on the Free plan. (Simulated)',
@@ -275,7 +403,7 @@ export default function ProfilePage() {
       </div>
     );
   }
-  
+
   const attemptsRemaining = isPremium ? Infinity : Math.max(0, MAX_FREE_ATTEMPTS - analysisAttempts);
 
   return (
@@ -335,6 +463,26 @@ export default function ProfilePage() {
                     <span>{analysisAttempts} / {MAX_FREE_ATTEMPTS} used</span>
                   </div>
                 )}
+                 {isPremium && subscriptionStartDate && (
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-1.5 h-3.5 w-3.5"/>Active Since:</span>
+                    <span className="font-medium">{format(parseISO(subscriptionStartDate), "MMMM d, yyyy")}</span>
+                  </div>
+                )}
+                {isPremium && subscriptionNextBillingDate && (
+                  <>
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-1.5 h-3.5 w-3.5"/>Next Billing:</span>
+                      <span className="font-medium">{format(parseISO(subscriptionNextBillingDate), "MMMM d, yyyy")}</span>
+                    </div>
+                     {timeRemainingToNextBilling && (
+                        <div className="flex justify-between items-center text-xs pt-1 border-t border-dashed">
+                            <span className="text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>Time to Renewal:</span>
+                            <span className="font-semibold text-primary">{timeRemainingToNextBilling}</span>
+                        </div>
+                    )}
+                  </>
+                )}
                 {attemptsRemaining <= 0 && !isPremium && (
                     <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md text-xs text-destructive-foreground flex items-center">
                         <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
@@ -344,7 +492,7 @@ export default function ProfilePage() {
               </CardContent>
             </Card>
           </div>
-          
+
         </CardContent>
         <CardFooter className="p-6 border-t bg-muted/20">
             <div className="w-full space-y-3">
@@ -353,18 +501,31 @@ export default function ProfilePage() {
                         Switch to Free Plan (Simulated)
                     </Button>
                 ) : (
-                    <Button 
-                        onClick={handleUpgradeToPremiumViaStripe} 
-                        className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg py-6 shadow-lg"
-                        disabled={isRedirectingToCheckout || !isStripeKeySet}
-                    >
-                        {isRedirectingToCheckout ? (
-                            <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
-                        ) : (
-                            <Zap className="mr-2 h-5 w-5"/>
-                        )}
-                         Upgrade to Premium
-                    </Button>
+                    <div className="space-y-2">
+                      <Button
+                          onClick={handleUpgradeToPremiumViaStripe}
+                          className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg py-6 shadow-lg"
+                          disabled={isRedirectingToCheckout || !isStripeKeySet}
+                      >
+                          {isRedirectingToCheckout ? (
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
+                          ) : (
+                              <Zap className="mr-2 h-5 w-5"/>
+                          )}
+                           Upgrade to Premium
+                      </Button>
+
+                      <Button
+                        onClick={handleCopyCheckoutLink}
+                        variant="outline"
+                        size="sm"
+                        className="w-full text-xs"
+                        disabled={!isStripeKeySet}
+                      >
+                        <Copy className="mr-2 h-3 w-3" />
+                        Copy Payment Link (if blocked)
+                      </Button>
+                    </div>
                 )}
                 {!isStripeKeySet && (
                   <p className="text-xs text-center text-destructive mt-1">
@@ -383,5 +544,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
