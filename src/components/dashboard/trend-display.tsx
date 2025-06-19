@@ -10,6 +10,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label'; // Added missing import
 import {
   AlertTriangle, CheckCircle2, ChevronRight, Eye, HelpCircle, Lightbulb, LinkIcon, ListChecks, Loader2, LogIn, MinusCircle, OctagonX, ShieldAlert, ShieldCheck, ShieldQuestion, Target, TrendingDown, TrendingUp, Zap, ZoomIn, Edit3, DollarSign, BarChartBig, Brain, Info
 } from 'lucide-react';
