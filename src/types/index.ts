@@ -1,4 +1,4 @@
-import type { Timestamp } from 'firebase/firestore';
+
 import type { PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
 
 export interface AuthFormData {
@@ -7,11 +7,11 @@ export interface AuthFormData {
 }
 
 export interface Analysis {
-  id?: string;
-  userId: string;
-  imageUrl: string; // Base64 data URI or path to image in storage
-  extractedData?: string; // JSON string of extracted data
+  id: string; // Changed from optional to required, will be generated locally
+  userId?: string; // Keep optional as it's not used with localStorage but good for future
+  imageUrl: string; // Base64 data URI
+  extractedData?: string | null; // JSON string of extracted data or null
   prediction: PredictMarketTrendOutput;
-  createdAt: Timestamp;
+  createdAt: string; // Changed from Timestamp to ISO string
   chartFileName?: string;
 }

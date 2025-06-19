@@ -6,29 +6,28 @@ import { ImageUploader } from './image-uploader';
 import { TrendDisplay } from './trend-display';
 import { extractChartData, ExtractChartDataOutput } from '@/ai/flows/extract-chart-data';
 import { predictMarketTrend, PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
-// import { useAuth } from '@/contexts/auth-context'; // Auth disabled
-// import { addAnalysis } from '@/services/firestore'; // Firestore not used when auth disabled
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
+import type { Analysis } from '@/types';
 
 type UserLevel = 'beginner' | 'intermediate' | 'advanced';
+const MAX_HISTORY_ITEMS = 20; // Max number of history items in localStorage
 
 export function AnalysisSection() {
   const [prediction, setPrediction] = useState<PredictMarketTrendOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [currentError, setCurrentError] = useState<string | null>(null);
   const [currentChartImage, setCurrentChartImage] = useState<string | null>(null);
+  const [currentChartFileName, setCurrentChartFileName] = useState<string | undefined>(undefined);
   
-  // const { user } = useAuth(); // Auth disabled
   const { toast } = useToast();
 
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
 
   useEffect(() => {
-    // Check localStorage for user level only on client-side
     if (typeof window !== 'undefined') {
       const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
       if (savedLevel) {
@@ -45,12 +44,41 @@ export function AnalysisSection() {
       localStorage.setItem('userTradingLevel', level);
     }
     setShowSurveyModal(false);
-    // No toast for success as per guidelines
+  };
+
+  const addAnalysisToLocalStorage = (analysisResult: PredictMarketTrendOutput, chartImage: string, chartFileName?: string, extractedChartData?: string | null) => {
+    if (typeof window === 'undefined') return;
+
+    const newAnalysis: Analysis = {
+      id: Date.now().toString(), // Simple unique ID
+      imageUrl: chartImage,
+      prediction: analysisResult,
+      extractedData: extractedChartData,
+      createdAt: new Date().toISOString(),
+      chartFileName: chartFileName || `analysis-${Date.now()}`,
+    };
+
+    try {
+      const historyString = localStorage.getItem('chartSightAnalysesHistory');
+      let history: Analysis[] = historyString ? JSON.parse(historyString) : [];
+      history.unshift(newAnalysis); // Add new analysis to the beginning
+      if (history.length > MAX_HISTORY_ITEMS) {
+        history = history.slice(0, MAX_HISTORY_ITEMS); // Keep only the latest N items
+      }
+      localStorage.setItem('chartSightAnalysesHistory', JSON.stringify(history));
+    } catch (e) {
+      console.error("Failed to save analysis to localStorage:", e);
+      toast({
+        variant: 'destructive',
+        title: 'History Error',
+        description: 'Could not save analysis to local history.',
+      });
+    }
   };
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
     if (!userLevel && typeof window !== 'undefined' && !localStorage.getItem('userTradingLevel')) {
-      setShowSurveyModal(true); // Re-prompt if level somehow not set
+      setShowSurveyModal(true);
       toast({
         variant: 'destructive',
         title: 'Assessment Required',
@@ -63,6 +91,8 @@ export function AnalysisSection() {
     setPrediction(null);
     setCurrentError(null);
     setCurrentChartImage(dataUrl);
+    setCurrentChartFileName(file.name);
+
 
     try {
       const chartDataInput = { chartImage: dataUrl };
@@ -98,7 +128,7 @@ export function AnalysisSection() {
         return;
       }
 
-      if (!extractedDataResult.extractedData) {
+      if (!extractedDataResult.extractedData && extractedDataResult.isTradingChart && extractedDataResult.imageQualitySufficient) {
         const dataWarning = 'Could not extract data from the chart, even if it is a trading chart with good quality. The AI may not have been able to process it.';
         setCurrentError(dataWarning);
         setPrediction(null);
@@ -112,8 +142,8 @@ export function AnalysisSection() {
       }
       
       const trendInput = { 
-        extractedData: extractedDataResult.extractedData,
-        userLevel: userLevel || 'intermediate' // Default to intermediate if somehow null
+        extractedData: extractedDataResult.extractedData || "{}", // Ensure extractedData is a string, even if null from AI
+        userLevel: userLevel || 'intermediate'
       };
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
       
@@ -122,10 +152,7 @@ export function AnalysisSection() {
       }
       
       setPrediction(trendPredictionResult);
-
-      // Saving to Firestore is disabled if auth is off
-      // No success toast here as per guidelines (toasts for errors only)
-      // console.log('Analysis Complete. Saving to history is disabled as authentication is off.');
+      addAnalysisToLocalStorage(trendPredictionResult, dataUrl, file.name, extractedDataResult.extractedData);
 
     } catch (error: any) {
       console.error('Analysis pipeline error:', error);
@@ -170,7 +197,6 @@ export function AnalysisSection() {
                  </CardContent>
                </Card>
             )}
-            {/* Render TrendDisplay if not loading OR if there's an error (TrendDisplay handles error messages) */}
             {(!isLoading || currentError) && <TrendDisplay prediction={prediction} isLoading={false} error={currentError} />}
           </div>
         </div>

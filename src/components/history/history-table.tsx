@@ -1,8 +1,7 @@
+
 'use client';
 
-import { useEffect, useState } from 'react';
-import { getAnalysesForUser } from '@/services/firestore';
-import type { Analysis } from '@/types';
+import type { Analysis } from '@/types'; // No need for getAnalysesForUser
 import {
   Table,
   TableBody,
@@ -15,54 +14,20 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowUp, ArrowDown, AlertCircle, Loader2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, MinusCircle } from 'lucide-react'; // Added MinusCircle for sideways
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface HistoryTableProps {
-  userId: string;
+  analyses: Analysis[]; // Accept analyses directly
 }
 
-export function HistoryTable({ userId }: HistoryTableProps) {
-  const [analyses, setAnalyses] = useState<Analysis[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export function HistoryTable({ analyses }: HistoryTableProps) {
+  // isLoading and error state management is moved to the parent component (HistoryPage)
+  // useEffect fetching data is removed.
 
-  useEffect(() => {
-    async function fetchAnalyses() {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const userAnalyses = await getAnalysesForUser(userId);
-        setAnalyses(userAnalyses);
-      } catch (err) {
-        console.error('Failed to fetch analyses:', err);
-        setError('Could not load analysis history. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-    fetchAnalyses();
-  }, [userId]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center min-h-[200px]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="ml-2 text-muted-foreground">Loading history...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex flex-col justify-center items-center min-h-[200px] text-destructive">
-        <AlertCircle className="h-8 w-8 mb-2" />
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  if (analyses.length === 0) {
+  if (!analyses || analyses.length === 0) {
+    // This case should ideally be handled by the parent component (HistoryPage)
+    // But as a fallback:
     return <p className="text-center text-muted-foreground">No analysis history found.</p>;
   }
 
@@ -70,7 +35,7 @@ export function HistoryTable({ userId }: HistoryTableProps) {
     <TooltipProvider>
       <ScrollArea className="h-[500px] rounded-md border">
         <Table>
-          <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm">
+          <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
             <TableRow>
               <TableHead className="w-[120px]">Chart</TableHead>
               <TableHead>File Name</TableHead>
@@ -86,12 +51,12 @@ export function HistoryTable({ userId }: HistoryTableProps) {
                 <TableCell>
                   <div className="w-24 h-16 relative rounded-md overflow-hidden border bg-muted">
                     <Image
-                      src={analysis.imageUrl} // Assuming imageUrl is base64 data URI
+                      src={analysis.imageUrl}
                       alt={analysis.chartFileName || 'Chart image'}
                       layout="fill"
                       objectFit="contain"
                       data-ai-hint="chart analysis"
-                      unoptimized={analysis.imageUrl.startsWith('data:')} // unoptimize for data URIs
+                      unoptimized={true} // Data URIs are typically not optimized by Next/Image by default
                     />
                   </div>
                 </TableCell>
@@ -107,17 +72,28 @@ export function HistoryTable({ userId }: HistoryTableProps) {
                 </TableCell>
                 <TableCell>
                   {analysis.createdAt ? 
-                    formatDistanceToNow(analysis.createdAt.toDate(), { addSuffix: true })
+                    formatDistanceToNow(new Date(analysis.createdAt), { addSuffix: true })
                     : 'N/A'}
                 </TableCell>
                 <TableCell>
-                  <Badge variant={analysis.prediction.trendPrediction === 'up' ? 'default' : 'destructive'}
-                    className={`${analysis.prediction.trendPrediction === 'up' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'} text-white`}
+                  <Badge 
+                    variant={
+                      analysis.prediction.trendPrediction === 'up' ? 'default' 
+                      : analysis.prediction.trendPrediction === 'down' ? 'destructive' 
+                      : 'secondary'
+                    }
+                    className={`${
+                      analysis.prediction.trendPrediction === 'up' ? 'bg-green-500 hover:bg-green-600' 
+                      : analysis.prediction.trendPrediction === 'down' ? 'bg-red-500 hover:bg-red-600' 
+                      : 'bg-yellow-500 hover:bg-yellow-600 text-black'
+                    } text-white`}
                   >
                     {analysis.prediction.trendPrediction === 'up' ? (
                       <ArrowUp className="mr-1 h-4 w-4" />
-                    ) : (
+                    ) : analysis.prediction.trendPrediction === 'down' ? (
                       <ArrowDown className="mr-1 h-4 w-4" />
+                    ) : (
+                      <MinusCircle className="mr-1 h-4 w-4" />
                     )}
                     {analysis.prediction.trendPrediction.toUpperCase()}
                   </Badge>

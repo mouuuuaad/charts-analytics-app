@@ -1,3 +1,4 @@
+
 import { db } from '@/config/firebase';
 import type { Analysis } from '@/types';
 import {
@@ -8,15 +9,17 @@ import {
   orderBy,
   getDocs,
   serverTimestamp,
-  Timestamp,
+  // Timestamp, // No longer directly used in Analysis type for createdAt
 } from 'firebase/firestore';
 
 const ANALYSES_COLLECTION = 'analyses';
 
-export async function addAnalysis(
+// This function is no longer used by the core analysis history feature with localStorage.
+// It's kept here in case direct Firestore interaction is needed elsewhere or in the future.
+export async function addAnalysisToFirestore( // Renamed to avoid confusion
   userId: string,
   imageUrl: string,
-  extractedData: string | undefined,
+  extractedData: string | undefined | null,
   prediction: Analysis['prediction'],
   chartFileName?: string,
 ): Promise<string | null> {
@@ -27,7 +30,7 @@ export async function addAnalysis(
       extractedData: extractedData || null,
       prediction,
       chartFileName: chartFileName || 'N/A',
-      createdAt: serverTimestamp(),
+      createdAt: serverTimestamp(), // Firestore serverTimestamp is fine here
     });
     return docRef.id;
   } catch (error) {
@@ -36,7 +39,9 @@ export async function addAnalysis(
   }
 }
 
-export async function getAnalysesForUser(userId: string): Promise<Analysis[]> {
+// This function is no longer used by the core analysis history feature with localStorage.
+// It's kept here in case direct Firestore interaction is needed elsewhere or in the future.
+export async function getAnalysesForUserFromFirestore(userId: string): Promise<Analysis[]> { // Renamed
   try {
     const q = query(
       collection(db, ANALYSES_COLLECTION),
@@ -46,7 +51,17 @@ export async function getAnalysesForUser(userId: string): Promise<Analysis[]> {
     const querySnapshot = await getDocs(q);
     const analyses: Analysis[] = [];
     querySnapshot.forEach((doc) => {
-      analyses.push({ id: doc.id, ...doc.data() } as Analysis);
+      const data = doc.data();
+      // When fetching from Firestore, createdAt will be a Firebase Timestamp.
+      // For consistency with localStorage version, convert to ISO string if needed by consuming code.
+      // However, the Analysis type now expects string for createdAt.
+      // So, we need to convert Firestore Timestamp to ISO string here.
+      analyses.push({ 
+        id: doc.id, 
+        ...data,
+        // Ensure createdAt is string if it's a Firebase Timestamp from Firestore
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
+      } as Analysis); // Cast might be needed if firestore data structure differs slightly
     });
     return analyses;
   } catch (error) {
