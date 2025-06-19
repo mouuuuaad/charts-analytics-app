@@ -138,9 +138,7 @@ export default function ProfilePage() {
         toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
         return;
     }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId === 'price_1PGW91DBVAJnzUOxL1dJ63sQ' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1PGW91DBVAJnzUOxL1dJ63sQ' ) { 
-        // The check for 'price_1PGW91DBVAJnzUOxL1dJ63sQ' is a placeholder check and should be more robust if other test IDs are commonly used as placeholders.
-        // For this specific Price ID 'price_1RbmIqDBVAJnzUOxV5JLIsGE', this check is fine.
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || (stripePriceId === 'price_1PGW91DBVAJnzUOxL1dJ63sQ' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1PGW91DBVAJnzUOxL1dJ63sQ') ) { 
         if (stripePriceId === 'price_1RbmIqDBVAJnzUOxV5JLIsGE' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1RbmIqDBVAJnzUOxV5JLIsGE') {
             // This specific Price ID has been confirmed by the user, so we don't treat it as an unconfigured placeholder.
         } else {
@@ -192,16 +190,13 @@ export default function ProfilePage() {
                         </div>
                     ),
                     variant: "destructive",
-                    duration: 30000, // Long duration for visibility
+                    duration: 30000, 
                 });
             } else {
                 toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout. Please check Stripe Price ID and account settings.", variant: "destructive" });
             }
             setIsRedirectingToCheckout(false);
         }
-        // If `error` is null, Stripe.js has attempted the redirect.
-        // If the redirect itself fails due to browser/iframe permissions, an exception will be thrown
-        // and caught by the `catch (e: any)` block below.
     } catch (e: any) {
         console.error('Exception during Stripe checkout redirect:', e);
         let description = "An unexpected error occurred while attempting to redirect to Stripe Checkout.";
@@ -214,7 +209,7 @@ export default function ProfilePage() {
             title: "Redirection to Payment Failed", 
             description: description, 
             variant: "destructive",
-            duration: 20000 // Longer duration for this important message
+            duration: 20000 
         });
         setIsRedirectingToCheckout(false);
     }
@@ -344,6 +339,8 @@ export default function ProfilePage() {
     </div>
   );
 }
+    
+
     
 
     
