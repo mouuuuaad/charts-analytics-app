@@ -19,6 +19,7 @@ type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 const MAX_FREE_ATTEMPTS = 2;
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; // Default to the one user provided
 
 // Initialize Stripe.js with your publishable key.
 // Make sure to call `loadStripe` outside of a component’s render to avoid
@@ -49,12 +50,16 @@ export default function ProfilePage() {
       setIsStripeKeySet(true);
     } else {
       setIsStripeKeySet(false);
-      toast({
-        title: 'Stripe Configuration Error',
-        description: 'Stripe publishable key is not set. Payment features are disabled.',
-        variant: 'destructive',
-        duration: 9999999, // Keep toast longer to be noticeable
-      });
+      // Check if the environment variable was actually missing, or just empty
+      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+        console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set in .env file.');
+        toast({
+          title: 'Stripe Configuration Error',
+          description: 'Stripe publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set. Payment features are disabled.',
+          variant: 'destructive',
+          duration: 10000, // Keep toast longer to be noticeable
+        });
+      }
     }
 
     if (typeof window !== 'undefined') {
@@ -137,6 +142,11 @@ export default function ProfilePage() {
         toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
         return;
     }
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE') { // Check against a generic placeholder too
+      toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please contact support or check environment variables.", variant: "destructive" });
+      console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder.');
+      return;
+    }
 
     setIsRedirectingToCheckout(true);
     const stripe = await stripePromise; // stripePromise could be Promise.resolve(null)
@@ -147,17 +157,12 @@ export default function ProfilePage() {
       return;
     }
 
-    // Price ID for the subscription product.
-    // Ensure this Price ID exists in your Stripe account (Test mode for now)
-    // and is for a recurring subscription.
-    const priceId = 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
-
     try {
         // IMPORTANT: If you get an "IntegrationError: The Checkout client-only integration is not enabled."
         // you MUST enable it in your Stripe Dashboard at:
         // https://dashboard.stripe.com/account/checkout/settings
         const { error } = await stripe.redirectToCheckout({
-        lineItems: [{ price: priceId, quantity: 1 }],
+        lineItems: [{ price: stripePriceId, quantity: 1 }],
         mode: 'subscription', 
         successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
@@ -168,9 +173,6 @@ export default function ProfilePage() {
             toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout. Please check Stripe Price ID and account settings.", variant: "destructive" });
             setIsRedirectingToCheckout(false);
         }
-        // If redirectToCheckout is successful, the user will be redirected.
-        // If it fails to redirect for some reason AND doesn't throw an error, the loader might spin.
-        // However, error object should typically be populated on failure.
     } catch (e: any) {
         console.error('Exception during Stripe checkout redirect:', e);
         toast({ title: "Payment Exception", description: e.message || "An unexpected error occurred.", variant: "destructive" });
@@ -303,3 +305,4 @@ export default function ProfilePage() {
   );
 }
 
+    
