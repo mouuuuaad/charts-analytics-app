@@ -127,22 +127,26 @@ export default function ProfilePage() {
       return;
     }
 
-    // IMPORTANT: Replace 'PRICE_ID_REPLACE_ME' with your actual Price ID from Stripe Dashboard
-    const priceId = 'PRICE_ID_REPLACE_ME'; 
-    // Example Price IDs: price_1PGW91DBVAJnzUOxL1dJ63sQ (Monthly), price_1PGW9jDBVAJnzUOxzTsqW7gH (Yearly)
-    // You MUST create your own product and price in Stripe and use its ID.
+    // IMPORTANT: This is a TEST Price ID. 
+    // You MUST create your own product and price in your Stripe Dashboard (Test mode)
+    // and replace this ID with your actual test Price ID.
+    // Example Price IDs for testing might include monthly subscriptions.
+    const priceId = 'price_1PGW91DBVAJnzUOxL1dJ63sQ'; 
+    // Common test Price ID formats: price_xxxxxxxxxxxxxx
 
-    if (priceId === 'PRICE_ID_REPLACE_ME') {
-        toast({
-            title: 'Configuration Needed',
-            description: 'Stripe Price ID is not configured. Please contact support or check console for developer instructions.',
-            variant: 'destructive',
-            duration: 10000,
-        });
-        console.error("Developer Note: Replace 'PRICE_ID_REPLACE_ME' in src/app/profile/page.tsx with your actual Stripe Price ID.");
-        setIsRedirectingToCheckout(false);
-        return;
-    }
+    // The following check for 'PRICE_ID_REPLACE_ME' is removed as we are providing a default test ID.
+    // However, for a real application, ensure you have a valid Price ID.
+    // if (priceId === 'PRICE_ID_REPLACE_ME_OR_INVALID') { // Example of a check you might have
+    //     toast({
+    //         title: 'Configuration Needed',
+    //         description: 'Stripe Price ID is not configured correctly. Please use a valid test Price ID.',
+    //         variant: 'destructive',
+    //         duration: 10000,
+    //     });
+    //     console.error("Developer Note: Replace with your actual Stripe test Price ID in src/app/profile/page.tsx.");
+    //     setIsRedirectingToCheckout(false);
+    //     return;
+    // }
 
     const { error } = await stripe.redirectToCheckout({
       lineItems: [{ price: priceId, quantity: 1 }],
