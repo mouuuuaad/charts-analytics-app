@@ -13,18 +13,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
+import Link from 'next/link'; // Added for the link in toast
 
 type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
 const MAX_FREE_ATTEMPTS = 2;
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; // Default to the one user provided
+const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 
-// Initialize Stripe.js with your publishable key.
-// Make sure to call `loadStripe` outside of a component’s render to avoid
-// recreating the `Stripe` object on every render.
-// If key is not found or empty, stripePromise will be Promise.resolve(null)
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
 
 
@@ -50,14 +47,13 @@ export default function ProfilePage() {
       setIsStripeKeySet(true);
     } else {
       setIsStripeKeySet(false);
-      // Check if the environment variable was actually missing, or just empty
       if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
         console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set in .env file.');
         toast({
           title: 'Stripe Configuration Error',
           description: 'Stripe publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set. Payment features are disabled.',
           variant: 'destructive',
-          duration: 10000, // Keep toast longer to be noticeable
+          duration: 10000, 
         });
       }
     }
@@ -73,10 +69,9 @@ export default function ProfilePage() {
       setIsPremium(premiumStatus);
     }
     setIsLoadingProfileData(false);
-  }, [toast]); // Removed searchParams, router from deps as they don't influence key check
+  }, [toast]);
 
   useEffect(() => {
-    // This effect specifically handles Stripe return URLs
     const paymentSuccess = searchParams.get('payment_success');
     const paymentCanceled = searchParams.get('payment_canceled');
 
@@ -92,7 +87,7 @@ export default function ProfilePage() {
             variant: 'default',
             duration: 8000,
         });
-        router.replace('/profile', { scroll: false }); // Clean URL without scroll jump
+        router.replace('/profile', { scroll: false }); 
       }
     }
 
@@ -103,7 +98,7 @@ export default function ProfilePage() {
         variant: 'destructive',
         duration: 8000,
       });
-      router.replace('/profile', { scroll: false }); // Clean URL
+      router.replace('/profile', { scroll: false }); 
     }
   }, [searchParams, router, toast]);
 
@@ -142,14 +137,14 @@ export default function ProfilePage() {
         toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
         return;
     }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE') { // Check against a generic placeholder too
+    if (!stripePriceId) {
       toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please contact support or check environment variables.", variant: "destructive" });
       console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder.');
       return;
     }
 
     setIsRedirectingToCheckout(true);
-    const stripe = await stripePromise; // stripePromise could be Promise.resolve(null)
+    const stripe = await stripePromise; 
     
     if (!stripe) {
       toast({ title: "Stripe Error", description: "Could not connect to Stripe. Please ensure your publishable key is correct and try again.", variant: "destructive" });
@@ -170,7 +165,30 @@ export default function ProfilePage() {
 
         if (error) {
             console.error('Stripe redirectToCheckout error:', error);
-            toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout. Please check Stripe Price ID and account settings.", variant: "destructive" });
+            if (error.message && error.message.includes('The Checkout client-only integration is not enabled')) {
+                toast({
+                    title: "Stripe Configuration Needed",
+                    description: (
+                        <div>
+                            <p className="mb-2">The Stripe Checkout client-only integration is not enabled in your Stripe account.</p>
+                            <p className="mb-2">Please enable it in your Stripe Dashboard by visiting:</p>
+                            <Link
+                                href="https://dashboard.stripe.com/account/checkout/settings"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary-foreground underline hover:text-primary-foreground/80 font-semibold"
+                            >
+                                https://dashboard.stripe.com/account/checkout/settings
+                            </Link>
+                            <p className="mt-2 text-xs">This is a Stripe account setting, not an app issue. After enabling, please try again.</p>
+                        </div>
+                    ),
+                    variant: "destructive",
+                    duration: 30000, // Long duration for visibility
+                });
+            } else {
+                toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout. Please check Stripe Price ID and account settings.", variant: "destructive" });
+            }
             setIsRedirectingToCheckout(false);
         }
     } catch (e: any) {
@@ -304,5 +322,6 @@ export default function ProfilePage() {
     </div>
   );
 }
+    
 
     
