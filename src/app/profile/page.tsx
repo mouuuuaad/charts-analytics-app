@@ -20,7 +20,7 @@ type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 const MAX_FREE_ATTEMPTS = 2;
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
+const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
 
@@ -39,6 +39,7 @@ export default function ProfilePage() {
   const [isLoadingProfileData, setIsLoadingProfileData] = useState(true);
   const [isRedirectingToCheckout, setIsRedirectingToCheckout] = useState(false);
   const [isStripeKeySet, setIsStripeKeySet] = useState(false);
+  const [stripePriceId, setStripePriceId] = useState<string>(stripePriceIdValue);
 
 
   useEffect(() => {
@@ -57,6 +58,14 @@ export default function ProfilePage() {
         });
       }
     }
+    
+    if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'YOUR_STRIPE_PRICE_ID_HERE') {
+      console.warn('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default test Price ID. Please set this in your .env file for correct operation.');
+      // Keep stripePriceId as the default test one if not set by env var
+    } else {
+      setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
+    }
+
 
     if (typeof window !== 'undefined') {
       const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
@@ -137,14 +146,12 @@ export default function ProfilePage() {
         toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
         return;
     }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || (stripePriceId === 'price_1PGW91DBVAJnzUOxL1dJ63sQ' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1PGW91DBVAJnzUOxL1dJ63sQ') ) { 
-        if (stripePriceId === 'price_1RbmIqDBVAJnzUOxV5JLIsGE' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1RbmIqDBVAJnzUOxV5JLIsGE') {
-            // This specific Price ID has been confirmed by the user, so we don't treat it as an unconfigured placeholder.
-        } else {
-            toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please check environment variables or set a valid Price ID from your Stripe dashboard.", variant: "destructive" });
-            console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder that needs to be replaced by a real test Price ID.');
-            return;
-        }
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE') { 
+        toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please set NEXT_PUBLIC_STRIPE_PRICE_ID in your .env file or use a valid Price ID.", variant: "destructive" });
+        console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default:', stripePriceId);
+        // If you want to allow proceeding with a default test ID if not configured, you can remove the return here.
+        // For now, it's safer to require it.
+        // return; 
     }
 
 
@@ -199,7 +206,8 @@ export default function ProfilePage() {
     } catch (e: any) {
         console.error('Exception during Stripe checkout redirect:', e);
         let description = "An unexpected error occurred while attempting to redirect to Stripe Checkout.";
-        if (e.message && (e.message.toLowerCase().includes('permission to navigate') || e.message.toLowerCase().includes('location') || e.message.toLowerCase().includes('target frame') || e.message.toLowerCase().includes('cross-origin frame'))) {
+        // Check for messages indicative of iframe/sandbox restrictions
+        if (e.message && (e.message.toLowerCase().includes('permission to navigate') || e.message.toLowerCase().includes('location') || e.message.toLowerCase().includes('target frame') || e.message.toLowerCase().includes('cross-origin frame') || e.message.toLowerCase().includes('failed to set a named property \'href\' on \'location\''))) {
             description = "Could not redirect to Stripe for payment. This can happen if the app is running in a restricted environment (like an embedded frame or sandbox). Please try opening the application in a new, standalone browser window/tab. If the problem continues, check your browser console for more details or contact support.";
         } else if (e.message) {
             description = e.message;
