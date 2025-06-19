@@ -20,7 +20,6 @@ type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 const MAX_FREE_ATTEMPTS = 2;
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-// Use the specific Price ID provided by the user if available, otherwise a placeholder.
 const stripePriceId = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
@@ -175,9 +174,9 @@ export default function ProfilePage() {
                 toast({
                     title: "Stripe Configuration Needed",
                     description: (
-                        <div>
-                            <p className="mb-2">The Stripe Checkout client-only integration is not enabled in your Stripe account.</p>
-                            <p className="mb-2">Please enable it in your Stripe Dashboard by visiting:</p>
+                        <div className="flex flex-col gap-1">
+                            <p className="mb-1">The Stripe Checkout client-only integration is not enabled in your Stripe account.</p>
+                            <p className="mb-1">Please enable it in your Stripe Dashboard by visiting:</p>
                             <Link
                                 href="https://dashboard.stripe.com/account/checkout/settings"
                                 target="_blank"
@@ -186,7 +185,7 @@ export default function ProfilePage() {
                             >
                                 https://dashboard.stripe.com/account/checkout/settings
                             </Link>
-                            <p className="mt-2 text-xs">This is a Stripe account setting, not an app issue. After enabling, please try again.</p>
+                            <p className="mt-1 text-xs">This is a Stripe account setting, not an app issue. After enabling, please try again.</p>
                         </div>
                     ),
                     variant: "destructive",
