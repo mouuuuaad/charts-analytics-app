@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import Image from 'next/image';
-import { UploadCloud, XCircle, Camera, Video, VideoOff } from 'lucide-react';
+import { UploadCloud, XCircle, Camera, Video, VideoOff, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,6 +23,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
 
   const [showCameraView, setShowCameraView] = useState(false);
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [isCameraInitializing, setIsCameraInitializing] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { toast } = useToast();
@@ -34,10 +35,14 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
 
     const getCameraPermission = async () => {
       setCameraError(null);
+      setHasCameraPermission(null);
+      setIsCameraInitializing(true);
+
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        const noDeviceError = 'Camera not available on this device/browser.';
+        const noDeviceError = 'Camera features are not supported by your browser or device.';
         setCameraError(noDeviceError);
         setHasCameraPermission(false);
+        setIsCameraInitializing(false);
         toast({
           variant: 'destructive',
           title: 'Camera Error',
@@ -45,37 +50,65 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
         });
         return;
       }
+
+      let streamAttempt: MediaStream | null = null;
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        setHasCameraPermission(true);
-        if (videoElement) {
-          videoElement.srcObject = stream;
+        // Try rear camera first
+        streamAttempt = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      } catch (rearCameraError) {
+        console.warn("Failed to get rear camera (environment), trying default camera:", rearCameraError);
+        try {
+          // Fallback to any camera (usually front)
+          streamAttempt = await navigator.mediaDevices.getUserMedia({ video: true });
+        } catch (anyCameraError) {
+          console.error('Error accessing any camera:', anyCameraError);
+          const errorToReport = anyCameraError instanceof Error ? anyCameraError : (rearCameraError instanceof Error ? rearCameraError : new Error("Unknown camera error"));
+          let description = 'Please enable camera permissions in your browser settings.';
+          if (errorToReport.name === "NotAllowedError" || errorToReport.name === "PermissionDeniedError") {
+              description = "Camera access was denied. Please enable permissions in your browser settings.";
+          } else if (errorToReport.name === "NotFoundError" || errorToReport.name === "DevicesNotFoundError") {
+              description = "No camera was found. Please ensure a camera is connected and enabled.";
+          }  else if (errorToReport.name === "OverconstrainedError") {
+              description = "Could not satisfy camera constraints. Your device might not have a suitable camera matching the request (e.g. rear camera).";
+          } else {
+              description = `Could not access camera: ${errorToReport.message}.`;
+          }
+          setCameraError(description);
+          setHasCameraPermission(false);
+          setIsCameraInitializing(false);
+          toast({ variant: 'destructive', title: 'Camera Access Failed', description });
+          return;
         }
-      } catch (err) {
-        console.error('Error accessing camera:', err);
-        let description = 'Please enable camera permissions in your browser settings.';
-        if (err instanceof Error && err.name === "NotAllowedError") {
-            description = "Camera access was denied. Please enable permissions in your browser settings.";
-        } else if (err instanceof Error && err.name === "NotFoundError") {
-            description = "No camera was found. Please ensure a camera is connected and enabled.";
-        } else if (err instanceof Error) {
-            description = `Could not access camera: ${err.message}.`;
-        }
-        setCameraError(description);
-        setHasCameraPermission(false);
-        toast({
-          variant: 'destructive',
-          title: 'Camera Access Denied',
-          description: description,
-        });
       }
+
+      stream = streamAttempt;
+      setHasCameraPermission(true);
+      if (videoElement) {
+        videoElement.srcObject = stream;
+        videoElement.onloadedmetadata = () => {
+            videoElement.play().catch(playError => {
+                console.error("Error playing video:", playError);
+                // Potentially notify user if autoplay fails, though 'muted' usually helps.
+            });
+        };
+      }
+      setIsCameraInitializing(false);
     };
 
     if (showCameraView) {
       getCameraPermission();
+    } else {
+      setIsCameraInitializing(false);
+      if (videoElement && videoElement.srcObject) {
+        const mediaStream = videoElement.srcObject as MediaStream;
+        mediaStream.getTracks().forEach(track => track.stop());
+        videoElement.srcObject = null;
+      }
+      setHasCameraPermission(null);
     }
 
     return () => {
+      setIsCameraInitializing(false);
       if (videoElement && videoElement.srcObject) {
         const mediaStream = videoElement.srcObject as MediaStream;
         mediaStream.getTracks().forEach(track => track.stop());
@@ -119,7 +152,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
         setPreviewUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
-      setShowCameraView(false); // Switch back to file view if a file is selected
+      setShowCameraView(false); 
     }
   };
 
@@ -133,14 +166,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
     setSelectedFile(null);
     setPreviewUrl(null);
     setError(null);
-    setShowCameraView(false);
-    setHasCameraPermission(null);
-    setCameraError(null);
-    if (videoRef.current && videoRef.current.srcObject) {
-        const mediaStream = videoRef.current.srcObject as MediaStream;
-        mediaStream.getTracks().forEach(track => track.stop());
-        videoRef.current.srcObject = null;
-    }
+    setShowCameraView(false); // This will trigger useEffect cleanup for camera
     const fileInput = document.getElementById('chart-image-upload') as HTMLInputElement;
     if (fileInput) {
       fileInput.value = '';
@@ -168,20 +194,16 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
           setSelectedFile(file);
           setPreviewUrl(dataUrl);
           setError(null);
-          setShowCameraView(false); // Switch to preview view
-          if (videoRef.current && videoRef.current.srcObject) {
-            const mediaStream = videoRef.current.srcObject as MediaStream;
-            mediaStream.getTracks().forEach(track => track.stop());
-            videoRef.current.srcObject = null;
-          }
-          setHasCameraPermission(null); // Reset camera permission status
+          setShowCameraView(false); // Switch to preview view, triggers useEffect cleanup
         } catch (fileError) {
           console.error("Error creating file from data URL:", fileError);
           setError("Could not process captured image.");
+          toast({ variant: 'destructive', title: 'Capture Error', description: 'Could not process the captured image.' });
         }
       }
     } else {
         setError("Camera not ready or permission denied.");
+        toast({ variant: 'destructive', title: 'Camera Not Ready', description: 'Camera is not ready or permission was denied.' });
     }
   };
 
@@ -205,21 +227,34 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
           <div className="space-y-4">
             <canvas ref={canvasRef} style={{ display: 'none' }} />
             <div className="w-full aspect-video bg-muted rounded-md overflow-hidden relative flex items-center justify-center">
-              <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-              {!hasCameraPermission && hasCameraPermission !== null && (
-                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white p-4">
-                    <VideoOff className="w-12 h-12 mb-2" />
-                    <p className="text-center">{cameraError || "Camera permission denied or camera not found."}</p>
-                 </div>
-              )}
-               {hasCameraPermission === null && !cameraError && ( // Loading state for camera
-                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white p-4">
-                    <p>Initializing camera...</p>
-                 </div>
-              )}
+                <video ref={videoRef} className={`w-full h-full object-cover ${isCameraInitializing || hasCameraPermission === false || hasCameraPermission === null ? 'hidden' : ''}`} autoPlay playsInline muted />
+
+                {isCameraInitializing && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 text-white p-4 rounded-md">
+                        <Loader2 className="w-10 h-10 animate-spin mb-3 text-primary" />
+                        <p className="font-medium">Initializing Camera...</p>
+                        <p className="text-xs text-gray-300">Attempting to access rear camera first.</p>
+                    </div>
+                )}
+
+                {!isCameraInitializing && hasCameraPermission === false && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-destructive/90 text-destructive-foreground p-4 rounded-md text-center">
+                        <VideoOff className="w-12 h-12 mb-3" />
+                        <p className="font-semibold text-lg">Camera Access Problem</p>
+                        <p className="text-sm">{cameraError || "Could not access the camera. Please check permissions and ensure a camera is connected."}</p>
+                    </div>
+                )}
+                {/* Fallback for when camera is simply not active yet, but view is selected */}
+                 {!isCameraInitializing && hasCameraPermission === null && showCameraView && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white p-4 rounded-md">
+                        <VideoOff className="w-12 h-12 mb-2" />
+                        <p>Camera is not active. Waiting for permission or device.</p>
+                    </div>
+                )}
             </div>
             
-            {cameraError && !hasCameraPermission && (
+            {/* Persistent alert if there was a camera error, might be useful even if overlay hides */}
+            {cameraError && hasCameraPermission === false && !isCameraInitializing && (
                  <Alert variant="destructive">
                     <VideoOff className="h-4 w-4" />
                     <AlertTitle>Camera Error</AlertTitle>
@@ -227,7 +262,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
                 </Alert>
             )}
 
-            <Button onClick={handleCapturePhoto} disabled={!hasCameraPermission || isProcessing} className="w-full">
+            <Button onClick={handleCapturePhoto} disabled={!hasCameraPermission || isProcessing || isCameraInitializing} className="w-full">
               <Video className="mr-2 h-4 w-4" /> Capture Photo
             </Button>
           </div>
@@ -288,7 +323,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
 
         {error && !showCameraView && <p className="text-sm text-destructive text-center">{error}</p>}
 
-        {previewUrl && !showCameraView && ( // Show Analyze button only if there's a preview and not in camera view
+        {previewUrl && !showCameraView && ( 
           <div className="text-center">
             {selectedFile && <p className="text-sm text-muted-foreground truncate">Selected: {selectedFile.name}</p>}
             <Button onClick={handleUpload} disabled={!selectedFile || isProcessing} className="mt-4 w-full sm:w-auto">
@@ -300,3 +335,6 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
     </Card>
   );
 }
+
+
+    
