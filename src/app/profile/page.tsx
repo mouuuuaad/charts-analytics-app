@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star, ExternalLink } from 'lucide-react';
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
@@ -18,10 +18,13 @@ type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
 const MAX_FREE_ATTEMPTS = 2;
 
+const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+
 // Initialize Stripe.js with your publishable key.
 // Make sure to call `loadStripe` outside of a component’s render to avoid
 // recreating the `Stripe` object on every render.
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+// If key is not found or empty, stripePromise will be Promise.resolve(null)
+const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
 
 
 export default function ProfilePage() {
@@ -37,10 +40,23 @@ export default function ProfilePage() {
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [isLoadingProfileData, setIsLoadingProfileData] = useState(true);
   const [isRedirectingToCheckout, setIsRedirectingToCheckout] = useState(false);
+  const [isStripeKeySet, setIsStripeKeySet] = useState(false);
 
 
   useEffect(() => {
     setIsLoadingProfileData(true);
+    if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "") {
+      setIsStripeKeySet(true);
+    } else {
+      setIsStripeKeySet(false);
+      toast({
+        title: 'Stripe Configuration Error',
+        description: 'Stripe publishable key is not set. Payment features are disabled.',
+        variant: 'destructive',
+        duration: 9999999, // Keep toast longer to be noticeable
+      });
+    }
+
     if (typeof window !== 'undefined') {
       const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
       setUserLevel(savedLevel);
@@ -52,10 +68,10 @@ export default function ProfilePage() {
       setIsPremium(premiumStatus);
     }
     setIsLoadingProfileData(false);
-  }, []);
+  }, [toast]); // Removed searchParams, router from deps as they don't influence key check
 
   useEffect(() => {
-    // Check for Stripe Checkout success/cancel query parameters
+    // This effect specifically handles Stripe return URLs
     const paymentSuccess = searchParams.get('payment_success');
     const paymentCanceled = searchParams.get('payment_canceled');
 
@@ -71,8 +87,7 @@ export default function ProfilePage() {
             variant: 'default',
             duration: 8000,
         });
-        // Clean the URL
-        router.replace('/profile');
+        router.replace('/profile', { scroll: false }); // Clean URL without scroll jump
       }
     }
 
@@ -83,8 +98,7 @@ export default function ProfilePage() {
         variant: 'destructive',
         duration: 8000,
       });
-      // Clean the URL
-      router.replace('/profile');
+      router.replace('/profile', { scroll: false }); // Clean URL
     }
   }, [searchParams, router, toast]);
 
@@ -119,38 +133,46 @@ export default function ProfilePage() {
   };
   
   const handleUpgradeToPremiumViaStripe = async () => {
+    if (!isStripeKeySet) {
+        toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
+        return;
+    }
+
     setIsRedirectingToCheckout(true);
-    const stripe = await stripePromise;
+    const stripe = await stripePromise; // stripePromise could be Promise.resolve(null)
+    
     if (!stripe) {
-      toast({ title: "Stripe Error", description: "Could not connect to Stripe. Please try again later.", variant: "destructive" });
+      toast({ title: "Stripe Error", description: "Could not connect to Stripe. Please ensure your publishable key is correct and try again.", variant: "destructive" });
       setIsRedirectingToCheckout(false);
       return;
     }
 
-    // IMPORTANT: This is a TEST Price ID. 
-    // You should create your own product and price in your Stripe Dashboard (Test mode)
-    // and replace this ID with your actual test Price ID if different.
+    // Price ID provided by user. User must ensure this is a valid test Price ID for a *subscription* product.
     const priceId = 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
-    // Common test Price ID formats: price_xxxxxxxxxxxxxx
 
+    try {
+        const { error } = await stripe.redirectToCheckout({
+        lineItems: [{ price: priceId, quantity: 1 }],
+        mode: 'subscription', 
+        successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
+        });
 
-    const { error } = await stripe.redirectToCheckout({
-      lineItems: [{ price: priceId, quantity: 1 }],
-      mode: 'subscription', // Or 'payment' for one-time
-      successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
-      cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
-    });
-
-    if (error) {
-      console.error('Stripe redirectToCheckout error:', error);
-      toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout.", variant: "destructive" });
-      setIsRedirectingToCheckout(false);
+        if (error) {
+            console.error('Stripe redirectToCheckout error:', error);
+            toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout. Please check Stripe Price ID and account settings.", variant: "destructive" });
+            setIsRedirectingToCheckout(false);
+        }
+        // If redirectToCheckout is successful, the user will be redirected.
+        // If it fails to redirect for some reason AND doesn't throw an error, the loader might spin.
+        // However, error object should typically be populated on failure.
+    } catch (e: any) {
+        console.error('Exception during Stripe checkout redirect:', e);
+        toast({ title: "Payment Exception", description: e.message || "An unexpected error occurred.", variant: "destructive" });
+        setIsRedirectingToCheckout(false);
     }
-    // If redirectToCheckout is successful, the user will be redirected
-    // and this part of the code might not be reached immediately.
   };
 
-  // This function is for simulation if Stripe is not fully set up or for testing UI
   const handleDowngradeToFree = () => {
     if (typeof window !== 'undefined') {
         localStorage.setItem('isUserPremium', 'false');
@@ -253,7 +275,7 @@ export default function ProfilePage() {
                     <Button 
                         onClick={handleUpgradeToPremiumViaStripe} 
                         className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg py-6 shadow-lg"
-                        disabled={isRedirectingToCheckout}
+                        disabled={isRedirectingToCheckout || !isStripeKeySet}
                     >
                         {isRedirectingToCheckout ? (
                             <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
