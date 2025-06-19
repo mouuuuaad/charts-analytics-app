@@ -147,10 +147,15 @@ export default function ProfilePage() {
       return;
     }
 
-    // Price ID provided by user. User must ensure this is a valid test Price ID for a *subscription* product.
+    // Price ID for the subscription product.
+    // Ensure this Price ID exists in your Stripe account (Test mode for now)
+    // and is for a recurring subscription.
     const priceId = 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 
     try {
+        // IMPORTANT: If you get an "IntegrationError: The Checkout client-only integration is not enabled."
+        // you MUST enable it in your Stripe Dashboard at:
+        // https://dashboard.stripe.com/account/checkout/settings
         const { error } = await stripe.redirectToCheckout({
         lineItems: [{ price: priceId, quantity: 1 }],
         mode: 'subscription', 
@@ -297,3 +302,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
