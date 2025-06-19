@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Loader2 } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Newspaper, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -144,6 +144,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
+                isActive={pathname === '/news'}
+                tooltip="Market News"
+              >
+                <Link href="/news">
+                  <Newspaper />
+                  <span>News</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
                 isActive={pathname === '/history'}
                 tooltip="Analysis History"
               >
@@ -197,4 +209,3 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </SidebarProvider>
   );
 }
-
