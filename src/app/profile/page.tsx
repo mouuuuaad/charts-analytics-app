@@ -8,19 +8,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // For navigation
-import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal'; // For retaking assessment
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star, ExternalLink } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
+import { loadStripe, Stripe } from '@stripe/stripe-js';
 
 type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
 const MAX_FREE_ATTEMPTS = 2;
 
+// Initialize Stripe.js with your publishable key.
+// Make sure to call `loadStripe` outside of a component’s render to avoid
+// recreating the `Stripe` object on every render.
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+
+
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  useRequireAuth(); // Ensures user is authenticated
+  useRequireAuth(); 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
 
   const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
@@ -28,6 +36,7 @@ export default function ProfilePage() {
   const [isPremium, setIsPremium] = useState<boolean>(false);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [isLoadingProfileData, setIsLoadingProfileData] = useState(true);
+  const [isRedirectingToCheckout, setIsRedirectingToCheckout] = useState(false);
 
 
   useEffect(() => {
@@ -44,6 +53,41 @@ export default function ProfilePage() {
     }
     setIsLoadingProfileData(false);
   }, []);
+
+  useEffect(() => {
+    // Check for Stripe Checkout success/cancel query parameters
+    const paymentSuccess = searchParams.get('payment_success');
+    const paymentCanceled = searchParams.get('payment_canceled');
+
+    if (paymentSuccess === 'true') {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('isUserPremium', 'true');
+        setIsPremium(true);
+        localStorage.setItem('analysisAttempts', '0'); 
+        setAnalysisAttempts(0);
+        toast({
+            title: 'Payment Successful!',
+            description: 'Welcome to ChartSight AI Premium! Enjoy unlimited analyses.',
+            variant: 'default',
+            duration: 8000,
+        });
+        // Clean the URL
+        router.replace('/profile');
+      }
+    }
+
+    if (paymentCanceled === 'true') {
+      toast({
+        title: 'Payment Canceled',
+        description: 'Your payment process was canceled. You can try again anytime.',
+        variant: 'destructive',
+        duration: 8000,
+      });
+      // Clean the URL
+      router.replace('/profile');
+    }
+  }, [searchParams, router, toast]);
+
 
   const getInitials = (displayName: string | null | undefined, email: string | null | undefined): string => {
     if (displayName) {
@@ -74,27 +118,54 @@ export default function ProfilePage() {
     toast({ title: "Level Updated", description: `Your trading level is now set to ${getLevelDisplayName(level)}.` });
   };
   
-  // Placeholder function to simulate upgrading to premium
-  const handleUpgradeToPremium = () => {
-    if (typeof window !== 'undefined') {
-        localStorage.setItem('isUserPremium', 'true');
-        setIsPremium(true);
-        // Optionally reset attempts or grant more
-        localStorage.setItem('analysisAttempts', '0'); 
-        setAnalysisAttempts(0);
-        toast({
-            title: 'Congratulations!',
-            description: 'You are now a Premium user! (Simulated)',
-        });
+  const handleUpgradeToPremiumViaStripe = async () => {
+    setIsRedirectingToCheckout(true);
+    const stripe = await stripePromise;
+    if (!stripe) {
+      toast({ title: "Stripe Error", description: "Could not connect to Stripe. Please try again later.", variant: "destructive" });
+      setIsRedirectingToCheckout(false);
+      return;
     }
+
+    // IMPORTANT: Replace 'PRICE_ID_REPLACE_ME' with your actual Price ID from Stripe Dashboard
+    const priceId = 'PRICE_ID_REPLACE_ME'; 
+    // Example Price IDs: price_1PGW91DBVAJnzUOxL1dJ63sQ (Monthly), price_1PGW9jDBVAJnzUOxzTsqW7gH (Yearly)
+    // You MUST create your own product and price in Stripe and use its ID.
+
+    if (priceId === 'PRICE_ID_REPLACE_ME') {
+        toast({
+            title: 'Configuration Needed',
+            description: 'Stripe Price ID is not configured. Please contact support or check console for developer instructions.',
+            variant: 'destructive',
+            duration: 10000,
+        });
+        console.error("Developer Note: Replace 'PRICE_ID_REPLACE_ME' in src/app/profile/page.tsx with your actual Stripe Price ID.");
+        setIsRedirectingToCheckout(false);
+        return;
+    }
+
+    const { error } = await stripe.redirectToCheckout({
+      lineItems: [{ price: priceId, quantity: 1 }],
+      mode: 'subscription', // Or 'payment' for one-time
+      successUrl: `${window.location.origin}/profile?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
+      cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
+    });
+
+    if (error) {
+      console.error('Stripe redirectToCheckout error:', error);
+      toast({ title: "Payment Error", description: error.message || "Could not redirect to checkout.", variant: "destructive" });
+      setIsRedirectingToCheckout(false);
+    }
+    // If redirectToCheckout is successful, the user will be redirected
+    // and this part of the code might not be reached immediately.
   };
 
-  // Placeholder function to simulate downgrading to free (for testing)
+  // This function is for simulation if Stripe is not fully set up or for testing UI
   const handleDowngradeToFree = () => {
     if (typeof window !== 'undefined') {
         localStorage.setItem('isUserPremium', 'false');
         setIsPremium(false);
-        localStorage.setItem('analysisAttempts', '0'); // Reset attempts for free tier
+        localStorage.setItem('analysisAttempts', '0'); 
         setAnalysisAttempts(0);
         toast({
             title: 'Subscription Changed',
@@ -181,15 +252,6 @@ export default function ProfilePage() {
             </Card>
           </div>
           
-          {/* Placeholder for Age - not available from Google directly */}
-          {/* 
-          <div className="space-y-1">
-            <Label htmlFor="age" className="text-xs text-muted-foreground">Age (Optional)</Label>
-            <Input id="age" placeholder="Enter your age" disabled className="text-sm" />
-            <p className="text-xs text-muted-foreground italic">Age information is not yet editable.</p>
-          </div>
-          */}
-
         </CardContent>
         <CardFooter className="p-6 border-t bg-muted/20">
             <div className="w-full space-y-3">
@@ -198,10 +260,22 @@ export default function ProfilePage() {
                         Switch to Free Plan (Simulated)
                     </Button>
                 ) : (
-                    <Button onClick={handleUpgradeToPremium} className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg py-6 shadow-lg">
-                        <Zap className="mr-2 h-5 w-5"/> Upgrade to Premium (Simulated)
+                    <Button 
+                        onClick={handleUpgradeToPremiumViaStripe} 
+                        className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg py-6 shadow-lg"
+                        disabled={isRedirectingToCheckout}
+                    >
+                        {isRedirectingToCheckout ? (
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
+                        ) : (
+                            <Zap className="mr-2 h-5 w-5"/>
+                        )}
+                         Upgrade to Premium
                     </Button>
                 )}
+                <p className="text-xs text-center text-muted-foreground mt-1">
+                  By upgrading, you agree to our Terms of Service (not yet created).
+                </p>
                 <Button variant="ghost" onClick={() => router.push('/dashboard')} className="w-full">
                     Back to Dashboard
                 </Button>
@@ -211,4 +285,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
