@@ -30,40 +30,56 @@ const prompt = ai.definePrompt({
   name: 'translateTextPrompt',
   input: {schema: TranslateTextInputSchema},
   output: {schema: TranslateTextOutputSchema},
-  prompt: `You are an expert multilingual translation service.
-Your primary task is to translate the 'Input Text' provided below into the 'Target Language Name' specified.
+  prompt: `You are an expert multilingual translation AI. Your primary task is to translate the 'Input Text' into the 'Target Language Name'.
 
 Input Text:
 {{{textToTranslate}}}
 
-Target Language Name: {{targetLanguageCode}}
+Target Language Name: {{targetLanguageCode}} <!-- This will be the full language name like "Spanish", "French", etc. -->
 
 You MUST produce a JSON object as your output, strictly conforming to this schema:
 {
   "translatedText": "string"
 }
 
-The 'translatedText' field in the JSON object MUST contain the translated version of the 'Input Text' in the 'Target Language Name'.
-It is crucial that the 'translatedText' is DIFFERENT from the 'Input Text' if the 'Target Language Name' is different from the source language of the 'Input Text'.
-If the 'Input Text' is already in the 'Target Language Name', then 'translatedText' should be the same as 'Input Text'.
-If the 'Input Text' is empty, 'translatedText' should also be empty.
+Translation Logic:
+1.  If the 'Input Text' is empty or contains only whitespace, 'translatedText' in your JSON output MUST be an empty string.
+2.  If the 'Input Text' is NOT empty:
+    a.  **If the 'Target Language Name' is English:**
+        Return the 'Input Text' as is in the 'translatedText' field. (Example: Input "Hello", Target "English" -> Output "Hello")
+    b.  **If the 'Target Language Name' is NOT English:**
+        You MUST translate the 'Input Text' (which you can assume is in English) into the specified 'Target Language Name'.
+        The 'translatedText' field in your JSON output MUST contain this translation.
+        (Example: Input "Hello", Target "Spanish" -> Output "Hola Mundo")
+        (Example: Input "Hello", Target "French" -> Output "Bonjour")
+    c.  **Edge case for non-English input already matching non-English target:** If you determine with high confidence that the 'Input Text' is already in the 'Target Language Name' (and the target is not English), then you can return the 'Input Text' as is. (Example: Input "Hola Mundo", Target "Spanish" -> Output "Hola Mundo"). Exercise this rule cautiously. Prioritize translation if unsure.
 
-For example, if Input Text is "Hello World" and Target Language Name is "Spanish", your response MUST be:
+Do not include any other text, explanations, or apologies in your response. Only the JSON object.
+
+Example - Translation to Spanish:
+Input Text: "The market is volatile."
+Target Language Name: "Spanish"
+Correct JSON Output:
 {
-  "translatedText": "Hola Mundo"
+  "translatedText": "El mercado está volátil."
 }
 
-If Input Text is "Hola Mundo" and Target Language Name is "Spanish", your response MUST be:
+Example - Input already in Spanish, Target Spanish:
+Input Text: "El mercado está volátil."
+Target Language Name: "Spanish"
+Correct JSON Output:
 {
-  "translatedText": "Hola Mundo"
+  "translatedText": "El mercado está volátil."
 }
 
-If Input Text is "" and Target Language Name is "French", your response MUST be:
+Example - Empty Input:
+Input Text: ""
+Target Language Name: "German"
+Correct JSON Output:
 {
   "translatedText": ""
 }
-
-Do not include any other text, explanations, or apologies in your response. Only the JSON object.`,
+`,
 });
 
 const translateTextFlow = ai.defineFlow(
@@ -103,4 +119,3 @@ const translateTextFlow = ai.defineFlow(
     return output;
   }
 );
-
