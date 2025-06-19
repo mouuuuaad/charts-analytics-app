@@ -169,7 +169,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <SidebarMenuButton
                 asChild
                 isActive={pathname === '/training'}
-                tooltip="Training"
+                tooltip="Training & Quiz"
               >
                 <Link href="/training">
                   <GraduationCap />

@@ -1,260 +1,345 @@
 
 'use client';
 
-import type { ReactNode } from 'react';
-import { useState, useEffect } from 'react';
-import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useState, useEffect, useMemo } from 'react';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
-import { GraduationCap, BookOpen, Zap, Brain, BarChartBig, Video, FileText, Puzzle, ShieldCheck, Target, TrendingUp, RefreshCw, Loader2 } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Brain, Lightbulb } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion'; // For animations
 
-type UserLevel = 'beginner' | 'intermediate' | 'advanced';
-
-interface TrainingItem {
-  id: string;
-  title: string;
-  description: string;
-  contentType: 'video' | 'article' | 'exercise';
-  icon: React.ElementType;
-  contentUrl?: string;
-  image?: string;
-  imageHint?: string;
+interface QuizOption {
+  value: string;
+  text: string;
 }
 
-interface TrainingModule {
+interface QuizQuestion {
   id: string;
-  title: string;
-  moduleIcon: React.ElementType;
-  items: TrainingItem[];
+  questionText: string;
+  options: QuizOption[];
+  correctAnswer: string;
+  explanation: string;
 }
 
-const beginnerModules: TrainingModule[] = [
+const initialQuestionBank: QuizQuestion[] = [
   {
-    id: 'b_basics',
-    title: 'أساسيات سوق التداول',
-    moduleIcon: BookOpen,
-    items: [
-      { id: 'b1_1', title: 'ما هو سوق الأسهم؟', description: 'مقدمة شاملة عن سوق الأسهم وكيف يعمل.', contentType: 'video', icon: Video, image: 'https://placehold.co/300x150.png', imageHint: 'market basics' },
-      { id: 'b1_2', title: 'فهم الرسوم البيانية للمبتدئين', description: 'تعلم قراءة الشموع اليابانية والرسوم البيانية الخطية.', contentType: 'article', icon: FileText, image: 'https://placehold.co/300x150.png', imageHint: 'chart basics' },
-      { id: 'b1_3', title: 'أولى خطواتك: فتح حساب تجريبي', description: 'دليل عملي لفتح حساب تداول تجريبي والبدء دون مخاطر.', contentType: 'exercise', icon: Puzzle, image: 'https://placehold.co/300x150.png', imageHint: 'demo account' },
+    id: 'q1',
+    questionText: 'ماذا يعني "مستوى الدعم" عادة في التحليل الفني؟',
+    options: [
+      { value: 'a', text: 'سقف سعري تكون فيه ضغوط البيع قوية.' },
+      { value: 'b', text: 'أرضية سعرية يُتوقع أن يكون فيها اهتمام بالشراء.' },
+      { value: 'c', text: 'فترة يكون فيها حجم التداول منخفضًا.' },
     ],
+    correctAnswer: 'b',
+    explanation: 'مستوى الدعم هو مستوى سعر يتوقع أن يجد فيه السهم أو الأصل المالي مشترين، مما يمنع السعر من الانخفاض أكثر.',
   },
   {
-    id: 'b_risk',
-    title: 'مقدمة في إدارة المخاطر',
-    moduleIcon: ShieldCheck,
-    items: [
-      { id: 'b2_1', title: 'لماذا إدارة المخاطر مهمة؟', description: 'فهم أهمية حماية رأس مالك.', contentType: 'article', icon: FileText },
-      { id: 'b2_2', title: 'مفهوم وقف الخسارة (Stop Loss)', description: 'كيفية استخدام أوامر وقف الخسارة بفعالية.', contentType: 'video', icon: Video },
+    id: 'q2',
+    questionText: 'أي من هذه المؤشرات يُعتبر مؤشرًا شائعًا لاتباع الاتجاه؟',
+    options: [
+      { value: 'a', text: 'مؤشر القوة النسبية (RSI)' },
+      { value: 'b', text: 'المتوسط المتحرك (Moving Average)' },
+      { value: 'c', text: 'تصحيحات فيبوناتشي (Fibonacci Retracement)' },
     ],
+    correctAnswer: 'b',
+    explanation: 'المتوسطات المتحركة تساعد في تحديد وتأكيد الاتجاهات السائدة في السوق عن طريق تمهيد بيانات السعر.',
+  },
+  {
+    id: 'q3',
+    questionText: 'ماذا يعني "الشراء على المكشوف" (Going Long) في التداول؟',
+    options: [
+      { value: 'a', text: 'المراهنة على أن السعر سينخفض.' },
+      { value: 'b', text: 'المراهنة على أن السعر سيرتفع.' },
+      { value: 'c', text: 'الاحتفاظ بمركز تداول لفترة طويلة.' },
+    ],
+    correctAnswer: 'b',
+    explanation: 'الشراء على المكشوف يعني شراء أصل مالي مع توقع ارتفاع قيمته لتحقيق ربح عند بيعه بسعر أعلى.',
+  },
+  {
+    id: 'q4',
+    questionText: 'يُستخدم أمر "إيقاف الخسارة" (Stop-Loss) بشكل أساسي لـ:',
+    options: [
+      { value: 'a', text: 'تأمين الأرباح.' },
+      { value: 'b', text: 'الحد من الخسائر المحتملة.' },
+      { value: 'c', text: 'الدخول في صفقة بسعر محدد.' },
+    ],
+    correctAnswer: 'b',
+    explanation: 'أمر إيقاف الخسارة هو أداة لإدارة المخاطر تغلق الصفقة تلقائيًا عند وصول السعر لمستوى محدد للحد من الخسائر.',
+  },
+  {
+    id: 'q5',
+    questionText: 'ما هي السمة المشتركة لنموذج شمعة "الدوجي" (Doji)؟',
+    options: [
+      { value: 'a', text: 'جسم طويل مع ظلال قصيرة.' },
+      { value: 'b', text: 'أسعار الافتتاح والإغلاق متقاربة جدًا أو متطابقة.' },
+      { value: 'c', text: 'يشير إلى استمرار قوي للاتجاه الحالي.' },
+    ],
+    correctAnswer: 'b',
+    explanation: 'شمعة الدوجي تتميز بأن سعر الافتتاح والإغلاق متساويان أو متقاربان جدًا، مما يشير إلى حيرة أو توازن في السوق.',
+  },
+  {
+    id: 'q6',
+    questionText: 'يهدف "التنويع" في المحفظة الاستثمارية إلى:',
+    options: [
+      { value: 'a', text: 'تركيز الاستثمارات لتحقيق عوائد أعلى.' },
+      { value: 'b', text: 'تقليل المخاطر الإجمالية عن طريق توزيع الاستثمارات.' },
+      { value: 'c', text: 'ضمان تحقيق الأرباح.' },
+    ],
+    correctAnswer: 'b',
+    explanation: 'التنويع هو استراتيجية لإدارة المخاطر تتضمن توزيع الاستثمارات عبر فئات أصول مختلفة لتقليل تأثير أداء أي استثمار فردي سيء.',
   },
 ];
 
-const intermediateModules: TrainingModule[] = [
-  {
-    id: 'i_strategies',
-    title: 'استراتيجيات تداول شائعة',
-    moduleIcon: Target,
-    items: [
-      { id: 'i1_1', title: 'شرح استراتيجية التداول المتأرجح (Swing Trading)', description: 'تعمق في كيفية عمل استراتيجية التداول المتأرجح ومتى تستخدم.', contentType: 'video', icon: Video, image: 'https://placehold.co/300x150.png', imageHint: 'swing trading' },
-      { id: 'i1_2', title: 'مقدمة في المضاربة السريعة (Scalping)', description: 'استكشف أساسيات المضاربة السريعة وما إذا كانت تناسبك.', contentType: 'article', icon: FileText, image: 'https://placehold.co/300x150.png', imageHint: 'scalping basics' },
-      { id: 'i1_3', title: 'استخدام المتوسطات المتحركة في التداول', description: 'تطبيق عملي على المتوسطات المتحركة لاتخاذ قرارات تداول.', contentType: 'exercise', icon: Puzzle, image: 'https://placehold.co/300x150.png', imageHint: 'moving average' },
-    ],
-  },
-  {
-    id: 'i_indicators',
-    title: 'المؤشرات الفنية الأساسية',
-    moduleIcon: BarChartBig,
-    items: [
-      { id: 'i2_1', title: 'مؤشر القوة النسبية (RSI)', description: 'كيفية تفسير واستخدام مؤشر القوة النسبية لتحديد مناطق الشراء والبيع.', contentType: 'video', icon: Video },
-      { id: 'i2_2', title: 'مؤشر الماكد (MACD)', description: 'فهم إشارات مؤشر الماكد وكيفية دمجه في تحليلك.', contentType: 'article', icon: FileText },
-    ],
-  },
-];
+type QuizStatus = 'not_started' | 'in_progress' | 'feedback_shown' | 'completed';
+type UserLevel = 'مبتدئ' | 'متوسط' | 'محترف' | 'غير محدد';
 
-const advancedModules: TrainingModule[] = [
-  {
-    id: 'a_analysis',
-    title: 'التحليل الفني المتقدم',
-    moduleIcon: Brain,
-    items: [
-      { id: 'a1_1', title: 'نماذج الرسوم البيانية المعقدة', description: 'تحديد وتحليل نماذج مثل الرأس والكتفين، الأوتاد، والمزيد.', contentType: 'exercise', icon: Puzzle, image: 'https://placehold.co/300x150.png', imageHint: 'chart patterns' },
-      { id: 'a1_2', title: 'مقدمة في التحليل الكمي', description: 'فهم أساسيات التحليل الكمي وتطبيقاته في التداول.', contentType: 'article', icon: FileText, image: 'https://placehold.co/300x150.png', imageHint: 'quantitative analysis' },
-      { id: 'a1_3', title: 'استراتيجيات التداول باستخدام موجات إليوت', description: 'نظرة متعمقة على نظرية موجات إليوت وتطبيقها.', contentType: 'video', icon: Video, image: 'https://placehold.co/300x150.png', imageHint: 'elliott wave' },
-    ],
-  },
-  {
-    id: 'a_risk_management',
-    title: 'إدارة المخاطر المتقدمة',
-    moduleIcon: TrendingUp,
-    items: [
-      { id: 'a2_1', title: 'تقنيات تحويط المحفظة (Portfolio Hedging)', description: 'استراتيجيات لحماية محفظتك من تقلبات السوق.', contentType: 'article', icon: FileText },
-      { id: 'a2_2', title: 'تحديد حجم الصفقة المتقدم', description: 'أساليب متقدمة لتحديد حجم صفقاتك بناءً على المخاطر والعائد.', contentType: 'exercise', icon: Puzzle },
-    ],
-  },
-];
+export default function TrainingQuizPage() {
+  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [quizStatus, setQuizStatus] = useState<QuizStatus>('not_started');
+  const [score, setScore] = useState(0);
+  const [userLevel, setUserLevel] = useState<UserLevel>('غير محدد');
 
-const TrainingContentDisplay: React.FC<{ level: UserLevel, modules: TrainingModule[] }> = ({ level, modules }) => {
-  if (!level) return null;
-
-  return (
-    <div className="space-y-6">
-      {modules.map((module) => (
-        <Card key={module.id} className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl text-primary">
-              <module.moduleIcon className="mr-3 h-6 w-6" />
-              {module.title}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Accordion type="single" collapsible className="w-full">
-              {module.items.map((item) => (
-                <AccordionItem value={item.id} key={item.id}>
-                  <AccordionTrigger className="text-base hover:no-underline">
-                    <div className="flex items-center">
-                      <item.icon className="mr-2 h-5 w-5 text-accent" />
-                      {item.title}
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-3 pt-2 text-sm text-muted-foreground">
-                    <p>{item.description}</p>
-                    {item.image && (
-                      <div className="my-2 overflow-hidden rounded-md border">
-                        <Image src={item.image} alt={item.title} width={300} height={150} className="object-cover" data-ai-hint={item.imageHint || 'training material'}/>
-                      </div>
-                    )}
-                    {item.contentUrl && (
-                      <Button variant="link" asChild className="px-0">
-                        <a href={item.contentUrl} target="_blank" rel="noopener noreferrer">
-                          {item.contentType === 'video' ? 'شاهد الفيديو' : item.contentType === 'article' ? 'اقرأ المقال' : 'ابدأ التمرين'}
-                        </a>
-                      </Button>
-                    )}
-                     {!item.contentUrl && (
-                        <p className="text-xs italic"> (محتوى نموذجي - لا يوجد رابط فعلي)</p>
-                     )}
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-};
-
-
-export default function TrainingPage() {
-  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
-  const [showSurveyModal, setShowSurveyModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const shuffleArray = <T>(array: T[]): T[] => {
+    return array.sort(() => Math.random() - 0.5);
+  };
 
   useEffect(() => {
-    setIsLoading(true);
-    if (typeof window !== 'undefined') {
-      const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel;
-      if (savedLevel && ['beginner', 'intermediate', 'advanced'].includes(savedLevel)) {
-        setUserLevel(savedLevel);
-        setShowSurveyModal(false);
-      } else {
-        setShowSurveyModal(true); // Show survey if no valid level or level is null/invalid
-      }
-    }
-    setIsLoading(false);
+    startQuiz();
   }, []);
 
-  const handleSurveyComplete = (level: 'beginner' | 'intermediate' | 'advanced') => {
-    setUserLevel(level);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('userTradingLevel', level);
-    }
-    setShowSurveyModal(false);
+  const startQuiz = () => {
+    setQuestions(shuffleArray([...initialQuestionBank]));
+    setCurrentQuestionIndex(0);
+    setSelectedOption(null);
+    setAnswers({});
+    setFeedback(null);
+    setIsCorrect(null);
+    setScore(0);
+    setUserLevel('غير محدد');
+    setQuizStatus('in_progress');
   };
 
-  const handleRetakeAssessment = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('userTradingLevel');
-    }
-    setUserLevel(null);
-    setShowSurveyModal(true);
-  };
-  
-  const getLevelDisplayName = (level: UserLevel): string => {
-    if (level === 'beginner') return 'المبتدئ';
-    if (level === 'intermediate') return 'المتوسط';
-    if (level === 'advanced') return 'المحترف';
-    return 'غير محدد';
-  }
+  const currentQuestion = useMemo(() => {
+    return questions[currentQuestionIndex];
+  }, [questions, currentQuestionIndex]);
 
-  if (isLoading) {
+  const progressPercentage = useMemo(() => {
+    if (questions.length === 0) return 0;
+    return ((currentQuestionIndex) / questions.length) * 100;
+  }, [currentQuestionIndex, questions.length]);
+
+  const handleOptionSelect = (optionValue: string) => {
+    if (quizStatus === 'in_progress') {
+      setSelectedOption(optionValue);
+      const correct = optionValue === currentQuestion.correctAnswer;
+      setIsCorrect(correct);
+      setFeedback(currentQuestion.explanation);
+      setAnswers(prev => ({ ...prev, [currentQuestion.id]: optionValue }));
+      if (correct) {
+        setScore(prevScore => prevScore + 1);
+      }
+      setQuizStatus('feedback_shown');
+    }
+  };
+
+  const handleNextQuestion = () => {
+    if (currentQuestionIndex < questions.length - 1) {
+      setCurrentQuestionIndex(prevIndex => prevIndex + 1);
+      setSelectedOption(null);
+      setFeedback(null);
+      setIsCorrect(null);
+      setQuizStatus('in_progress');
+    } else {
+      // Quiz finished
+      setQuizStatus('completed');
+      calculateUserLevel();
+    }
+  };
+
+  const handleSkipQuestion = () => {
+    // Mark as skipped implicitly by not answering
+    if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prevIndex => prevIndex + 1);
+        setSelectedOption(null);
+        setFeedback(null);
+        setIsCorrect(null);
+        setQuizStatus('in_progress');
+    } else {
+        setQuizStatus('completed');
+        calculateUserLevel();
+    }
+  };
+
+  const calculateUserLevel = () => {
+    const percentageScore = (score / questions.length) * 100;
+    if (percentageScore >= 80) {
+      setUserLevel('محترف');
+    } else if (percentageScore >= 50) {
+      setUserLevel('متوسط');
+    } else {
+      setUserLevel('مبتدئ');
+    }
+  };
+
+  if (quizStatus === 'not_started' || !currentQuestion) {
     return (
-      <div className="flex h-[calc(100vh-theme(spacing.14))] items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] p-4">
+        <Card className="w-full max-w-md text-center shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-3xl font-headline text-primary">اختبار معلومات التداول</CardTitle>
+            <CardDescription>اختبر معلوماتك في أساسيات التداول والتحليل الفني.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Brain className="w-24 h-24 text-primary mx-auto mb-6 opacity-70" />
+          </CardContent>
+          <CardFooter>
+            <Button onClick={startQuiz} size="lg" className="w-full">
+              ابدأ الاختبار
+            </Button>
+          </CardFooter>
+        </Card>
       </div>
     );
   }
 
-  return (
-    <div className="container mx-auto py-8 px-4 md:px-0">
-      <LevelAssessmentModal
-        isOpen={showSurveyModal && !userLevel}
-        onComplete={handleSurveyComplete}
-      />
-
-      {!showSurveyModal && userLevel ? (
-        <Card className="shadow-xl overflow-hidden">
-          <CardHeader className="bg-muted/30">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <CardTitle className="text-3xl font-headline text-primary flex items-center">
-                    <GraduationCap className="mr-3 h-8 w-8" />
-                    مسار التعلم المخصص لك
-                    </CardTitle>
-                    <CardDescription className="mt-1 text-md">
-                    مرحباً بك، أيها المتداول <span className="font-semibold text-accent">{getLevelDisplayName(userLevel)}</span>! هذا هو المحتوى المقترح لك.
-                    </CardDescription>
-                </div>
-                <Button onClick={handleRetakeAssessment} variant="outline" size="sm">
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    إعادة التقييم
-                </Button>
-            </div>
+  if (quizStatus === 'completed') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] p-4"
+      >
+        <Card className="w-full max-w-md text-center shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-3xl font-headline text-primary">نتيجة الاختبار</CardTitle>
           </CardHeader>
-          <CardContent className="pt-6">
-            {userLevel === 'beginner' && <TrainingContentDisplay level={userLevel} modules={beginnerModules} />}
-            {userLevel === 'intermediate' && <TrainingContentDisplay level={userLevel} modules={intermediateModules} />}
-            {userLevel === 'advanced' && <TrainingContentDisplay level={userLevel} modules={advancedModules} />}
+          <CardContent className="space-y-6">
+            <Award className="w-24 h-24 mx-auto text-accent animate-pulse" />
+            <p className="text-2xl font-semibold">
+              نتيجتك: {score} من {questions.length} ( {((score / questions.length) * 100).toFixed(0)}% )
+            </p>
+            <p className="text-xl">
+              المستوى المقترح: <span className="font-bold text-primary">{userLevel}</span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button onClick={startQuiz} variant="outline" size="lg">
+                <RefreshCw className="mr-2 h-5 w-5" /> أعد الاختبار
+              </Button>
+              <Button size="lg" disabled> {/* Placeholder */}
+                ابدأ وحدات التعلم <ChevronRight className="ml-2 h-5 w-5" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
-      ) : !showSurveyModal && !userLevel ? (
-         <div className="flex flex-col items-center justify-center text-center min-h-[300px] bg-card p-6 rounded-lg shadow-xl">
-            <Zap className="w-16 h-16 text-primary mb-4" />
-            <h2 className="text-2xl font-semibold mb-2">مرحبًا بك في مركز التدريب!</h2>
-            <p className="text-muted-foreground mb-6">
-              يبدو أنه لم يتم تحديد مستواك بعد. يرجى إجراء التقييم للبدء.
-            </p>
-            <Button onClick={() => setShowSurveyModal(true)}>
-              ابدأ تقييم المستوى
+      </motion.div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto py-8 px-4 md:px-0 max-w-2xl">
+      <Card className="shadow-xl overflow-hidden">
+        <CardHeader className="bg-muted/30 pb-4">
+          <div className="flex justify-between items-center mb-2">
+            <CardTitle className="text-xl font-headline text-primary">
+              سؤال {currentQuestionIndex + 1} من {questions.length}
+            </CardTitle>
+            <Button variant="ghost" size="sm" onClick={handleSkipQuestion} disabled={quizStatus === 'feedback_shown'}>
+              تخطى السؤال <SkipForward className="ml-2 h-4 w-4" />
             </Button>
           </div>
-      ) : null}
-      {/* If showSurveyModal is true and userLevel is null, modal will be shown. If userLevel becomes non-null, this section will be replaced by content or loader.*/}
-       {showSurveyModal && !userLevel && !isLoading && (
-         <div className="flex h-[calc(100vh-theme(spacing.28))] items-center justify-center">
-            <Card className="w-full max-w-lg text-center p-8">
-                <CardTitle className="text-2xl mb-2">تقييم المستوى مطلوب</CardTitle>
-                <CardDescription className="mb-4">الرجاء إكمال التقييم للوصول إلى المحتوى التدريبي المخصص.</CardDescription>
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                 <p className="text-sm text-muted-foreground mt-2">سيظهر نموذج التقييم قريباً...</p>
-            </Card>
-         </div>
-       )}
+          <Progress value={progressPercentage} className="w-full h-2" />
+        </CardHeader>
+
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentQuestion.id}
+            initial={{ opacity: 0, x: 50 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -50 }}
+            transition={{ duration: 0.3 }}
+          >
+            <CardContent className="pt-6 space-y-6">
+              <p className="text-lg font-semibold leading-relaxed text-right" dir="rtl">
+                {currentQuestion.questionText}
+              </p>
+              <div className="space-y-3">
+                {currentQuestion.options.map((option) => {
+                  const isSelected = selectedOption === option.value;
+                  let buttonVariant: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link" = "outline";
+                  let icon = null;
+
+                  if (quizStatus === 'feedback_shown') {
+                    if (option.value === currentQuestion.correctAnswer) {
+                      buttonVariant = "default"; // Correct answer is always 'default' (greenish if theme supports)
+                       // Apply green directly for feedback
+                      icon = <CheckCircle2 className="mr-2 h-5 w-5 text-green-500" />;
+                    } else if (isSelected) {
+                      buttonVariant = "destructive"; // Incorrect and selected
+                      icon = <AlertCircle className="mr-2 h-5 w-5 text-red-500" />;
+                    }
+                  } else if (isSelected) {
+                     // buttonVariant = "secondary"; // User has selected this, before feedback
+                  }
+
+                  return (
+                    <Button
+                      key={option.value}
+                      variant={buttonVariant}
+                      size="lg"
+                      className={`w-full justify-start text-right py-3 h-auto whitespace-normal
+                        ${quizStatus === 'feedback_shown' && option.value === currentQuestion.correctAnswer ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 dark:bg-green-700/30 dark:text-green-300 dark:border-green-600' : ''}
+                        ${quizStatus === 'feedback_shown' && option.value !== currentQuestion.correctAnswer && isSelected ? 'bg-red-100 border-red-500 text-red-700 hover:bg-red-200 dark:bg-red-700/30 dark:text-red-300 dark:border-red-600' : ''}
+                        ${quizStatus === 'in_progress' && isSelected ? 'ring-2 ring-primary' : ''}
+                      `}
+                      onClick={() => handleOptionSelect(option.value)}
+                      disabled={quizStatus === 'feedback_shown'}
+                      dir="rtl"
+                    >
+                      {quizStatus === 'feedback_shown' && icon}
+                      {option.text}
+                    </Button>
+                  );
+                })}
+              </div>
+
+              {quizStatus === 'feedback_shown' && feedback && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  transition={{ duration: 0.3 }}
+                  className={`p-4 rounded-md border text-sm ${
+                    isCorrect ? 'bg-green-50 border-green-300 text-green-700 dark:bg-green-900/30 dark:border-green-700 dark:text-green-300' : 'bg-red-50 border-red-300 text-red-700 dark:bg-red-900/30 dark:border-red-700 dark:text-red-300'
+                  }`}
+                  dir="rtl"
+                >
+                  <div className="flex items-center mb-1">
+                    {isCorrect ? <CheckCircle2 className="h-5 w-5 mr-2" /> : <AlertCircle className="h-5 w-5 mr-2" />}
+                    <span className="font-semibold">{isCorrect ? 'إجابة صحيحة!' : 'إجابة خاطئة.'}</span>
+                  </div>
+                  {currentQuestion.explanation}
+                </motion.div>
+              )}
+            </CardContent>
+          </motion.div>
+        </AnimatePresence>
+
+        <CardFooter className="pt-6">
+          {quizStatus === 'feedback_shown' && (
+            <Button onClick={handleNextQuestion} size="lg" className="w-full">
+              {currentQuestionIndex < questions.length - 1 ? 'السؤال التالي' : 'عرض النتيجة'}
+              <ChevronRight className="ml-2 h-5 w-5" />
+            </Button>
+          )}
+        </CardFooter>
+      </Card>
+       <p className="text-xs text-center text-muted-foreground mt-4 px-2">
+         ملاحظة: هذا الاختبار لأغراض تعليمية فقط ولا يشكل نصيحة استثمارية.
+       </p>
     </div>
   );
 }
-
-    
