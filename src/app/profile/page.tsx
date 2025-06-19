@@ -138,11 +138,18 @@ export default function ProfilePage() {
         toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
         return;
     }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE') { // Check for placeholder
-      toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please contact support or check environment variables.", variant: "destructive" });
-      console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder.');
-      return;
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId === 'price_1PGW91DBVAJnzUOxL1dJ63sQ' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1PGW91DBVAJnzUOxL1dJ63sQ' ) { 
+        // The check for 'price_1PGW91DBVAJnzUOxL1dJ63sQ' is a placeholder check and should be more robust if other test IDs are commonly used as placeholders.
+        // For this specific Price ID 'price_1RbmIqDBVAJnzUOxV5JLIsGE', this check is fine.
+        if (stripePriceId === 'price_1RbmIqDBVAJnzUOxV5JLIsGE' && process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'price_1RbmIqDBVAJnzUOxV5JLIsGE') {
+            // This specific Price ID has been confirmed by the user, so we don't treat it as an unconfigured placeholder.
+        } else {
+            toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please check environment variables or set a valid Price ID from your Stripe dashboard.", variant: "destructive" });
+            console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder that needs to be replaced by a real test Price ID.');
+            return;
+        }
     }
+
 
     setIsRedirectingToCheckout(true);
     const stripe = await stripePromise; 
@@ -192,9 +199,23 @@ export default function ProfilePage() {
             }
             setIsRedirectingToCheckout(false);
         }
+        // If `error` is null, Stripe.js has attempted the redirect.
+        // If the redirect itself fails due to browser/iframe permissions, an exception will be thrown
+        // and caught by the `catch (e: any)` block below.
     } catch (e: any) {
         console.error('Exception during Stripe checkout redirect:', e);
-        toast({ title: "Payment Exception", description: e.message || "An unexpected error occurred.", variant: "destructive" });
+        let description = "An unexpected error occurred while attempting to redirect to Stripe Checkout.";
+        if (e.message && (e.message.toLowerCase().includes('permission to navigate') || e.message.toLowerCase().includes('location') || e.message.toLowerCase().includes('target frame') || e.message.toLowerCase().includes('cross-origin frame'))) {
+            description = "Could not redirect to Stripe for payment. This can happen if the app is running in a restricted environment (like an embedded frame or sandbox). Please try opening the application in a new, standalone browser window/tab. If the problem continues, check your browser console for more details or contact support.";
+        } else if (e.message) {
+            description = e.message;
+        }
+        toast({ 
+            title: "Redirection to Payment Failed", 
+            description: description, 
+            variant: "destructive",
+            duration: 20000 // Longer duration for this important message
+        });
         setIsRedirectingToCheckout(false);
     }
   };
@@ -323,6 +344,8 @@ export default function ProfilePage() {
     </div>
   );
 }
+    
+
     
 
     
