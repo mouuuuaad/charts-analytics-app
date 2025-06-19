@@ -128,25 +128,11 @@ export default function ProfilePage() {
     }
 
     // IMPORTANT: This is a TEST Price ID. 
-    // You MUST create your own product and price in your Stripe Dashboard (Test mode)
-    // and replace this ID with your actual test Price ID.
-    // Example Price IDs for testing might include monthly subscriptions.
-    const priceId = 'price_1PGW91DBVAJnzUOxL1dJ63sQ'; 
+    // You should create your own product and price in your Stripe Dashboard (Test mode)
+    // and replace this ID with your actual test Price ID if different.
+    const priceId = 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
     // Common test Price ID formats: price_xxxxxxxxxxxxxx
 
-    // The following check for 'PRICE_ID_REPLACE_ME' is removed as we are providing a default test ID.
-    // However, for a real application, ensure you have a valid Price ID.
-    // if (priceId === 'PRICE_ID_REPLACE_ME_OR_INVALID') { // Example of a check you might have
-    //     toast({
-    //         title: 'Configuration Needed',
-    //         description: 'Stripe Price ID is not configured correctly. Please use a valid test Price ID.',
-    //         variant: 'destructive',
-    //         duration: 10000,
-    //     });
-    //     console.error("Developer Note: Replace with your actual Stripe test Price ID in src/app/profile/page.tsx.");
-    //     setIsRedirectingToCheckout(false);
-    //     return;
-    // }
 
     const { error } = await stripe.redirectToCheckout({
       lineItems: [{ price: priceId, quantity: 1 }],
