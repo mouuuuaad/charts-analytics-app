@@ -44,15 +44,15 @@ export default function ProfilePage() {
 
   useEffect(() => {
     setIsLoadingProfileData(true);
-    if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "") {
+    if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
       setIsStripeKeySet(true);
     } else {
       setIsStripeKeySet(false);
-      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
-        console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set in .env file.');
+      if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
+        console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder in .env file. Payment features are disabled.');
         toast({
           title: 'Stripe Configuration Error',
-          description: 'Stripe publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set. Payment features are disabled.',
+          description: 'Stripe publishable key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder. Please set your test publishable key in the .env file. Payment features are disabled.',
           variant: 'destructive',
           duration: 10000, 
         });
@@ -61,7 +61,6 @@ export default function ProfilePage() {
     
     if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'YOUR_STRIPE_PRICE_ID_HERE') {
       console.warn('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default test Price ID. Please set this in your .env file for correct operation.');
-      // Keep stripePriceId as the default test one if not set by env var
     } else {
       setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     }
@@ -143,17 +142,14 @@ export default function ProfilePage() {
   
   const handleUpgradeToPremiumViaStripe = async () => {
     if (!isStripeKeySet) {
-        toast({ title: "Stripe Error", description: "Stripe is not configured. Cannot proceed to payment.", variant: "destructive" });
+        toast({ title: "Stripe Error", description: "Stripe is not configured correctly. Please ensure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set with a valid test key in your .env file. Cannot proceed to payment.", variant: "destructive", duration: 10000 });
         return;
     }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE') { 
-        toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please set NEXT_PUBLIC_STRIPE_PRICE_ID in your .env file or use a valid Price ID.", variant: "destructive" });
-        console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default:', stripePriceId);
-        // If you want to allow proceeding with a default test ID if not configured, you can remove the return here.
-        // For now, it's safer to require it.
-        // return; 
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId.trim() === '') { 
+        toast({ title: "Stripe Error", description: "Stripe Price ID is not configured correctly. Please set NEXT_PUBLIC_STRIPE_PRICE_ID in your .env file with a valid Price ID.", variant: "destructive", duration: 10000 });
+        console.error('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Current value:', stripePriceId);
+        return; 
     }
-
 
     setIsRedirectingToCheckout(true);
     const stripe = await stripePromise; 
@@ -206,9 +202,15 @@ export default function ProfilePage() {
     } catch (e: any) {
         console.error('Exception during Stripe checkout redirect:', e);
         let description = "An unexpected error occurred while attempting to redirect to Stripe Checkout.";
-        // Check for messages indicative of iframe/sandbox restrictions
-        if (e.message && (e.message.toLowerCase().includes('permission to navigate') || e.message.toLowerCase().includes('location') || e.message.toLowerCase().includes('target frame') || e.message.toLowerCase().includes('cross-origin frame') || e.message.toLowerCase().includes('failed to set a named property \'href\' on \'location\''))) {
-            description = "Could not redirect to Stripe for payment. This can happen if the app is running in a restricted environment (like an embedded frame or sandbox). Please try opening the application in a new, standalone browser window/tab. If the problem continues, check your browser console for more details or contact support.";
+        
+        if (e.message && (
+            e.message.toLowerCase().includes('permission to navigate') || 
+            e.message.toLowerCase().includes('location') || 
+            e.message.toLowerCase().includes('target frame') || 
+            e.message.toLowerCase().includes('cross-origin frame') || 
+            e.message.toLowerCase().includes('failed to set a named property \'href\' on \'location\'')
+            )) {
+            description = "Could not redirect to Stripe for payment. This can happen if the app is running in a restricted environment (like an embedded frame or development sandbox). Please try opening the application in a new, standalone browser window/tab. If the problem continues, check your browser console for more details or contact support.";
         } else if (e.message) {
             description = e.message;
         }
@@ -334,6 +336,11 @@ export default function ProfilePage() {
                          Upgrade to Premium
                     </Button>
                 )}
+                {!isStripeKeySet && (
+                  <p className="text-xs text-center text-destructive mt-1">
+                    Stripe is not configured correctly. Please set your test publishable key in .env to enable payments.
+                  </p>
+                )}
                 <p className="text-xs text-center text-muted-foreground mt-1">
                   By upgrading, you agree to our Terms of Service (not yet created).
                 </p>
@@ -347,7 +354,6 @@ export default function ProfilePage() {
   );
 }
     
-
     
 
     
@@ -360,3 +366,6 @@ export default function ProfilePage() {
 
 
 
+
+
+    
