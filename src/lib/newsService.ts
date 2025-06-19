@@ -37,10 +37,8 @@ const generateImageHint = (headline: string, summary: string, topic: NewsTopic):
 
 export async function fetchNewsFromAPI(topic: NewsTopic, searchTerm?: string): Promise<NewsArticle[]> {
   if (!API_KEY || API_KEY === "YOUR_NEWSAPI_ORG_KEY_HERE") {
-    console.warn("NewsAPI key not configured. Returning empty array. Please set NEXT_PUBLIC_NEWS_API_KEY in your .env file with a valid key from NewsAPI.org.");
-    // You could throw an error here to be caught by a React error boundary or a try-catch in the calling component.
-    // For now, returning an empty array to prevent app crash and rely on console warning.
-    return [];
+    console.error("NewsAPI key not configured. Please set NEXT_PUBLIC_NEWS_API_KEY in your .env file with a valid key from NewsAPI.org.");
+    throw new Error("NewsAPI key is not configured. Please set NEXT_PUBLIC_NEWS_API_KEY in your .env file to fetch live news.");
   }
 
   const queryParams = new URLSearchParams({
@@ -85,7 +83,7 @@ export async function fetchNewsFromAPI(topic: NewsTopic, searchTerm?: string): P
   // Optional: Add domains if you want to restrict sources, e.g., 'domains': 'wsj.com,nytimes.com'
 
   const requestUrl = `${BASE_URL}?${queryParams.toString()}`;
-  console.log("NewsAPI Request URL:", requestUrl); // For debugging
+  // console.log("NewsAPI Request URL:", requestUrl); // For debugging
 
   try {
     const response = await fetch(requestUrl);

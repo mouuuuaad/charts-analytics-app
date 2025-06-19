@@ -66,25 +66,19 @@ export default function NewsPage() {
     try {
       const articles = await fetchNewsFromAPI(topic, term);
       setNewsArticles(articles);
-      if (articles.length === 0 && process.env.NEXT_PUBLIC_NEWS_API_KEY === "YOUR_NEWSAPI_ORG_KEY_HERE") {
-        setError("News API key is not configured. Please set NEXT_PUBLIC_NEWS_API_KEY in your .env file. Displaying no news.");
-        toast({
-          variant: 'destructive',
-          title: 'API Key Missing',
-          description: 'NewsAPI key is not configured. Please set it in .env to fetch live news.',
-          duration: 10000,
-        });
-      } else if (articles.length === 0 && term) {
-        // setError(`No news found for "${term}" in ${topicLabels[topic]}.`);
+      // Removed specific check for placeholder API key here, as newsService.ts now throws an error for it.
+      // The catch block below will handle all errors from fetchNewsFromAPI, including the one for unconfigured API key.
+      if (articles.length === 0 && term) {
+        // setError(`No news found for "${term}" in ${topicLabels[topic]}.`); // You can uncomment this if you want a specific message on the page
       } else if (articles.length === 0) {
-        // setError(`No news found for ${topicLabels[topic]}.`);
+        // setError(`No news found for ${topicLabels[topic]}.`); // You can uncomment this
       }
     } catch (err: any) {
       console.error("Failed to fetch news:", err);
       const errorMessage = err.message || 'Failed to load news articles. Please try again later.';
-      setError(errorMessage);
+      setError(errorMessage); // This will display the error message on the page
       setNewsArticles([]); // Clear articles on error
-      toast({ variant: 'destructive', title: 'News Fetch Error', description: errorMessage, duration: 7000});
+      toast({ variant: 'destructive', title: 'News Fetch Error', description: errorMessage, duration: 10000}); // Increased duration
     } finally {
       setIsLoadingNews(false);
     }
