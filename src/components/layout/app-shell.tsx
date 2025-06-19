@@ -13,7 +13,6 @@ import {
   SidebarMenuButton,
   SidebarInset,
   SidebarTrigger,
-  // SheetTitle, // Removed: No longer needed here
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -25,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle, Loader2 } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap } from 'lucide-react'; // Added GraduationCap
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -100,33 +99,8 @@ const UserMenu = () => {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user, loading } = useAuth(); 
-  const router = useRouter(); 
-
-  // useEffect for redirection is removed as auth is disabled.
-  // React.useEffect(() => {
-  //   if (!loading && !user && pathname !== '/login' && pathname !== '/signup') {
-  //     router.push('/login');
-  //   }
-  // }, [user, loading, pathname, router]);
-
-  // Since auth is disabled, loading is always false and user is always null.
-  // The app should be accessible without login.
-  // if (loading) { 
-  //   return <div className="flex h-screen w-full items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
-  // }
-  
-  // if (!user && (pathname === '/login' || pathname === '/signup')) {
-  //   // If auth is disabled, login/signup pages might redirect to home or show a message.
-  //   // For now, allow rendering them, but they might be modified to redirect.
-  //   return <>{children}</>;
-  // }
-  
-  // if (!user && pathname !== '/login' && pathname !== '/signup') {
-  //   // This condition is effectively always true if not on login/signup, as user is null.
-  //   // But we don't want to show a loader indefinitely.
-  //   // We can directly render the shell.
-  // }
+  // const { user, loading } = useAuth(); // Auth related logic can be simplified if auth is fully disabled
+  // const router = useRouter(); 
   
   return (
     <SidebarProvider defaultOpen>
@@ -135,7 +109,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         collapsible="icon" 
         className="border-r dark:border-neutral-700"
       >
-        {/* <SheetTitle className="sr-only">Main Navigation</SheetTitle> Removed for Radix UI Sheet accessibility */}
         <SidebarHeader>
           <Logo />
         </SidebarHeader>
@@ -165,6 +138,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === '/training'}
+                tooltip="Training"
+              >
+                <Link href="/training">
+                  <GraduationCap />
+                  <span>Training</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="items-center">
@@ -185,3 +170,4 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   );
 }
 
+    
