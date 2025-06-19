@@ -48,13 +48,11 @@ export default function ProfilePage() {
       setIsStripeKeySet(false);
       if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") || process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
         console.error('Stripe Publishable Key (NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) is not set or is a placeholder in .env file. Payment features are disabled.');
-        // Toast is shown by handleUpgradeToPremiumViaStripe if needed
       }
     }
     
     if (!process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID === 'YOUR_STRIPE_PRICE_ID_HERE' || process.env.NEXT_PUBLIC_STRIPE_PRICE_ID.trim() === '') {
       console.warn('Stripe Price ID (NEXT_PUBLIC_STRIPE_PRICE_ID) is not set or is a placeholder. Using default test Price ID. Please set this in your .env file for correct operation.');
-      // Keep stripePriceIdValue as default if env var is bad
     } else {
       setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     }
@@ -76,14 +74,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const paymentSuccess = searchParams.get('payment_success');
     const paymentCanceled = searchParams.get('payment_canceled');
-    const checkoutRedirect = searchParams.get('checkout_redirect');
-    const priceIdParam = searchParams.get('price_id');
-
-    if (checkoutRedirect === 'true' && priceIdParam) {
-      handleServerSideCheckout(priceIdParam);
-      return;
-    }
-
+    
     if (paymentSuccess === 'true') {
       if (typeof window !== 'undefined') {
         localStorage.setItem('isUserPremium', 'true');
@@ -140,7 +131,7 @@ export default function ProfilePage() {
     toast({ title: "Level Updated", description: `Your trading level is now set to ${getLevelDisplayName(level)}.` });
   };
   
-  const handleServerSideCheckout = async (priceIdToCheckout: string) => {
+  const handleServerSideCheckout = async (priceIdToCheckout: string): Promise<void> => {
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -178,26 +169,20 @@ export default function ProfilePage() {
           const { error: stripeJsError } = await stripe.redirectToCheckout({ sessionId });
           if (stripeJsError) {
             console.error("Stripe.js redirectToCheckout error:", stripeJsError);
-            // If redirectToCheckout itself fails, re-throw its specific error
-            // This allows the main catch block in handleUpgradeToPremiumViaStripe to handle it
             throw stripeJsError; 
           }
-          // If redirectToCheckout is called, it should navigate or handle errors internally.
-          // If it doesn't navigate and doesn't throw an error, Stripe.js might be handling it (e.g. modal).
-          return; // Assume Stripe.js handles navigation or shows its UI.
+          return; 
         } else if (url) {
-          // Fallback to direct URL navigation if Stripe.js didn't load for some reason
           console.warn("Stripe.js not loaded, falling back to direct URL navigation for Stripe Checkout.");
           window.location.href = url;
-          return; // Navigation initiated
+          return;
         } else {
            throw new Error("Stripe.js not loaded and no fallback URL provided by server for session-based checkout.");
         }
       } else if (url) {
-        // Fallback if only URL is provided (though backend should always send sessionId if possible)
         console.log("Only URL provided by server (no sessionId), navigating directly.");
         window.location.href = url;
-        return; // Navigation initiated
+        return;
       } else {
         throw new Error("Server did not return a session ID or URL for checkout.");
       }
@@ -207,7 +192,7 @@ export default function ProfilePage() {
       if (error instanceof Error) {
           throw error; 
       } else {
-          throw new Error(String(error) || 'An unknown error occurred during the server-side checkout attempt.');
+          throw new Error(String(error?.message || error) || 'An unknown error occurred during the server-side checkout attempt.');
       }
     }
   };
@@ -228,19 +213,20 @@ export default function ProfilePage() {
     try {
       console.log('Attempting server-side checkout flow with Price ID:', stripePriceId);
       await handleServerSideCheckout(stripePriceId);
-      // If handleServerSideCheckout is successful and navigates, this function's execution stops here.
-      // If it throws an error (e.g., Stripe.js error or session creation error), it will be caught below.
-      // Note: If Stripe.js opens a modal, execution might also appear to stop here from the user's perspective.
-      // setIsRedirectingToCheckout(false); // Only set to false if navigation definitely did NOT occur or failed.
-      // This will be handled by the main finally or if an error is caught.
-      return; 
     } catch (serverError: any) { 
       console.error('Server-side checkout attempt failed. Details:', serverError);
-      // Error handling for serverError, including specific Stripe.js errors
       let description: React.ReactNode = serverError.message || "Could not initiate checkout via server.";
       let duration = 10000;
 
-      if (serverError.message && serverError.message.includes("The Checkout client-only integration is not enabled")) {
+      if (serverError.message && (serverError.message.includes("permission to navigate") || serverError.message.includes("Location") || serverError.message.includes("target frame") || serverError.message.includes("cross-origin frame") || serverError.message.includes("Failed to set a named property 'href' on 'Location'"))) {
+           description = (
+              <div className="space-y-2">
+                  <p className="text-sm">{serverError.message}</p>
+                  <p className="text-sm font-semibold">This can happen if the app is in a restricted frame (like an iframe). Please try opening this application in a new, standalone browser window or tab.</p>
+              </div>
+          );
+          duration = 20000;
+      } else if (serverError.message && serverError.message.includes("The Checkout client-only integration is not enabled")) {
            description = (
               <div className="space-y-2">
                   <p className="text-sm">{serverError.message}</p>
@@ -250,14 +236,6 @@ export default function ProfilePage() {
               </div>
             );
           duration = 30000;
-      } else if (serverError.message && (serverError.message.includes("permission to navigate") || serverError.message.includes("Location") || serverError.message.includes("target frame") || serverError.message.includes("cross-origin frame"))) {
-          description = (
-              <div className="space-y-2">
-                  <p className="text-sm">{serverError.message}</p>
-                  <p className="text-sm font-semibold">Please try opening this application in a new, standalone browser window or tab.</p>
-              </div>
-          );
-          duration = 20000;
       }
       
       toast({ 
@@ -266,14 +244,8 @@ export default function ProfilePage() {
         variant: "destructive",
         duration: duration,
       });
-      // Do not fall through to client-side methods if server-side checkout itself failed due to Stripe.js or session issues
-      // as those are now handled within handleServerSideCheckout's throw.
-      // If handleServerSideCheckout completed without navigation (e.g. Stripe modal) then we should not try other methods.
     }
     
-    // This will only be reached if handleServerSideCheckout itself had an issue that wasn't a navigation or Stripe.js error
-    // OR if it completed but didn't navigate (less likely with current logic)
-    // For safety, keep isRedirectingToCheckout to false if we reach here unexpectedly
     setIsRedirectingToCheckout(false);
   };
 
@@ -405,6 +377,5 @@ export default function ProfilePage() {
     </div>
   );
 }
-
 
     
