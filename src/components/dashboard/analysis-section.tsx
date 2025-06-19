@@ -8,12 +8,15 @@ import { extractChartData, ExtractChartDataOutput } from '@/ai/flows/extract-cha
 import { predictMarketTrend, PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import type { Analysis } from '@/types';
+import { Button } from '@/components/ui/button'; // For upgrade button in toast
+import Link from 'next/link'; // For upgrade button link
 
 type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 const MAX_HISTORY_ITEMS = 20; // Max number of history items in localStorage
+const MAX_FREE_ATTEMPTS = 2; // Max analysis attempts for free users
 
 export function AnalysisSection() {
   const [prediction, setPrediction] = useState<PredictMarketTrendOutput | null>(null);
@@ -32,8 +35,11 @@ export function AnalysisSection() {
       const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
       if (savedLevel && ['beginner', 'intermediate', 'advanced'].includes(savedLevel)) {
         setUserLevel(savedLevel);
+        setShowSurveyModal(false); // Ensure modal is hidden if level exists
       } else {
-        setShowSurveyModal(true);
+        // Don't immediately show survey modal here.
+        // It will be triggered if user tries to analyze without a level.
+        // Or, it can be shown on the Training page.
       }
     }
   }, []);
@@ -44,6 +50,7 @@ export function AnalysisSection() {
       localStorage.setItem('userTradingLevel', level);
     }
     setShowSurveyModal(false);
+    toast({ title: "Assessment Complete!", description: `Your trading level is set to ${level}. You can now analyze charts.` });
   };
 
   const addAnalysisToLocalStorage = (analysisResult: PredictMarketTrendOutput, chartImage: string, chartFileName?: string, extractedChartData?: string | null) => {
@@ -77,14 +84,47 @@ export function AnalysisSection() {
   };
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
-    if (!userLevel && typeof window !== 'undefined' && !localStorage.getItem('userTradingLevel')) {
-      setShowSurveyModal(true);
-      toast({
-        variant: 'destructive',
-        title: 'Assessment Required',
-        description: 'Please complete the trading knowledge assessment before analyzing charts.',
-      });
-      return;
+    // 1. Check for user level
+    let currentLevel = userLevel;
+    if (typeof window !== 'undefined') {
+        const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
+        if (!savedLevel) {
+            setShowSurveyModal(true);
+            toast({
+                variant: 'destructive',
+                title: 'Assessment Required',
+                description: 'Please complete the trading knowledge assessment before analyzing charts.',
+            });
+            return;
+        }
+        currentLevel = savedLevel; // Ensure we use the latest from localStorage
+        setUserLevel(savedLevel); // Update state if it was null
+    }
+
+
+    // 2. Check for trial limits
+    if (typeof window !== 'undefined') {
+        const isPremium = localStorage.getItem('isUserPremium') === 'true';
+        if (!isPremium) {
+            const attemptsString = localStorage.getItem('analysisAttempts');
+            let attempts = attemptsString ? parseInt(attemptsString, 10) : 0;
+            if (attempts >= MAX_FREE_ATTEMPTS) {
+                toast({
+                    variant: 'destructive',
+                    title: 'Free Tier Limit Reached',
+                    description: (
+                        <div className="flex flex-col gap-2">
+                            <p>You have used all {MAX_FREE_ATTEMPTS} free analysis attempts. Please upgrade to Premium for unlimited analyses.</p>
+                            <Button size="sm" asChild>
+                                <Link href="/profile">Upgrade to Premium</Link>
+                            </Button>
+                        </div>
+                    ),
+                    duration: 10000, // Keep toast longer
+                });
+                return;
+            }
+        }
     }
 
     setIsLoading(true);
@@ -143,7 +183,7 @@ export function AnalysisSection() {
       
       const trendInput = { 
         extractedData: extractedDataResult.extractedData || "{}", 
-        userLevel: userLevel || 'intermediate'
+        userLevel: currentLevel || 'intermediate' // Use the determined currentLevel
       };
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
       
@@ -153,6 +193,37 @@ export function AnalysisSection() {
       
       setPrediction(trendPredictionResult);
       addAnalysisToLocalStorage(trendPredictionResult, dataUrl, file.name, extractedDataResult.extractedData);
+
+      // Increment attempts for non-premium users AFTER successful analysis
+      if (typeof window !== 'undefined') {
+        const isPremium = localStorage.getItem('isUserPremium') === 'true';
+        if (!isPremium) {
+            const attemptsString = localStorage.getItem('analysisAttempts');
+            let attempts = attemptsString ? parseInt(attemptsString, 10) : 0;
+            attempts++;
+            localStorage.setItem('analysisAttempts', attempts.toString());
+             if (attempts === MAX_FREE_ATTEMPTS) {
+                toast({
+                    title: "Last Free Attempt Used",
+                    description: "You've used your last free analysis. Upgrade for unlimited access.",
+                    action: (<Button size="sm" asChild><Link href="/profile">Upgrade</Link></Button>),
+                    duration: 8000,
+                });
+            } else if (attempts < MAX_FREE_ATTEMPTS) {
+                 toast({
+                    title: "Analysis Successful",
+                    description: `You have ${MAX_FREE_ATTEMPTS - attempts} free analysis attempts remaining.`,
+                    duration: 5000,
+                });
+            }
+        } else {
+             toast({
+                title: "Analysis Successful!",
+                description: "Premium insights generated.",
+                duration: 5000,
+            });
+        }
+      }
 
     } catch (error: any) {
       console.error('Analysis pipeline error:', error);
@@ -198,3 +269,4 @@ export function AnalysisSection() {
     </>
   );
 }
+
