@@ -218,7 +218,13 @@ export default function ProfilePage() {
       let description: React.ReactNode = serverError.message || "Could not initiate checkout via server.";
       let duration = 10000;
 
-      if (serverError.message && (serverError.message.includes("permission to navigate") || serverError.message.includes("Location") || serverError.message.includes("target frame") || serverError.message.includes("cross-origin frame") || serverError.message.includes("Failed to set a named property 'href' on 'Location'"))) {
+      if (serverError.message && (
+          serverError.message.includes("permission to navigate") ||
+          serverError.message.includes("Location") || 
+          serverError.message.includes("target frame") || 
+          serverError.message.includes("cross-origin frame") ||
+          serverError.message.includes("Failed to set a named property 'href' on 'Location'")
+        )) {
            description = (
               <div className="space-y-2">
                   <p className="text-sm">{serverError.message}</p>
