@@ -178,7 +178,7 @@ Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON s
     *   \\\`fullScientificAnalysis\\\`: CRITICAL. Extensive, in-depth, scientific explanation.
         *   Synthesize all findings: how trend, patterns, S/R, volume, momentum, indicators (all from the JSON in \\\`{{{extractedData}}}\\\`) converge or diverge.
         *   **Explicitly reference elements from the JSON in \\\`{{{extractedData}}}\\\` for each assertion.**
-        *   Discuss probabilities, alternative scenarios.
+        *   Discuss probabilities, alternative scenarios, and counteracting elements.
         *   **Limiting Factors**: Detail any (e.g., the JSON in \\\`{{{extractedData}}}\\\` lacks clarity on indicator X, volume is low per 'volumeAnalysis' attribute in \\\`{{{extractedData}}}\\\`).
         *   **Suggestions for Clearer Insights**: If analysis constrained by the JSON in \\\`{{{extractedData}}}\\\`, suggest user actions (e.g., 'Provide chart with clearer MA lines,' 'Higher resolution image needed to confirm candle details.').
         *   Tailor language to \\\`userLevel\\\`.
@@ -193,185 +193,198 @@ Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON s
 `,
 });
 
-const predictMarketTrendFlow_v5_expert_analyst = ai.defineFlow( // Renamed flow
-  {
-    name: 'predictMarketTrendFlow_v5_expert_analyst', // Renamed flow
-    inputSchema: PredictMarketTrendInputSchema,
-    outputSchema: PredictMarketTrendOutputSchema,
-  },
-  async (input): Promise<PredictMarketTrendOutputType> => {
-    const {output: aiOutput} = await prompt(input);
+const predictMarketTrendFlow_v5_expert_analyst = ai.defineFlow(
+    {
+      name: 'predictMarketTrendFlow_v5_expert_analyst',
+      inputSchema: PredictMarketTrendInputSchema,
+      outputSchema: PredictMarketTrendOutputSchema,
+    },
+    async (input): Promise<PredictMarketTrendOutputType> => {
+      const {output: aiOutput} = await prompt(input);
+  
+      // Define a comprehensive base output that satisfies ALL REQUIRED FIELDS
+      const baseOutput: PredictMarketTrendOutputType = {
+        // REQUIRED FIELDS - these must always be present
+        trendPrediction: 'neutral', 
+        confidence: 0.1,
+        riskLevel: 'high',
+        opportunityScore: 0.1,
+        tradingRecommendation: 'avoid',
+        
+        trendAnalysis: {
+            direction: 'Neutral',
+            candleCountBasis: 5, // Min 5 as per schema
+            trendlineDescription: "Trend analysis details were not explicitly provided by the AI or are inconclusive based on current data.",
+        },
+        
+        candlestickAnalysis: {
+            patterns: [], 
+            summary: "Candlestick analysis summary not provided by AI or patterns are inconclusive.",
+        },
+        
+        volumeAndMomentum: {
+            volumeStatus: 'Missing',
+            volumeInterpretation: "Volume data or interpretation not provided by AI or insufficient for analysis.",
+            rsiEstimate: "RSI not determinable from the provided data.",
+            macdEstimate: "MACD not determinable from the provided data.",
+        },
+        
+        suggestedEntryPoints: ["Entry levels are speculative due to unclear signals. Consider waiting for clearer confirmation."],
+        takeProfitLevels: ["Take profit levels are speculative. Define based on your risk tolerance and S/R zones."],
+        stopLossLevels: ["Stop loss levels are speculative. Place based on recent swing lows/highs or volatility."],
+        
+        riskRewardDetails: {
+            tradeAssessment: 'Neutral',
+            assessmentReasoning: "Risk/reward assessment could not be reliably performed due to unclear market signals.",
+        },
+        
+        explanationSummary: "Analysis limited by data quality or conflicting signals. Proceed with caution.", // Max 250 char
+        fullScientificAnalysis: "The AI model did not provide a full scientific analysis, or the analysis was severely limited. " + MANDATORY_DISCLAIMER,
+        
+        // OPTIONAL fields can be undefined or have default values
+        rewardRiskRatio: undefined,
+        keyIndicators: [],
+        volatilityLevel: 'normal',
+      };
+  
+      if (!aiOutput) { 
+        console.warn("AI output was null for predictMarketTrendFlow_v5. Returning baseOutput.");
+        return baseOutput; 
+      }
+  
+      const finalOutput: PredictMarketTrendOutputType = JSON.parse(JSON.stringify(baseOutput));
+  
+      // Merge primary REQUIRED fields
+      if (aiOutput.trendPrediction && ['up', 'down', 'sideways', 'neutral'].includes(aiOutput.trendPrediction)) {
+          finalOutput.trendPrediction = aiOutput.trendPrediction;
+      }
+      if (typeof aiOutput.confidence === 'number' && aiOutput.confidence >= 0 && aiOutput.confidence <= 1) {
+          finalOutput.confidence = aiOutput.confidence;
+      } else {
+          finalOutput.confidence = baseOutput.confidence; // Ensure valid if AI gives bad value
+      }
+      if (aiOutput.riskLevel && ['low', 'medium', 'high'].includes(aiOutput.riskLevel)) {
+          finalOutput.riskLevel = aiOutput.riskLevel;
+      }
+      if (typeof aiOutput.opportunityScore === 'number' && aiOutput.opportunityScore >= 0 && aiOutput.opportunityScore <= 1) {
+          finalOutput.opportunityScore = aiOutput.opportunityScore;
+      } else {
+          finalOutput.opportunityScore = baseOutput.opportunityScore; // Ensure valid
+      }
+      if (aiOutput.tradingRecommendation && ['buy', 'hold', 'avoid', 'neutral'].includes(aiOutput.tradingRecommendation)) {
+          finalOutput.tradingRecommendation = aiOutput.tradingRecommendation;
+      }
 
-    // Define a comprehensive base output that satisfies the schema
-    const baseOutput: PredictMarketTrendOutputType = {
-      trendPrediction: 'neutral', // Default to neutral if AI fails
-      confidence: 0.1, // Low confidence for fallback
-      riskLevel: 'high', // High risk for fallback
-      opportunityScore: 0.1,
-      tradingRecommendation: 'avoid', // Avoid if analysis is poor
-      trendAnalysis: {
-          direction: 'Neutral',
-          candleCountBasis: 5, // Minimum as per schema
-          trendlineDescription: "Trend analysis details were not explicitly provided by the AI or are inconclusive based on current data. The provided `extractedData` may have been insufficient for a clear assessment. Consider providing a chart with more historical data or clearer trend indicators.",
-      },
-      candlestickAnalysis: {
-          patterns: [], // Empty array is valid
-          summary: "Candlestick analysis summary not provided by AI or patterns are inconclusive. The `extractedData` might lack clear candlestick formations or volume confirmation.",
-      },
-      volumeAndMomentum: {
-          volumeStatus: 'Missing', // Default if not specified by AI from extractedData
-          volumeInterpretation: "Volume data or interpretation not provided by AI or insufficient for analysis based on `extractedData`. Volume is crucial for confirming patterns and trends.",
-          rsiEstimate: "RSI not determinable from the provided `extractedData` or AI output. Consider if RSI was visible and described in the chart image.",
-          macdEstimate: "MACD not determinable from the provided `extractedData` or AI output. Consider if MACD was visible and described in the chart image.",
-      },
-      suggestedEntryPoints: ["Entry levels are highly speculative due to unclear signals or insufficient `extractedData`. Consider waiting for a breakout or breakdown from a defined range."],
-      takeProfitLevels: ["Take profit levels are highly speculative due to unclear signals or insufficient `extractedData`. Define based on your risk tolerance and potential S/R zones if they become clearer."],
-      stopLossLevels: ["Stop loss levels are highly speculative due to unclear signals or insufficient `extractedData`. Place based on recent swing lows/highs or volatility if market direction clarifies."],
-      rewardRiskRatio: undefined, // Optional
-      riskRewardDetails: {
-          tradeAssessment: 'Neutral', // Default assessment
-          assessmentReasoning: "Risk/reward assessment could not be reliably performed or was not provided by AI, likely due to unclear market signals or insufficient `extractedData`.",
-      },
-      explanationSummary: "The AI model was unable to provide a concise summary. Analysis may be limited by the quality or completeness of `extractedData`, conflicting signals, or insufficient chart information.",
-      fullScientificAnalysis: "The AI model did not provide a full scientific analysis, or the analysis was severely limited. This may be due to limitations in the provided `extractedData` (e.g., insufficient history, unclear patterns, missing volume details) or conflicting indicators. For a clearer and more reliable analysis, ensure the uploaded chart is clear and contains sufficient detail for the extraction phase. " + MANDATORY_DISCLAIMER,
-      keyIndicators: [], // Optional, empty is fine
-      volatilityLevel: 'normal', // Default volatility
-    };
-
-    if (!aiOutput) { 
-      console.warn("AI output was null for predictMarketTrendFlow_v5. Returning baseOutput.");
-      return baseOutput; 
+      // Merge trendAnalysis (REQUIRED object with required sub-fields)
+      if (aiOutput.trendAnalysis) {
+          if (aiOutput.trendAnalysis.direction && ['Uptrend', 'Downtrend', 'Sideways', 'Neutral'].includes(aiOutput.trendAnalysis.direction)) {
+              finalOutput.trendAnalysis.direction = aiOutput.trendAnalysis.direction;
+          }
+          if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number' && aiOutput.trendAnalysis.candleCountBasis >= 5) {
+              finalOutput.trendAnalysis.candleCountBasis = aiOutput.trendAnalysis.candleCountBasis;
+          } else {
+              finalOutput.trendAnalysis.candleCountBasis = baseOutput.trendAnalysis.candleCountBasis; // Ensure min 5
+          }
+          if (typeof aiOutput.trendAnalysis.trendlineDescription === 'string' && aiOutput.trendAnalysis.trendlineDescription.trim() !== "") {
+              finalOutput.trendAnalysis.trendlineDescription = aiOutput.trendAnalysis.trendlineDescription;
+          }
+      }
+  
+      // Merge candlestickAnalysis (REQUIRED object)
+      if (aiOutput.candlestickAnalysis) {
+          if (Array.isArray(aiOutput.candlestickAnalysis.patterns)) {
+              const validPatterns = aiOutput.candlestickAnalysis.patterns.filter(p => 
+                  p && typeof p.name === 'string' && typeof p.implications === 'string' && 
+                  typeof p.candleCount === 'number' && p.candleCount >= 1 && 
+                  typeof p.isStatisticallyWeakOrNeutral === 'boolean'
+              );
+              // No minimum for patterns array, empty is fine
+              finalOutput.candlestickAnalysis.patterns = validPatterns;
+          }
+          if (typeof aiOutput.candlestickAnalysis.summary === 'string' && aiOutput.candlestickAnalysis.summary.trim() !== "") {
+              finalOutput.candlestickAnalysis.summary = aiOutput.candlestickAnalysis.summary;
+          } else if (!finalOutput.candlestickAnalysis.summary && baseOutput.candlestickAnalysis.summary) { // Ensure summary is not empty string if AI provides empty
+              finalOutput.candlestickAnalysis.summary = baseOutput.candlestickAnalysis.summary;
+          }
+      }
+  
+      // Merge volumeAndMomentum (REQUIRED object with required sub-fields)
+      if (aiOutput.volumeAndMomentum) {
+          if (aiOutput.volumeAndMomentum.volumeStatus && ['Present - Adequate', 'Present - Low', 'Present - High', 'Missing', 'Not Applicable'].includes(aiOutput.volumeAndMomentum.volumeStatus)) {
+              finalOutput.volumeAndMomentum.volumeStatus = aiOutput.volumeAndMomentum.volumeStatus;
+          }
+          if (typeof aiOutput.volumeAndMomentum.volumeInterpretation === 'string' && aiOutput.volumeAndMomentum.volumeInterpretation.trim() !== "") {
+              finalOutput.volumeAndMomentum.volumeInterpretation = aiOutput.volumeAndMomentum.volumeInterpretation;
+          }
+          if (typeof aiOutput.volumeAndMomentum.rsiEstimate === 'string' && aiOutput.volumeAndMomentum.rsiEstimate.trim() !== "") {
+              finalOutput.volumeAndMomentum.rsiEstimate = aiOutput.volumeAndMomentum.rsiEstimate;
+          }
+          if (typeof aiOutput.volumeAndMomentum.macdEstimate === 'string' && aiOutput.volumeAndMomentum.macdEstimate.trim() !== "") {
+              finalOutput.volumeAndMomentum.macdEstimate = aiOutput.volumeAndMomentum.macdEstimate;
+          }
+      }
+  
+      // Merge required arrays - these MUST have at least one element
+      if (Array.isArray(aiOutput.suggestedEntryPoints) && aiOutput.suggestedEntryPoints.length > 0 && 
+          aiOutput.suggestedEntryPoints.every(s => typeof s === 'string' && s.trim() !== "")) {
+          finalOutput.suggestedEntryPoints = aiOutput.suggestedEntryPoints;
+      }
+      
+      if (Array.isArray(aiOutput.takeProfitLevels) && aiOutput.takeProfitLevels.length > 0 && 
+          aiOutput.takeProfitLevels.every(s => typeof s === 'string' && s.trim() !== "")) {
+          finalOutput.takeProfitLevels = aiOutput.takeProfitLevels;
+      }
+  
+      if (Array.isArray(aiOutput.stopLossLevels) && aiOutput.stopLossLevels.length > 0 && 
+          aiOutput.stopLossLevels.every(s => typeof s === 'string' && s.trim() !== "")) {
+          finalOutput.stopLossLevels = aiOutput.stopLossLevels;
+      }
+  
+      // Merge riskRewardDetails (REQUIRED object with required sub-fields)
+      if (aiOutput.riskRewardDetails) {
+          if (aiOutput.riskRewardDetails.tradeAssessment && ['Good', 'Medium', 'Bad', 'Neutral'].includes(aiOutput.riskRewardDetails.tradeAssessment)) {
+              finalOutput.riskRewardDetails.tradeAssessment = aiOutput.riskRewardDetails.tradeAssessment;
+          }
+          if (typeof aiOutput.riskRewardDetails.assessmentReasoning === 'string' && aiOutput.riskRewardDetails.assessmentReasoning.trim() !== "") {
+              finalOutput.riskRewardDetails.assessmentReasoning = aiOutput.riskRewardDetails.assessmentReasoning;
+          }
+      }
+  
+      // Merge required string fields
+      if (typeof aiOutput.explanationSummary === 'string' && aiOutput.explanationSummary.trim().length >= 1) {
+          finalOutput.explanationSummary = aiOutput.explanationSummary.substring(0, 250); // Ensure max length
+      }
+      
+      if (typeof aiOutput.fullScientificAnalysis === 'string' && aiOutput.fullScientificAnalysis.trim().length >= 1) {
+          finalOutput.fullScientificAnalysis = aiOutput.fullScientificAnalysis;
+      }
+      
+      // Ensure disclaimer is always present
+      if (!finalOutput.fullScientificAnalysis.includes(MANDATORY_DISCLAIMER)) {
+          finalOutput.fullScientificAnalysis = (finalOutput.fullScientificAnalysis.trim() + " " + MANDATORY_DISCLAIMER).trim();
+      }
+      
+      // Merge optional fields
+      if (aiOutput.rewardRiskRatio && 
+          typeof aiOutput.rewardRiskRatio.reward === 'number' && aiOutput.rewardRiskRatio.reward >= 0 && 
+          typeof aiOutput.rewardRiskRatio.risk === 'number' && aiOutput.rewardRiskRatio.risk >= 1) {
+          finalOutput.rewardRiskRatio = aiOutput.rewardRiskRatio;
+      }
+  
+      if (Array.isArray(aiOutput.keyIndicators)) {
+          finalOutput.keyIndicators = aiOutput.keyIndicators.filter(k => 
+              k && typeof k.name === 'string' && typeof k.value === 'string'
+          );
+      }
+  
+      if (aiOutput.volatilityLevel && ['low', 'normal', 'high', 'extreme'].includes(aiOutput.volatilityLevel)) {
+          finalOutput.volatilityLevel = aiOutput.volatilityLevel;
+      }
+        
+      return finalOutput;
     }
-
-    // Create a deep copy of baseOutput to modify
-    const finalOutput: PredictMarketTrendOutputType = JSON.parse(JSON.stringify(baseOutput));
-
-    // Merge AI output with base, ensuring schema compliance
-    if (aiOutput.trendPrediction && ['up', 'down', 'sideways', 'neutral'].includes(aiOutput.trendPrediction)) {
-        finalOutput.trendPrediction = aiOutput.trendPrediction;
-    } // Else: keeps baseOutput.trendPrediction ('neutral')
-
-    if (typeof aiOutput.confidence === 'number' && aiOutput.confidence >= 0 && aiOutput.confidence <= 1) {
-        finalOutput.confidence = aiOutput.confidence;
-    } // Else: keeps baseOutput.confidence
-
-    if (aiOutput.riskLevel && ['low', 'medium', 'high'].includes(aiOutput.riskLevel)) {
-        finalOutput.riskLevel = aiOutput.riskLevel;
-    } // Else: keeps baseOutput.riskLevel
-
-    if (typeof aiOutput.opportunityScore === 'number' && aiOutput.opportunityScore >= 0 && aiOutput.opportunityScore <= 1) {
-        finalOutput.opportunityScore = aiOutput.opportunityScore;
-    } // Else: keeps baseOutput.opportunityScore
-
-    if (aiOutput.tradingRecommendation && ['buy', 'hold', 'avoid', 'neutral'].includes(aiOutput.tradingRecommendation)) {
-        finalOutput.tradingRecommendation = aiOutput.tradingRecommendation;
-    } // Else: keeps baseOutput.tradingRecommendation
-
-    // Trend Analysis (nested object)
-    if (aiOutput.trendAnalysis) {
-        if (aiOutput.trendAnalysis.direction && ['Uptrend', 'Downtrend', 'Sideways', 'Neutral'].includes(aiOutput.trendAnalysis.direction)) {
-            finalOutput.trendAnalysis.direction = aiOutput.trendAnalysis.direction;
-        }
-        if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number' && aiOutput.trendAnalysis.candleCountBasis >= 5) {
-            finalOutput.trendAnalysis.candleCountBasis = aiOutput.trendAnalysis.candleCountBasis;
-        } else if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number') {
-             finalOutput.trendAnalysis.candleCountBasis = 5; // Force minimum if AI provides smaller valid number
-        }
-        // If AI provides an invalid type for candleCountBasis (e.g. string), it will keep the baseOutput value (5)
-        if (typeof aiOutput.trendAnalysis.trendlineDescription === 'string' && aiOutput.trendAnalysis.trendlineDescription.trim() !== "") {
-            finalOutput.trendAnalysis.trendlineDescription = aiOutput.trendAnalysis.trendlineDescription;
-        }
-    } // Else: finalOutput.trendAnalysis remains as defined in baseOutput
-
-    // Candlestick Analysis
-    if (aiOutput.candlestickAnalysis) {
-        if (Array.isArray(aiOutput.candlestickAnalysis.patterns)) { // patterns is required
-            finalOutput.candlestickAnalysis.patterns = aiOutput.candlestickAnalysis.patterns.filter(p => 
-                p && typeof p.name === 'string' && typeof p.implications === 'string' && 
-                typeof p.candleCount === 'number' && p.candleCount >= 1 && 
-                typeof p.isStatisticallyWeakOrNeutral === 'boolean'
-            ); // Filter for valid patterns
-        } // Else: keeps baseOutput.candlestickAnalysis.patterns ([])
-        if (typeof aiOutput.candlestickAnalysis.summary === 'string') { // summary is optional
-            finalOutput.candlestickAnalysis.summary = aiOutput.candlestickAnalysis.summary;
-        }
-    }
-
-    // Volume and Momentum
-    if (aiOutput.volumeAndMomentum) {
-        if (aiOutput.volumeAndMomentum.volumeStatus && ['Present - Adequate', 'Present - Low', 'Present - High', 'Missing', 'Not Applicable'].includes(aiOutput.volumeAndMomentum.volumeStatus)) {
-            finalOutput.volumeAndMomentum.volumeStatus = aiOutput.volumeAndMomentum.volumeStatus;
-        }
-        if (typeof aiOutput.volumeAndMomentum.volumeInterpretation === 'string' && aiOutput.volumeAndMomentum.volumeInterpretation.trim() !== "") {
-            finalOutput.volumeAndMomentum.volumeInterpretation = aiOutput.volumeAndMomentum.volumeInterpretation;
-        }
-        if (typeof aiOutput.volumeAndMomentum.rsiEstimate === 'string' && aiOutput.volumeAndMomentum.rsiEstimate.trim() !== "") {
-            finalOutput.volumeAndMomentum.rsiEstimate = aiOutput.volumeAndMomentum.rsiEstimate;
-        }
-        if (typeof aiOutput.volumeAndMomentum.macdEstimate === 'string' && aiOutput.volumeAndMomentum.macdEstimate.trim() !== "") {
-            finalOutput.volumeAndMomentum.macdEstimate = aiOutput.volumeAndMomentum.macdEstimate;
-        }
-    } // Else: finalOutput.volumeAndMomentum remains as defined in baseOutput
-
-    // Suggested Levels - must be non-empty arrays of strings
-    if (Array.isArray(aiOutput.suggestedEntryPoints) && aiOutput.suggestedEntryPoints.length > 0 && aiOutput.suggestedEntryPoints.every(s => typeof s === 'string' && s.trim() !== "")) {
-        finalOutput.suggestedEntryPoints = aiOutput.suggestedEntryPoints;
-    } // Else: keeps baseOutput.suggestedEntryPoints
-    
-    if (Array.isArray(aiOutput.takeProfitLevels) && aiOutput.takeProfitLevels.length > 0 && aiOutput.takeProfitLevels.every(s => typeof s === 'string' && s.trim() !== "")) {
-        finalOutput.takeProfitLevels = aiOutput.takeProfitLevels;
-    } // Else: keeps baseOutput.takeProfitLevels
-
-    if (Array.isArray(aiOutput.stopLossLevels) && aiOutput.stopLossLevels.length > 0 && aiOutput.stopLossLevels.every(s => typeof s === 'string' && s.trim() !== "")) {
-        finalOutput.stopLossLevels = aiOutput.stopLossLevels;
-    } // Else: keeps baseOutput.stopLossLevels
-    
-    // RewardRiskRatio (optional)
-    if (aiOutput.rewardRiskRatio && typeof aiOutput.rewardRiskRatio.reward === 'number' && aiOutput.rewardRiskRatio.reward >= 0 && typeof aiOutput.rewardRiskRatio.risk === 'number' && aiOutput.rewardRiskRatio.risk >=1) {
-      finalOutput.rewardRiskRatio = aiOutput.rewardRiskRatio;
-    } else {
-      finalOutput.rewardRiskRatio = undefined; // Explicitly undefined if AI provides invalid one
-    }
-
-    // RiskRewardDetails
-    if (aiOutput.riskRewardDetails) {
-        if (aiOutput.riskRewardDetails.tradeAssessment && ['Good', 'Medium', 'Bad', 'Neutral'].includes(aiOutput.riskRewardDetails.tradeAssessment)) {
-            finalOutput.riskRewardDetails.tradeAssessment = aiOutput.riskRewardDetails.tradeAssessment;
-        }
-        if (typeof aiOutput.riskRewardDetails.assessmentReasoning === 'string' && aiOutput.riskRewardDetails.assessmentReasoning.trim() !== "") {
-            finalOutput.riskRewardDetails.assessmentReasoning = aiOutput.riskRewardDetails.assessmentReasoning;
-        }
-    } // Else: finalOutput.riskRewardDetails remains as defined in baseOutput
-
-    // Explanation Summary
-    if (typeof aiOutput.explanationSummary === 'string' && aiOutput.explanationSummary.trim().length >= 1) {
-        finalOutput.explanationSummary = aiOutput.explanationSummary.substring(0, 250); // Enforce max length
-    } // Else: keeps baseOutput.explanationSummary
-    
-    // Full Scientific Analysis
-    if (typeof aiOutput.fullScientificAnalysis === 'string' && aiOutput.fullScientificAnalysis.trim().length >= 1) {
-        finalOutput.fullScientificAnalysis = aiOutput.fullScientificAnalysis;
-    } // Else: keeps baseOutput.fullScientificAnalysis
-    // Ensure disclaimer is always present
-    if (!finalOutput.fullScientificAnalysis.includes(MANDATORY_DISCLAIMER)) {
-        finalOutput.fullScientificAnalysis += " " + MANDATORY_DISCLAIMER;
-    }
-    
-    // Key Indicators (optional)
-    if (Array.isArray(aiOutput.keyIndicators)) { // Check if it's an array
-        finalOutput.keyIndicators = aiOutput.keyIndicators.filter(k => k && typeof k.name === 'string' && typeof k.value === 'string'); // Filter for valid items
-    } else {
-        finalOutput.keyIndicators = []; // Default to empty array if not provided or invalid type
-    }
-
-    // Volatility Level (optional)
-    if (aiOutput.volatilityLevel && ['low', 'normal', 'high', 'extreme'].includes(aiOutput.volatilityLevel)) {
-        finalOutput.volatilityLevel = aiOutput.volatilityLevel;
-    } // Else: keeps baseOutput.volatilityLevel or undefined if AI provides invalid
-
-    return finalOutput;
-  }
-);
+  );
     
 
     
+
