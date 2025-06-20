@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useState, useCallback } from 'react'; // Added React import
+import React, { useEffect, useState, useCallback } from 'react';
 import type { NewsArticle } from '@/types';
 import { fetchNewsFromAPI } from '@/lib/newsService';
 import { AlertTriangle, Loader2, ExternalLink, Newspaper } from 'lucide-react';
@@ -16,27 +16,26 @@ export function BreakingNewsSection() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchBreaking = useCallback(async () => {
-    // Don't set isLoading to true if we already have news, to avoid flicker on refresh
     if (breakingNews.length === 0) {
       setIsLoading(true);
     }
     setError(null);
     try {
-      const articles = await fetchNewsFromAPI('breaking', undefined, true); // true for isBreakingNews
+      const articles = await fetchNewsFromAPI('breaking', undefined, true);
       setBreakingNews(articles.slice(0, ITEMS_TO_FETCH)); 
     } catch (err: any) {
       console.error("Failed to fetch breaking news:", err);
       setError(err.message || 'Failed to load breaking news.');
-      setBreakingNews([]); // Clear news on error
+      setBreakingNews([]);
     } finally {
       setIsLoading(false);
     }
-  }, [breakingNews.length]); // Add breakingNews.length to dependencies
+  }, [breakingNews.length]);
 
   useEffect(() => {
-    fetchBreaking(); // Initial fetch
+    fetchBreaking();
     const intervalId = setInterval(fetchBreaking, REFRESH_INTERVAL);
-    return () => clearInterval(intervalId); // Cleanup on unmount
+    return () => clearInterval(intervalId);
   }, [fetchBreaking]);
 
 
@@ -73,17 +72,14 @@ export function BreakingNewsSection() {
       );
   }
 
-
-  // Only render ticker if there's news to display
   if (breakingNews.length === 0) {
       return null; 
   }
   
-  // Duplicate news items for seamless looping, only if there are items
-  const duplicatedNews = breakingNews.length > 0 ? [...breakingNews, ...breakingNews] : [];
+  const duplicatedNews = [...breakingNews, ...breakingNews];
 
   return (
-    <div className="ticker-container mb-3" dir="ltr"> {/* Force LTR for scroll direction consistency */}
+    <div className="ticker-container mb-3"> {/* Removed dir="ltr" */}
       <div className="ticker-track">
         {duplicatedNews.map((article, index) => (
           <React.Fragment key={`${article.id}-${index}`}>
@@ -109,4 +105,3 @@ export function BreakingNewsSection() {
     </div>
   );
 }
-

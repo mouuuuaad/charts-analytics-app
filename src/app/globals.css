@@ -106,13 +106,15 @@
 
 /* News Ticker Styles */
 .ticker-container {
+  display: block; /* Ensure it's a block-level element */
   width: 100%;
-  overflow: hidden;
+  overflow: hidden; /* Crucial for clipping the scrolling content */
+  position: relative; /* Establishes a containing block and stacking context */
   padding: 0.5rem 0; /* Vertical padding for the container */
   background-color: hsl(var(--muted)); /* Subtle background */
   border-top: 1px solid hsl(var(--border));
   border-bottom: 1px solid hsl(var(--border));
-  box-sizing: border-box;
+  box-sizing: border-box; /* Ensures padding and border don't add to width */
 }
 
 .ticker-track {
