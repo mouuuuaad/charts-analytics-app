@@ -8,7 +8,7 @@ import { fetchNewsFromAPI } from '@/lib/newsService';
 import { NewsCard } from '@/components/news/NewsCard';
 import { TrendingTickersSidebar } from '@/components/news/TrendingTickersSidebar';
 import { FloatingAIButton } from '@/components/news/FloatingAIButton';
-import { BreakingNewsSection } from '@/components/news/BreakingNewsSection'; // Added
+// import { BreakingNewsSection } from '@/components/news/BreakingNewsSection'; // Commented out
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -142,7 +142,7 @@ export default function NewsPage() {
         </CardHeader>
       </Card>
       
-      <BreakingNewsSection />
+      {/* <BreakingNewsSection /> */} {/* Temporarily commented out */}
 
       <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full max-w-[80%] mx-auto">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 p-0.5 h-auto">
