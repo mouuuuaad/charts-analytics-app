@@ -270,7 +270,13 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
       </CardContent>
       <CardFooter className="p-1.5 border-t flex space-x-1.5"> {/* Simplified */}
         <Button size="sm" className="flex-1 text-xs h-7" disabled>Trade (Demo)</Button> {/* Smaller button */}
-        <Button variant="outline" size="sm" className="flex-1 text-xs h-7" asChild><Link href="/training"><Brain className="mr-0.5 h-3 w-3"/>Training</Link></Button>
+        <Button variant="outline" size="sm" className="flex-1 text-xs h-7" asChild>
+          <Link href="/training">
+            <span className="flex items-center gap-0.5"> {/* Wrap icon and text in a span */}
+              <Brain className="h-3 w-3"/>Training
+            </span>
+          </Link>
+        </Button>
       </CardFooter>
     </Card>
      <p className="text-xs text-muted-foreground text-center w-full mt-2 px-1"> {/* Simplified */}
