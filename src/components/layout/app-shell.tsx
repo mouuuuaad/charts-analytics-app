@@ -103,8 +103,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               const Icon = item.icon;
               return (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.tooltip} size="sm" className="h-8"> {/* Simplified size */}
-                    <Link href={item.href}> <Icon className="h-4 w-4" /> <span>{item.label}</span> </Link>
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.tooltip} size="sm" className="h-8">
+                    <Link href={item.href} legacyBehavior passHref>
+                      <a> {/* Explicit <a> tag for legacyBehavior */}
+                        <Icon className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </a>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               );
