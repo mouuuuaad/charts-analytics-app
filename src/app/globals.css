@@ -103,3 +103,57 @@
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   }
 }
+
+/* News Ticker Styles */
+.ticker-container {
+  width: 100%;
+  overflow: hidden;
+  padding: 0.5rem 0; /* Vertical padding for the container */
+  background-color: hsl(var(--muted)); /* Subtle background */
+  border-top: 1px solid hsl(var(--border));
+  border-bottom: 1px solid hsl(var(--border));
+  box-sizing: border-box;
+}
+
+.ticker-track {
+  display: flex; /* Lines up items and their duplicates */
+  width: max-content; /* Let the track be as wide as its content */
+  animation: scrollRightToLeft 60s linear infinite; /* Adjust duration as needed */
+}
+
+@keyframes scrollRightToLeft {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%); /* Scrolls half the track's total width (one set of duplicated items) */
+  }
+}
+
+.ticker-item {
+  padding: 0.25rem 1rem; /* Padding for each news item */
+  font-size: 0.875rem; /* text-sm */
+  white-space: nowrap; /* Prevent individual items from wrapping */
+  display: flex;
+  align-items: center;
+}
+
+.ticker-item-link {
+  text-decoration: none;
+  color: hsl(var(--foreground));
+}
+.ticker-item-link:hover {
+  text-decoration: underline;
+}
+
+.ticker-item-source-time {
+  color: hsl(var(--muted-foreground));
+  opacity: 0.8;
+  margin-left: 0.5rem; /* Space before source/time */
+}
+
+.ticker-item-separator {
+  margin: 0 0.75rem; /* Space around separator */
+  color: hsl(var(--muted-foreground));
+  opacity: 0.5;
+}
