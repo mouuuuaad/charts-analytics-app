@@ -3,6 +3,9 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    overflow-x: hidden; /* Add this to prevent horizontal scroll */
+  }
   :root {
     --background: 0 0% 100%; /* White */
     --foreground: 0 0% 0%; /* Black */
