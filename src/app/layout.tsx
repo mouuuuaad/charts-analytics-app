@@ -1,7 +1,6 @@
 
 'use client'; // Required for usePathname
 
-// Removed Metadata import as title/meta tags are directly in <head>
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
@@ -19,11 +18,11 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>ChartSight AI</title> {/* Simplified title */}
-        <meta name="description" content="AI chart analysis" /> {/* Simplified description */}
+        <title>ChartSight AI</title>
+        <meta name="description" content="AI chart analysis" />
         {/* Removing Google Fonts for a more "system" feel */}
       </head>
-      <body className="antialiased"> {/* Removed font-body as it's set in globals.css now */}
+      <body className="antialiased">
         <AuthProvider>
           {isLandingPage ? (
             <>
