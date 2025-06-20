@@ -12,7 +12,7 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-export const QuizQuestionSchema = z.object({
+const QuizQuestionSchema = z.object({
   id: z.string().describe("A unique identifier for the question (e.g., 'q1', 'q2')."),
   questionText: z.string().describe('The text of the quiz question.'),
   options: z.array(z.object({
@@ -24,14 +24,14 @@ export const QuizQuestionSchema = z.object({
 });
 export type QuizQuestion = z.infer<typeof QuizQuestionSchema>;
 
-export const GenerateQuizInputSchema = z.object({
+const GenerateQuizInputSchema = z.object({
   topic: z.string().describe('The topic for the quiz questions (e.g., "Technical Analysis", "Trading Basics").'),
   numQuestions: z.number().int().min(1).max(10).describe('The number of questions to generate.'),
   language: z.string().describe('The language in which to generate the quiz (e.g., "Arabic", "English").'),
 });
 export type GenerateQuizInput = z.infer<typeof GenerateQuizInputSchema>;
 
-export const GenerateQuizOutputSchema = z.array(QuizQuestionSchema);
+const GenerateQuizOutputSchema = z.array(QuizQuestionSchema);
 export type GenerateQuizOutput = z.infer<typeof GenerateQuizOutputSchema>;
 
 export async function generateQuizQuestions(input: GenerateQuizInput): Promise<GenerateQuizOutput> {
