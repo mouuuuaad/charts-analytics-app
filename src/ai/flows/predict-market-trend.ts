@@ -13,7 +13,7 @@
 
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
-import type { TrendAnalysisDetails, CandlestickPatternInfo, VolumeAndMomentumInfo, RiskRewardAnalysis, PredictMarketTrendOutput as PredictMarketTrendOutputType } from '@/types'; // Import new types
+import type { TrendAnalysisDetails, CandlestickPatternInfo, VolumeAndMomentumInfo, RiskRewardAnalysis, PredictMarketTrendOutput as PredictMarketTrendOutputType } from '@/types'; 
 
 const PredictMarketTrendInputSchema = z.object({
   extractedData: z
@@ -53,9 +53,9 @@ const VolumeAndMomentumInfoSchema = z.object({
   macdEstimate: z.string().describe("Estimated MACD status. E.g., 'MACD bullish crossover above signal line', 'MACD bearish divergence observed'. If not determinable, state 'MACD not determinable from data.'"),
 });
 
-const RewardRiskRatioSchema = z.object({ // Ensure this matches the type used in PredictMarketTrendOutputType
+const RewardRiskRatioSchema = z.object({ 
     reward: z.number().min(0),
-    risk: z.number().min(1), // Risk should ideally be at least 1 to be meaningful
+    risk: z.number().min(1), 
 });
 
 const RiskRewardAnalysisSchema = z.object({
@@ -63,7 +63,6 @@ const RiskRewardAnalysisSchema = z.object({
   assessmentReasoning: z.string().describe("Brief reasoning for the trade assessment. E.g., 'Favorable R:R with multiple confluences.' or 'Poor R:R against strong resistance.'"),
 });
 
-// This is the Zod schema for the entire output object
 const PredictMarketTrendOutputSchema = z.object({
   trendPrediction: z.enum(['up', 'down', 'sideways', 'neutral']).describe('Primary predicted market trend direction.'),
   confidence: z.number().min(0).max(1).describe('Confidence level (0-1) for the trend prediction, based on strength and convergence of signals.'),
@@ -84,7 +83,7 @@ const PredictMarketTrendOutputSchema = z.object({
 
   explanationSummary: z.string().min(1).max(250).describe('A concise summary (1-3 sentences MAX) of the most dominant factors driving the predicted trend and recommendation.'),
   fullScientificAnalysis: z.string().min(1).describe('A highly detailed, scientific, and comprehensive explanation of the analysis. This is the core of your output. It must cover all technical aspects mentioned in the prompt, justify every conclusion with robust evidence from {{{extractedData}}}, and be tailored to the userLevel. Acknowledge probabilities and potential alternative scenarios explicitly.'),
-  keyIndicators: z.array(z.object({ // Keeping for potential partial compatibility if needed by UI elements not yet updated
+  keyIndicators: z.array(z.object({ 
     name: z.string(), value: z.string(), sentiment: z.enum(['positive', 'negative', 'neutral']).optional()
   })).optional().describe("Legacy field for general key indicators. Prefer detailed fields like rsiEstimate/macdEstimate."),
   volatilityLevel: z.enum(['low', 'normal', 'high', 'extreme']).optional().describe("Assessed market volatility based on the chart data. Use 'normal' if not obviously low, high or extreme."),
@@ -96,8 +95,10 @@ export async function predictMarketTrend(input: PredictMarketTrendInput): Promis
   return predictMarketTrendFlow(input);
 }
 
+const MANDATORY_DISCLAIMER = "This analysis is based on the provided chart data for educational and informational purposes only and should not be considered financial advice. Trading financial markets involves significant risk of loss. Always conduct your own thorough research and consult with a qualified financial advisor before making any trading decisions. Past performance is not indicative of future results. Predictions are probabilistic, not guaranteed.";
+
 const prompt = ai.definePrompt({
-  name: 'predictMarketTrendPrompt_v3_detailed', // New version name
+  name: 'predictMarketTrendPrompt_v3_detailed', 
   input: {schema: PredictMarketTrendInputSchema},
   output: {schema: PredictMarketTrendOutputSchema},
   prompt: `You are an exceptionally skilled, meticulous, and cautious financial technical analyst AI. Your primary function is to provide a deeply scientific, evidence-based analysis of financial charts. Your analysis MUST be based *exclusively* on the provided 'extractedData' JSON. Do NOT invent data, make assumptions beyond what is present, or use external knowledge. Financial markets are probabilistic; reflect this in your language and confidence.
@@ -153,7 +154,7 @@ Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON s
         *   Discuss probabilities and alternative scenarios (e.g., "If support at X breaks, the next likely target is Y.").
         *   Acknowledge limitations if data is sparse or unclear. DO NOT GUESS.
         *   Tailor language to \\\`userLevel\\\` ('beginner': explain terms; 'intermediate': standard terms; 'advanced': nuanced discussion, broader context if inferable).
-        *   **Mandatory Disclaimer**: ALWAYS conclude \\\`fullScientificAnalysis\\\` with: "This analysis is based on the provided chart data for educational and informational purposes only and should not be considered financial advice. Trading financial markets involves significant risk of loss. Always conduct your own thorough research and consult with a qualified financial advisor before making any trading decisions. Past performance is not indicative of future results. Predictions are probabilistic, not guaranteed."
+        *   **Mandatory Disclaimer**: ALWAYS conclude \\\`fullScientificAnalysis\\\` with: "${MANDATORY_DISCLAIMER}"
 
 **Critical Evaluation & Caution**:
 *   Be extremely cautious. Avoid definitive statements where uncertainty exists.
@@ -162,74 +163,113 @@ Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON s
 *   Do not generate values for \\\`keyIndicators\\\` or \\\`volatilityLevel\\\` if the specific details are better captured in \\\`volumeAndMomentum\\\` or \\\`riskLevel\\\`/\\\`fullScientificAnalysis\\\`. If you must use \\\`volatilityLevel\\\`, ensure it's justified.
 
 Ensure every field in the output schema is populated thoughtfully and accurately based *only* on {{{extractedData}}}.
+Crucially, ensure your entire response strictly adheres to the 'PredictMarketTrendOutputSchema' JSON structure, populating ALL required fields as defined. If certain data points are unavailable or undeterminable from the input, use appropriate default values like "Not determinable" or empty arrays for list types, rather than omitting fields.
 `,
 });
 
 const predictMarketTrendFlow = ai.defineFlow(
   {
-    name: 'predictMarketTrendFlow_v3_detailed', // Ensure flow name matches version
+    name: 'predictMarketTrendFlow_v3_detailed',
     inputSchema: PredictMarketTrendInputSchema,
     outputSchema: PredictMarketTrendOutputSchema,
   },
   async (input): Promise<PredictMarketTrendOutputType> => {
-    const {output} = await prompt(input);
-    if (!output) {
-      // Fallback if AI fails to return structured output
-      const fallbackReason = "The AI model was unable to provide a detailed analysis. This could be due to unusual data patterns or a temporary issue.";
-      return {
-        trendPrediction: 'neutral',
-        confidence: 0.1,
-        riskLevel: 'high',
-        opportunityScore: 0.1,
-        tradingRecommendation: 'avoid',
-        trendAnalysis: {
-            direction: 'Neutral',
-            candleCountBasis: 0,
-            trendlineDescription: "Trend analysis could not be performed.",
-        },
-        candlestickAnalysis: {
-            patterns: [],
-            summary: "Candlestick analysis could not be performed.",
-        },
-        volumeAndMomentum: {
-            volumeStatus: 'Missing',
-            volumeInterpretation: "Volume data not available.",
-            rsiEstimate: "RSI not determinable.",
-            macdEstimate: "MACD not determinable.",
-        },
-        suggestedEntryPoints: [],
-        takeProfitLevels: [],
-        stopLossLevels: [],
-        // rewardRiskRatio will be undefined
-        riskRewardDetails: {
-            tradeAssessment: 'Bad',
-            assessmentReasoning: "Insufficient data for risk/reward assessment.",
-        },
-        explanationSummary: fallbackReason.substring(0,100),
-        fullScientificAnalysis: fallbackReason + " This analysis is based on the provided chart data for educational and informational purposes only and should not be considered financial advice. Trading financial markets involves significant risk of loss. Always conduct your own thorough research and consult with a qualified financial advisor before making any trading decisions. Past performance is not indicative of future results. Predictions are probabilistic, not guaranteed.",
-        volatilityLevel: 'normal',
-      };
-    }
-    // Ensure all required fields have fallbacks if AI somehow misses them, though the prompt is strict.
-    return {
-      trendPrediction: output.trendPrediction || 'neutral',
-      confidence: output.confidence ?? 0.5,
-      riskLevel: output.riskLevel || 'medium',
-      opportunityScore: output.opportunityScore ?? 0.5,
-      tradingRecommendation: output.tradingRecommendation || 'neutral',
-      trendAnalysis: output.trendAnalysis || { direction: 'Neutral', candleCountBasis: 0, trendlineDescription: "AI did not provide trend analysis." },
-      candlestickAnalysis: output.candlestickAnalysis || { patterns: [], summary: "AI did not provide candlestick analysis." },
-      volumeAndMomentum: output.volumeAndMomentum || { volumeStatus: 'Missing', volumeInterpretation: "N/A", rsiEstimate: "N/A", macdEstimate: "N/A" },
-      suggestedEntryPoints: output.suggestedEntryPoints || [],
-      takeProfitLevels: output.takeProfitLevels || [],
-      stopLossLevels: output.stopLossLevels || [],
-      rewardRiskRatio: output.rewardRiskRatio, 
-      riskRewardDetails: output.riskRewardDetails || { tradeAssessment: 'Neutral', assessmentReasoning: "AI did not provide detailed R/R assessment." },
-      explanationSummary: output.explanationSummary || "No concise AI summary.",
-      fullScientificAnalysis: output.fullScientificAnalysis || "No detailed scientific analysis provided by AI.",
-      keyIndicators: output.keyIndicators || [], // Keep for now
-      volatilityLevel: output.volatilityLevel || 'normal', // Keep for now
+    const {output: aiOutput} = await prompt(input);
+
+    // Define a comprehensive base output that satisfies the schema
+    const baseOutput: PredictMarketTrendOutputType = {
+      trendPrediction: 'neutral',
+      confidence: 0.1,
+      riskLevel: 'high',
+      opportunityScore: 0.1,
+      tradingRecommendation: 'avoid',
+      trendAnalysis: {
+          direction: 'Neutral',
+          candleCountBasis: 5, // Min 5 as per schema
+          trendlineDescription: "Trend analysis details were not provided or are inconclusive.",
+      },
+      candlestickAnalysis: {
+          patterns: [],
+          summary: "Candlestick analysis summary not provided or patterns are inconclusive.",
+      },
+      volumeAndMomentum: {
+          volumeStatus: 'Missing',
+          volumeInterpretation: "Volume data or interpretation not provided.",
+          rsiEstimate: "RSI not determinable from data or AI output.",
+          macdEstimate: "MACD not determinable from data or AI output.",
+      },
+      suggestedEntryPoints: [],
+      takeProfitLevels: [],
+      stopLossLevels: [],
+      // rewardRiskRatio is optional, so no need to default it explicitly here unless to an empty object if required by schema (it's optional)
+      riskRewardDetails: {
+          tradeAssessment: 'Neutral', // Changed from 'Bad' for a more neutral default
+          assessmentReasoning: "Risk/reward assessment could not be performed or was not provided.",
+      },
+      explanationSummary: "The AI model was unable to provide a concise summary.",
+      fullScientificAnalysis: "The AI model did not provide a full scientific analysis. " + MANDATORY_DISCLAIMER,
+      keyIndicators: [], // Optional, default to empty array
+      volatilityLevel: 'normal', // Optional, default
     };
+
+    if (!aiOutput) { // AI returned nothing at all
+      return baseOutput;
+    }
+
+    // Merge AI output with the base, ensuring all required fields are present and valid
+    const finalOutput: PredictMarketTrendOutputType = {
+      trendPrediction: aiOutput.trendPrediction || baseOutput.trendPrediction,
+      confidence: aiOutput.confidence ?? baseOutput.confidence,
+      riskLevel: aiOutput.riskLevel || baseOutput.riskLevel,
+      opportunityScore: aiOutput.opportunityScore ?? baseOutput.opportunityScore,
+      tradingRecommendation: aiOutput.tradingRecommendation || baseOutput.tradingRecommendation,
+      
+      trendAnalysis: {
+        direction: aiOutput.trendAnalysis?.direction || baseOutput.trendAnalysis.direction,
+        candleCountBasis: (aiOutput.trendAnalysis?.candleCountBasis !== undefined && aiOutput.trendAnalysis.candleCountBasis >= 5)
+                           ? aiOutput.trendAnalysis.candleCountBasis
+                           : baseOutput.trendAnalysis.candleCountBasis,
+        trendlineDescription: aiOutput.trendAnalysis?.trendlineDescription || baseOutput.trendAnalysis.trendlineDescription,
+      },
+      candlestickAnalysis: {
+        patterns: aiOutput.candlestickAnalysis?.patterns || baseOutput.candlestickAnalysis.patterns,
+        summary: aiOutput.candlestickAnalysis?.summary || baseOutput.candlestickAnalysis.summary,
+      },
+      volumeAndMomentum: {
+        volumeStatus: aiOutput.volumeAndMomentum?.volumeStatus || baseOutput.volumeAndMomentum.volumeStatus,
+        volumeInterpretation: aiOutput.volumeAndMomentum?.volumeInterpretation || baseOutput.volumeAndMomentum.volumeInterpretation,
+        rsiEstimate: aiOutput.volumeAndMomentum?.rsiEstimate || baseOutput.volumeAndMomentum.rsiEstimate,
+        macdEstimate: aiOutput.volumeAndMomentum?.macdEstimate || baseOutput.volumeAndMomentum.macdEstimate,
+      },
+      suggestedEntryPoints: aiOutput.suggestedEntryPoints || baseOutput.suggestedEntryPoints,
+      takeProfitLevels: aiOutput.takeProfitLevels || baseOutput.takeProfitLevels,
+      stopLossLevels: aiOutput.stopLossLevels || baseOutput.stopLossLevels,
+      rewardRiskRatio: aiOutput.rewardRiskRatio, // Optional, let it be AI's or undefined
+      riskRewardDetails: {
+        tradeAssessment: aiOutput.riskRewardDetails?.tradeAssessment || baseOutput.riskRewardDetails.tradeAssessment,
+        assessmentReasoning: aiOutput.riskRewardDetails?.assessmentReasoning || baseOutput.riskRewardDetails.assessmentReasoning,
+      },
+      explanationSummary: (aiOutput.explanationSummary && aiOutput.explanationSummary.length >= 1)
+                          ? aiOutput.explanationSummary.substring(0, 250) 
+                          : baseOutput.explanationSummary,
+      fullScientificAnalysis: (aiOutput.fullScientificAnalysis && aiOutput.fullScientificAnalysis.length >=1)
+                              ? (aiOutput.fullScientificAnalysis.includes(MANDATORY_DISCLAIMER) ? aiOutput.fullScientificAnalysis : aiOutput.fullScientificAnalysis + " " + MANDATORY_DISCLAIMER)
+                              : baseOutput.fullScientificAnalysis,
+      keyIndicators: aiOutput.keyIndicators || baseOutput.keyIndicators,
+      volatilityLevel: aiOutput.volatilityLevel || baseOutput.volatilityLevel,
+    };
+    
+    // Final check to ensure the disclaimer is present in the full analysis
+    if (!finalOutput.fullScientificAnalysis.includes(MANDATORY_DISCLAIMER)) {
+        finalOutput.fullScientificAnalysis = (finalOutput.fullScientificAnalysis || "Analysis details not provided.") + " " + MANDATORY_DISCLAIMER;
+    }
+    // Ensure explanation summary is not empty if AI somehow returned empty string after logic above
+    if (finalOutput.explanationSummary.length === 0) {
+        finalOutput.explanationSummary = baseOutput.explanationSummary;
+    }
+
+
+    return finalOutput;
   }
 );
 
