@@ -30,10 +30,19 @@ export default function LandingPage() {
   const handleGoogleSignIn = async () => {
     const result = await signInWithGoogle();
     if (typeof result !== 'string') { 
+      // Successfully signed in (result is UserCredential)
       router.push('/dashboard');
     } else {
-      console.error("Google Sign-In Error:", result);
-      // Potentially show a user-facing error here
+      // An error occurred (result is an error message string)
+      // Only log the error if it's not the user closing the popup.
+      if (!result.includes('auth/popup-closed-by-user')) {
+        console.error("Google Sign-In Error:", result);
+        // You could add a toast notification here for other types of errors if desired
+        // import { useToast } from '@/hooks/use-toast';
+        // const { toast } = useToast();
+        // toast({ variant: 'destructive', title: 'Sign-In Failed', description: result });
+      }
+      // If it is 'auth/popup-closed-by-user', we simply do nothing here (no console error).
     }
   };
 
