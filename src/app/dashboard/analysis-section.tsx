@@ -19,8 +19,8 @@ import {
   setUserTradingLevel,
 } from '@/services/firestore';
 
-const MAX_HISTORY_ITEMS = 20; 
-const MAX_FREE_ATTEMPTS = 2; 
+const MAX_HISTORY_ITEMS = 20;
+const MAX_FREE_ATTEMPTS = 2;
 
 export function AnalysisSection() {
   const { user, loading: authLoading } = useAuth();
@@ -32,23 +32,23 @@ export function AnalysisSection() {
   
   const { toast } = useToast();
   const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true); // Start true for initial load
   const [showSurveyModal, setShowSurveyModal] = useState(false);
 
   const fetchUserProfileData = useCallback(async () => {
     if (user) {
       setIsLoadingProfile(true);
       try {
-        const profile = await getUserProfile(user.uid);
-        setUserProfile(profile);
-        if (!profile.userLevel && !authLoading && !isLoadingProfile) { // Ensure not to show modal if profile is still loading
-          // Check added: only show modal if userLevel is null AND we are not in an initial loading state
-          // This prevents modal from flashing if userLevel is fetched slightly later
-           if (profile.userLevel === null) setShowSurveyModal(true);
+        const profileData = await getUserProfile(user.uid);
+        setUserProfile(profileData);
+        // Show modal if user level is null and auth is complete and profile is loaded.
+        if (profileData && profileData.userLevel === null && !authLoading) {
+          setShowSurveyModal(true);
         }
       } catch (error) {
         console.error("Failed to fetch user profile:", error);
         toast({ variant: 'destructive', title: 'Profile Error', description: 'Could not load your profile data.' });
+        // Set a default/empty profile on error to prevent app from breaking
         setUserProfile({
             analysisAttempts: 0, isPremium: false, userLevel: null,
             subscriptionStartDate: null, subscriptionNextBillingDate: null
@@ -57,10 +57,11 @@ export function AnalysisSection() {
         setIsLoadingProfile(false);
       }
     } else {
-      setIsLoadingProfile(false);
-      setUserProfile(null); 
+      // No user, ensure profile is null and not loading
+      setUserProfile(null);
+      setIsLoadingProfile(false); 
     }
-  }, [user, toast, authLoading, isLoadingProfile]); // Added authLoading and isLoadingProfile as dependencies
+  }, [user, toast, authLoading]); // Dependencies: user, toast, authLoading
 
   useEffect(() => {
     fetchUserProfileData();
@@ -70,8 +71,7 @@ export function AnalysisSection() {
     if (user && userProfile) {
       try {
         await setUserTradingLevel(user.uid, level);
-        // Optimistically update or re-fetch
-        const updatedProfile = await getUserProfile(user.uid);
+        const updatedProfile = await getUserProfile(user.uid); // Re-fetch to confirm
         setUserProfile(updatedProfile);
         setShowSurveyModal(false);
         toast({ title: "Assessment Complete!", description: `Your trading level: ${level}. You can now analyze charts.` });
@@ -101,7 +101,7 @@ export function AnalysisSection() {
   };
 
   const handleImageAnalysis = async (file: File, dataUrl: string) => {
-    if (authLoading || isLoadingProfile) {
+    if (authLoading || isLoadingProfile) { // Still check isLoadingProfile here for immediate UI feedback
         toast({ title: "Please wait", description: "Profile data is loading."});
         return;
     }
@@ -110,9 +110,8 @@ export function AnalysisSection() {
       return;
     }
 
-    let profileForChecks: UserProfileData | null = userProfile;
-
-    // Force refresh profile data before checks
+    // Force refresh profile data before checks to ensure latest data
+    let profileForChecks: UserProfileData;
     try {
         const refreshedProfile = await getUserProfile(user.uid);
         setUserProfile(refreshedProfile); // Update the main state
@@ -123,19 +122,11 @@ export function AnalysisSection() {
         return;
     }
     
-    if (!profileForChecks) { // Should not happen if refresh is successful and user exists
-        toast({ variant: 'destructive', title: 'Profile Error', description: 'User profile data is unavailable.' });
-        return;
-    }
-
-    if (!profileForChecks.userLevel && !showSurveyModal) {
+    // This check relies on the profileForChecks that was just fetched
+    if (profileForChecks.userLevel === null) { // Simplified: if level is null, show modal (or remind if already shown)
       setShowSurveyModal(true);
       toast({ variant: 'destructive', title: 'Assessment Required', description: 'Please complete the trading level assessment before analyzing charts.' });
       return;
-    }
-    if (showSurveyModal && !profileForChecks.userLevel) { 
-        toast({ variant: 'destructive', title: 'Assessment In Progress', description: 'Complete the assessment to proceed.' });
-        return;
     }
 
     if (!profileForChecks.isPremium && profileForChecks.analysisAttempts >= MAX_FREE_ATTEMPTS) {
@@ -177,7 +168,7 @@ export function AnalysisSection() {
         setIsLoadingAnalysis(false); return;
       }
       
-      const trendInput = { extractedData: extractedDataResult.extractedData || "{}", userLevel: profileForChecks.userLevel || 'intermediate' };
+      const trendInput = { extractedData: extractedDataResult.extractedData || "{}", userLevel: profileForChecks.userLevel || 'intermediate' }; // userLevel should exist now
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
       
       if (!trendPredictionResult) throw new Error('Failed to predict market trend.');
@@ -187,11 +178,10 @@ export function AnalysisSection() {
 
       if (!profileForChecks.isPremium) {
         await incrementUserAnalysisAttempts(user.uid);
-        // After incrementing in Firestore, update local state based on the PRE-INCREMENT value + 1
-        const attemptsAfterIncrement = (profileForChecks.analysisAttempts ?? 0) + 1;
+        const attemptsAfterIncrement = profileForChecks.analysisAttempts + 1; // Optimistic update based on pre-increment value
         setUserProfile(prev => prev ? { ...prev, analysisAttempts: attemptsAfterIncrement } : { ...profileForChecks, analysisAttempts: attemptsAfterIncrement });
         
-        if (attemptsAfterIncrement >= MAX_FREE_ATTEMPTS) { // Check >= because it could jump if there was an issue
+        if (attemptsAfterIncrement >= MAX_FREE_ATTEMPTS) {
             toast({ title: "Last Free Attempt Used", description: "You've used all your free analyses. Upgrade for unlimited access.", action: (<Button size="sm" asChild className="h-7 text-xs"><Link href="/profile" legacyBehavior passHref><a>Upgrade</a></Link></Button>), duration: 7000 });
         } else {
             toast({ title: "Analysis Successful", description: `${MAX_FREE_ATTEMPTS - attemptsAfterIncrement} free attempts remaining.`, duration: 4000 });
@@ -210,7 +200,8 @@ export function AnalysisSection() {
     }
   };
 
-  if (authLoading || isLoadingProfile && !userProfile) { // Show loader if auth is loading OR profile is loading AND not yet set
+  // Show loader if auth is loading OR profile is loading AND userProfile hasn't been populated yet.
+  if (authLoading || (isLoadingProfile && !userProfile)) { 
     return (
       <div className="flex h-[calc(100vh-theme(spacing.14))] items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -221,7 +212,11 @@ export function AnalysisSection() {
 
   return (
     <>
-      <LevelAssessmentModal isOpen={showSurveyModal && !userProfile?.userLevel} onComplete={handleSurveyComplete} />
+      {/* Show modal if userProfile is loaded, userLevel is null, and auth is not loading. */}
+      <LevelAssessmentModal 
+        isOpen={showSurveyModal && userProfile !== null && userProfile.userLevel === null && !authLoading} 
+        onComplete={handleSurveyComplete} 
+      />
       <div className="container mx-auto py-4 px-2 md:px-0">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr,400px] xl:grid-cols-[1fr,450px] gap-4 items-start">
           <ImageUploader onImageUpload={handleImageAnalysis} isProcessing={isLoadingAnalysis} />
@@ -236,4 +231,3 @@ export function AnalysisSection() {
     </>
   );
 }
-
