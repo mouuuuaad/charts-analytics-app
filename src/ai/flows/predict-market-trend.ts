@@ -114,52 +114,52 @@ Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON s
 **Core Analytical Tasks & Output Requirements:**
 
 1.  **Primary Prediction & Overall Assessment**:
-    *   `trendPrediction`: ('up', 'down', 'sideways', 'neutral') Your main directional call.
-    *   `confidence`: (0.0-1.0) Justify this score based on the strength, clarity, and convergence of all technical signals from {{{extractedData}}}. Be conservative; high confidence requires overwhelming evidence.
-    *   `riskLevel`: ('low', 'medium', 'high') Overall risk of taking a trade based on current chart conditions (volatility, clarity of signals, proximity to strong levels).
-    *   `opportunityScore`: (0.0-1.0) Score representing perceived opportunity. High score needs clear patterns, favorable risk/reward, and confirmation.
-    *   `tradingRecommendation`: ('buy', 'hold', 'avoid', 'neutral') Must align with `trendPrediction` and overall assessment. 'Avoid' if signals are mixed, unclear, or risk is too high.
-    *   `volatilityLevel`: ('low', 'normal', 'high', 'extreme') Assess from price action in {{{extractedData}}}.
+    *   \\\`trendPrediction\\\`: ('up', 'down', 'sideways', 'neutral') Your main directional call.
+    *   \\\`confidence\\\`: (0.0-1.0) Justify this score based on the strength, clarity, and convergence of all technical signals from {{{extractedData}}}. Be conservative; high confidence requires overwhelming evidence.
+    *   \\\`riskLevel\\\`: ('low', 'medium', 'high') Overall risk of taking a trade based on current chart conditions (volatility, clarity of signals, proximity to strong levels).
+    *   \\\`opportunityScore\\\`: (0.0-1.0) Score representing perceived opportunity. High score needs clear patterns, favorable risk/reward, and confirmation.
+    *   \\\`tradingRecommendation\\\`: ('buy', 'hold', 'avoid', 'neutral') Must align with \\\`trendPrediction\\\` and overall assessment. 'Avoid' if signals are mixed, unclear, or risk is too high.
+    *   \\\`volatilityLevel\\\`: ('low', 'normal', 'high', 'extreme') Assess from price action in {{{extractedData}}}.
 
-2.  **Trend Analysis (`trendAnalysis`)**:
-    *   `direction`: Dominant trend ('Uptrend', 'Downtrend', 'Sideways', 'Neutral') based on *at least the last 5-10 candles* or more if a clear longer-term trend is evident in {{{extractedData}}}. Specify the number of candles considered in `candleCountBasis`.
-    *   `candleCountBasis`: Number of candles used for this trend assessment (minimum 5).
-    *   `trendlineDescription`: Describe key trendlines, channels, or significant moving averages (e.g., MA20, MA50 if inferable from data) that define or support this trend. E.g., "Uptrend defined by an ascending channel, price currently testing lower channel bound. MA50 providing dynamic support."
+2.  **Trend Analysis (\\\`trendAnalysis\\\`)**:
+    *   \\\`direction\\\`: Dominant trend ('Uptrend', 'Downtrend', 'Sideways', 'Neutral') based on *at least the last 5-10 candles* or more if a clear longer-term trend is evident in {{{extractedData}}}. Specify the number of candles considered in \\\`candleCountBasis\\\`.
+    *   \\\`candleCountBasis\\\`: Number of candles used for this trend assessment (minimum 5).
+    *   \\\`trendlineDescription\\\`: Describe key trendlines, channels, or significant moving averages (e.g., MA20, MA50 if inferable from data) that define or support this trend. E.g., "Uptrend defined by an ascending channel, price currently testing lower channel bound. MA50 providing dynamic support."
 
-3.  **Candlestick Analysis (`candlestickAnalysis`)**:
-    *   `patterns`: Identify 2-4 of the *most significant and recent* candlestick patterns (e.g., Doji, Hammer, Inverted Hammer, Bullish/Bearish Engulfing, Piercing Line, Dark Cloud Cover, Morning/Evening Star, Three White Soldiers/Black Crows, Marubozu).
-        *   For each pattern: provide `name`, `implications` (what it suggests), `candleCount` (1, 2, 3 etc.), and critically, `isStatisticallyWeakOrNeutral` (true if the pattern's formation is imperfect, occurs in an unexpected location, or lacks volume confirmation, making it less reliable or merely indicative of indecision).
+3.  **Candlestick Analysis (\\\`candlestickAnalysis\\\`)**:
+    *   \\\`patterns\\\`: Identify 2-4 of the *most significant and recent* candlestick patterns (e.g., Doji, Hammer, Inverted Hammer, Bullish/Bearish Engulfing, Piercing Line, Dark Cloud Cover, Morning/Evening Star, Three White Soldiers/Black Crows, Marubozu).
+        *   For each pattern: provide \\\`name\\\`, \\\`implications\\\` (what it suggests), \\\`candleCount\\\` (1, 2, 3 etc.), and critically, \\\`isStatisticallyWeakOrNeutral\\\` (true if the pattern's formation is imperfect, occurs in an unexpected location, or lacks volume confirmation, making it less reliable or merely indicative of indecision).
     *   Avoid drawing strong conclusions from single, isolated, or very few (e.g., 2) non-distinct candles unless they form a recognized, powerful pattern.
-    *   `summary`: Briefly summarize overall sentiment from recent candlesticks.
+    *   \\\`summary\\\`: Briefly summarize overall sentiment from recent candlesticks.
 
-4.  **Volume & Momentum (`volumeAndMomentum`)**:
-    *   `volumeStatus`: Assess if volume data seems 'Present - Adequate', 'Present - Low', 'Present - High', 'Missing', or 'Not Applicable' from {{{extractedData}}}.
-    *   `volumeInterpretation`: If volume is present, how does it relate to price action? (e.g., "Volume increasing on up-moves, confirming uptrend strength", "Price rally on declining volume suggests weakness and potential reversal", "Spike in volume at support indicates strong buying interest"). If 'Missing', state "Volume data not available for analysis."
-    *   `rsiEstimate`: From {{{extractedData}}}, estimate RSI (e.g., 14-period) status (e.g., "RSI at 65 - Bullish momentum", "RSI at 75 - Overbought, caution for longs", "RSI at 25 - Oversold, potential for bounce", "RSI bearish divergence with price highs"). If not determinable, state "RSI not determinable".
-    *   `macdEstimate`: From {{{extractedData}}}, estimate MACD status (e.g., "MACD bullish crossover above signal line", "MACD lines expanding, indicating strong momentum", "MACD bearish divergence with price"). If not determinable, state "MACD not determinable".
+4.  **Volume & Momentum (\\\`volumeAndMomentum\\\`)**:
+    *   \\\`volumeStatus\\\`: Assess if volume data seems 'Present - Adequate', 'Present - Low', 'Present - High', 'Missing', or 'Not Applicable' from {{{extractedData}}}.
+    *   \\\`volumeInterpretation\\\`: If volume is present, how does it relate to price action? (e.g., "Volume increasing on up-moves, confirming uptrend strength", "Price rally on declining volume suggests weakness and potential reversal", "Spike in volume at support indicates strong buying interest"). If 'Missing', state "Volume data not available for analysis."
+    *   \\\`rsiEstimate\\\`: From {{{extractedData}}}, estimate RSI (e.g., 14-period) status (e.g., "RSI at 65 - Bullish momentum", "RSI at 75 - Overbought, caution for longs", "RSI at 25 - Oversold, potential for bounce", "RSI bearish divergence with price highs"). If not determinable, state "RSI not determinable".
+    *   \\\`macdEstimate\\\`: From {{{extractedData}}}, estimate MACD status (e.g., "MACD bullish crossover above signal line", "MACD lines expanding, indicating strong momentum", "MACD bearish divergence with price"). If not determinable, state "MACD not determinable".
 
-5.  **Trading Levels & Risk/Reward (`suggestedEntryPoints`, `takeProfitLevels`, `stopLossLevels`, `rewardRiskRatio`, `riskRewardDetails`)**:
-    *   Provide *specific, actionable* price levels or narrow ranges for `suggestedEntryPoints`, `takeProfitLevels`, and `stopLossLevels`. EACH LEVEL MUST BE JUSTIFIED with reasoning from {{{extractedData}}} (e.g., "Entry at 105.50 on break of consolidation high", "Stop Loss at 103.80, below recent swing low and 0.618 Fib level", "Take Profit at 108.00, targeting previous major resistance").
-    *   If user-defined levels are provided, use them for `rewardRiskRatio` calculation and in `riskRewardDetails`. You can still suggest your own levels in the arrays if they differ significantly and provide rationale.
-    *   `rewardRiskRatio`: Calculate based on the primary suggested TP/SL or user-defined levels. Ensure 'risk' is at least 1. If not calculable (e.g. SL=TP), describe why.
-    *   `riskRewardDetails.tradeAssessment`: ('Good', 'Medium', 'Bad', 'Neutral') Based on the R:R ratio, probability of success from TA, and overall market conditions.
-    *   `riskRewardDetails.assessmentReasoning`: Brief justification. (e.g., "Good: R:R > 2:1 with pattern confirmation." or "Bad: R:R < 1:1, trading into resistance.")
+5.  **Trading Levels & Risk/Reward (\\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, \\\`stopLossLevels\\\`, \\\`rewardRiskRatio\\\`, \\\`riskRewardDetails\\\`)**:
+    *   Provide *specific, actionable* price levels or narrow ranges for \\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, and \\\`stopLossLevels\\\`. EACH LEVEL MUST BE JUSTIFIED with reasoning from {{{extractedData}}} (e.g., "Entry at 105.50 on break of consolidation high", "Stop Loss at 103.80, below recent swing low and 0.618 Fib level", "Take Profit at 108.00, targeting previous major resistance").
+    *   If user-defined levels are provided, use them for \\\`rewardRiskRatio\\\` calculation and in \\\`riskRewardDetails\\\`. You can still suggest your own levels in the arrays if they differ significantly and provide rationale.
+    *   \\\`rewardRiskRatio\\\`: Calculate based on the primary suggested TP/SL or user-defined levels. Ensure 'risk' is at least 1. If not calculable (e.g. SL=TP), describe why.
+    *   \\\`riskRewardDetails.tradeAssessment\\\`: ('Good', 'Medium', 'Bad', 'Neutral') Based on the R:R ratio, probability of success from TA, and overall market conditions.
+    *   \\\`riskRewardDetails.assessmentReasoning\\\`: Brief justification. (e.g., "Good: R:R > 2:1 with pattern confirmation." or "Bad: R:R < 1:1, trading into resistance.")
 
 6.  **Explanation & Justification**:
-    *   `explanationSummary`: A very concise (1-3 sentences) summary of the MOST DOMINANT technical factor(s) driving your `trendPrediction` and `tradingRecommendation`.
-    *   `fullScientificAnalysis`: This is CRITICAL. Provide an extensive, in-depth, and scientific explanation for your entire analysis.
+    *   \\\`explanationSummary\\\`: A very concise (1-3 sentences) summary of the MOST DOMINANT technical factor(s) driving your \\\`trendPrediction\\\` and \\\`tradingRecommendation\\\`.
+    *   \\\`fullScientificAnalysis\\\`: This is CRITICAL. Provide an extensive, in-depth, and scientific explanation for your entire analysis.
         *   Synthesize all findings: how trend, patterns, volume, momentum, S/R levels converge or diverge.
         *   Clearly state the evidence from {{{extractedData}}} for each assertion.
         *   Discuss probabilities and alternative scenarios (e.g., "If support at X breaks, the next likely target is Y.").
         *   Acknowledge limitations if data is sparse or unclear. DO NOT GUESS.
-        *   Tailor language to `userLevel` ('beginner': explain terms; 'intermediate': standard terms; 'advanced': nuanced discussion, broader context if inferable).
-        *   **Mandatory Disclaimer**: ALWAYS conclude `fullScientificAnalysis` with: "This analysis is based on the provided chart data for educational and informational purposes only and should not be considered financial advice. Trading financial markets involves significant risk of loss. Always conduct your own thorough research and consult with a qualified financial advisor before making any trading decisions. Past performance is not indicative of future results. Predictions are probabilistic, not guaranteed."
+        *   Tailor language to \\\`userLevel\\\` ('beginner': explain terms; 'intermediate': standard terms; 'advanced': nuanced discussion, broader context if inferable).
+        *   **Mandatory Disclaimer**: ALWAYS conclude \\\`fullScientificAnalysis\\\` with: "This analysis is based on the provided chart data for educational and informational purposes only and should not be considered financial advice. Trading financial markets involves significant risk of loss. Always conduct your own thorough research and consult with a qualified financial advisor before making any trading decisions. Past performance is not indicative of future results. Predictions are probabilistic, not guaranteed."
 
 **Critical Evaluation & Caution**:
 *   Be extremely cautious. Avoid definitive statements where uncertainty exists.
-*   If {{{extractedData}}} is insufficient for a reliable analysis in any section, clearly state this (e.g., in `volumeInterpretation` if volume is missing, or in `fullScientificAnalysis` if overall data quality is poor).
+*   If {{{extractedData}}} is insufficient for a reliable analysis in any section, clearly state this (e.g., in \\\`volumeInterpretation\\\` if volume is missing, or in \\\`fullScientificAnalysis\\\` if overall data quality is poor).
 *   Your primary goal is a responsible, technically sound analysis, not to force a trade recommendation. 'Neutral' or 'Avoid' are valid if conditions are unclear or too risky.
-*   Do not generate values for `keyIndicators` or `volatilityLevel` if the specific details are better captured in `volumeAndMomentum` or `riskLevel`/`fullScientificAnalysis`. If you must use `volatilityLevel`, ensure it's justified.
+*   Do not generate values for \\\`keyIndicators\\\` or \\\`volatilityLevel\\\` if the specific details are better captured in \\\`volumeAndMomentum\\\` or \\\`riskLevel\\\`/\\\`fullScientificAnalysis\\\`. If you must use \\\`volatilityLevel\\\`, ensure it's justified.
 
 Ensure every field in the output schema is populated thoughtfully and accurately based *only* on {{{extractedData}}}.
 `,
@@ -232,3 +232,4 @@ const predictMarketTrendFlow = ai.defineFlow(
     };
   }
 );
+
