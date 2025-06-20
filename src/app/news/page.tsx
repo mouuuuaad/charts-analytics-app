@@ -157,7 +157,7 @@ export default function NewsPage() {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start max-w-[80%] w-full mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start">
         <section aria-labelledby="news-articles-heading">
           <h2 id="news-articles-heading" className="sr-only">News Articles for {topicLabels[selectedTopic]} {debouncedSearchTerm && `matching "${debouncedSearchTerm}"`}</h2>
           {isLoadingNews && (
@@ -217,7 +217,7 @@ export default function NewsPage() {
         </aside>
       </div>
       
-      <div className="lg:hidden mt-4 max-w-[80%] w-full mx-auto">
+      <div className="lg:hidden mt-4">
           <TrendingTickersSidebar tickers={trendingTickers} isLoading={isLoadingTickers} />
       </div>
 
@@ -225,3 +225,4 @@ export default function NewsPage() {
     </div>
   );
 }
+
