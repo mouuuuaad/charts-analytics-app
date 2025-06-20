@@ -29,6 +29,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'a.fsdn.com',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // Add allowedDevOrigins to address cross-origin warnings in development
