@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react'; // Added React import
 import type { NewsArticle } from '@/types';
 import { fetchNewsFromAPI } from '@/lib/newsService';
 import { AlertTriangle, Loader2, ExternalLink, Newspaper } from 'lucide-react';
@@ -109,3 +109,4 @@ export function BreakingNewsSection() {
     </div>
   );
 }
+
