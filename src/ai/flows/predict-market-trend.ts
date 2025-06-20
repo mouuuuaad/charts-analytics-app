@@ -2,9 +2,9 @@
 'use server';
 
 /**
- * @fileOverview Predicts the market trend with deep technical analysis, including candlestick patterns,
- * volume, momentum, risk/reward, and provides a detailed scientific explanation.
- * This flow aims for the highest possible analytical depth and caution. (v4 - Second Entry Enhanced)
+ * @fileOverview Predicts the market trend with expert-level deep technical analysis, including candlestick patterns,
+ * volume, momentum, risk/reward, second entries, and provides a detailed scientific explanation.
+ * This flow aims for the highest possible analytical depth and caution. (v5 - Expert Analyst)
  *
  * - predictMarketTrend - A function that handles the market trend prediction process.
  * - PredictMarketTrendInput - The input type for the predictMarketTrend function.
@@ -18,7 +18,7 @@ import type { TrendAnalysisDetails, CandlestickPatternInfo, CandlestickAnalysis,
 const PredictMarketTrendInputSchema = z.object({
   extractedData: z
     .string()
-    .describe('The extracted data from the chart image in JSON format. This data is the SOLE basis for your analysis. Assume it contains OHLCV data, timestamps, and possibly names of any visible indicators.'),
+    .describe('A DETAILED JSON string representing all discernible elements from the chart image. This includes descriptions of price action (candlesticks/bars), volume bars, and any visible technical indicators (e.g., moving averages, RSI, MACD). This data is the SOLE basis for your analysis. Assume it contains OHLCV data (or descriptions allowing inference), timestamps, volume data, and details of any visible indicators.'),
   userLevel: z.enum(['beginner', 'intermediate', 'advanced']).optional().describe('The trading experience level of the user.'),
   userDefinedEntry: z.string().optional().describe("Optional user-defined entry price for R/R calculation focus."),
   userDefinedStopLoss: z.string().optional().describe("Optional user-defined stop-loss price."),
@@ -47,10 +47,10 @@ const CandlestickAnalysisSchema = z.object({
 });
 
 const VolumeAndMomentumInfoSchema = z.object({
-  volumeStatus: z.enum(['Present - Adequate', 'Present - Low', 'Present - High', 'Missing', 'Not Applicable']).describe("Status of volume data from the chart."),
+  volumeStatus: z.enum(['Present - Adequate', 'Present - Low', 'Present - High', 'Missing', 'Not Applicable']).describe("Status of volume data from the chart. 'Missing' if not mentioned in extractedData. 'Not Applicable' if context makes volume irrelevant (rare)."),
   volumeInterpretation: z.string().describe("How volume supports or contradicts price action. E.g., 'High volume on up-move confirms bullish strength.' or 'Price rising on low volume, caution advised.' If 'Missing', state 'Volume data not available for analysis.'"),
-  rsiEstimate: z.string().describe("Estimated RSI (e.g., 14-period) level and its interpretation. E.g., 'RSI at 68 - Bullish, approaching overbought', 'RSI at 30 - Oversold, potential for bounce', 'RSI at 50 - Neutral', 'Bearish RSI divergence observed with price making higher highs'. If not determinable, state 'RSI not determinable from data.'"),
-  macdEstimate: z.string().describe("Estimated MACD status. E.g., 'MACD bullish crossover above signal line', 'MACD bearish divergence observed'. If not determinable, state 'MACD not determinable from data.'"),
+  rsiEstimate: z.string().describe("Estimated RSI (e.g., 14-period) level and its interpretation based on extractedData. E.g., 'RSI at 68 - Bullish, approaching overbought', 'RSI at 30 - Oversold, potential for bounce', 'RSI at 50 - Neutral', 'Bearish RSI divergence observed with price making higher highs'. If not determinable from extractedData, state 'RSI not determinable from data.'"),
+  macdEstimate: z.string().describe("Estimated MACD status based on extractedData. E.g., 'MACD bullish crossover above signal line', 'MACD bearish divergence observed'. If not determinable from extractedData, state 'MACD not determinable from data.'"),
 });
 
 const RewardRiskRatioSchema = z.object({ 
@@ -64,53 +64,57 @@ const RiskRewardAnalysisSchema = z.object({
 });
 
 const PredictMarketTrendOutputSchema = z.object({
-  trendPrediction: z.enum(['up', 'down', 'sideways', 'neutral']).describe('Primary predicted market trend direction. Must always be provided.'),
-  confidence: z.number().min(0).max(1).describe('Confidence level (0-1) for the trend prediction, based on strength and convergence of signals. Must always be provided.'),
+  trendPrediction: z.enum(['up', 'down', 'sideways', 'neutral']).describe('Primary predicted market trend direction. Must always be provided. Strive for a directional call (up/down/sideways) unless signals are genuinely mixed making "neutral" the most responsible call.'),
+  confidence: z.number().min(0).max(1).describe('Confidence level (0-1) for the trend prediction, based on strength and convergence of signals. Must always be provided. Higher confidence requires strong, converging evidence.'),
   riskLevel: z.enum(['low', 'medium', 'high']).describe('Overall assessed risk for engaging in a trade based on current analysis.'),
   opportunityScore: z.number().min(0).max(1).describe('Perceived opportunity score (0-1) based on the analysis clarity and potential. Higher is better.'),
-  tradingRecommendation: z.enum(['buy', 'hold', 'avoid', 'neutral']).describe('Suggested trading action (buy, hold, avoid, neutral). Must align with trendPrediction.'),
+  tradingRecommendation: z.enum(['buy', 'hold', 'avoid', 'neutral']).describe('Suggested trading action (buy, hold, avoid, neutral). Must align with trendPrediction. Strive for an actionable recommendation.'),
   
   trendAnalysis: TrendAnalysisDetailsSchema,
   candlestickAnalysis: CandlestickAnalysisSchema,
   volumeAndMomentum: VolumeAndMomentumInfoSchema,
   
-  suggestedEntryPoints: z.array(z.string()).min(1,"At least one suggested entry point must be provided, even if conservative.").describe('Specific suggested price levels or descriptive ranges for entering a trade, with justification. E.g., ["150.25 (on breakout of resistance)", "148.50 (retest of support zone X-Y)"]. Base on technicals from extractedData. Must always be provided, even if conservative. If userDefinedEntry is provided, this can reflect it or suggest alternatives.'),
-  takeProfitLevels: z.array(z.string()).min(1,"At least one take profit level must be provided, even if conservative.").describe('Specific suggested price levels or ranges for taking profit, with justification. E.g., ["155.00 (next resistance)", "160.00 (1.618 Fib extension from move A-B)"]. Base on technicals from extractedData. Must always be provided, even if conservative. If userDefinedTakeProfit is provided, reflect or suggest alternatives.'),
-  stopLossLevels: z.array(z.string()).min(1,"At least one stop loss level must be provided, even if conservative.").describe('Specific suggested price levels or ranges for placing a stop-loss, with justification. E.g., ["147.50 (below recent swing low and support X)"]. Base on technicals from extractedData. Must always be provided, even if conservative. If userDefinedStopLoss is provided, reflect or suggest alternatives.'),
+  suggestedEntryPoints: z.array(z.string()).min(1,"At least one suggested entry point must be provided, even if conservative or conditional.").describe('Specific suggested price levels or descriptive ranges for entering a trade, with justification. E.g., ["150.25 (on breakout of resistance)", "148.50 (retest of support zone X-Y)"]. Base on technicals from extractedData. Must always be provided. If userDefinedEntry is provided, this can reflect it or suggest alternatives.'),
+  takeProfitLevels: z.array(z.string()).min(1,"At least one take profit level must be provided, even if conservative or conditional.").describe('Specific suggested price levels or ranges for taking profit, with justification. E.g., ["155.00 (next resistance)", "160.00 (1.618 Fib extension from move A-B)"]. Base on technicals from extractedData. Must always be provided. If userDefinedTakeProfit is provided, reflect or suggest alternatives.'),
+  stopLossLevels: z.array(z.string()).min(1,"At least one stop loss level must be provided, even if conservative or conditional.").describe('Specific suggested price levels or ranges for placing a stop-loss, with justification. E.g., ["147.50 (below recent swing low and support X)"]. Base on technicals from extractedData. Must always be provided. If userDefinedStopLoss is provided, reflect or suggest alternatives.'),
   rewardRiskRatio: RewardRiskRatioSchema.optional().describe("Calculated potential reward to risk ratio (e.g., reward: 2, risk: 1 for 2:1). Base on primary suggested TP/SL if not user-defined. If user-defined levels are provided, calculate using those."),
 
   riskRewardDetails: RiskRewardAnalysisSchema,
 
-  explanationSummary: z.string().min(1).max(250).describe('A concise summary (1-3 sentences MAX) of the most dominant factors driving the predicted trend and recommendation.'),
-  fullScientificAnalysis: z.string().min(1).describe("A highly detailed, scientific, and comprehensive explanation of the analysis. This is the core of your output. It must cover all technical aspects mentioned in the prompt, justify every conclusion with robust evidence from {{{extractedData}}}, detail any limiting factors, suggest user actions for clearer insights if analysis is constrained, and be tailored to the userLevel. Acknowledge probabilities and potential alternative scenarios explicitly."),
+  explanationSummary: z.string().min(1).max(250).describe('A concise summary (1-3 sentences MAX) of the most dominant factors driving the predicted trend and recommendation. Be direct and clear.'),
+  fullScientificAnalysis: z.string().min(1).describe("A highly detailed, scientific, and comprehensive explanation of the analysis. This is the core of your output. It must cover all technical aspects mentioned in the prompt, justify every conclusion with robust evidence from the `extractedData` JSON (referencing specific details like identified MAs, RSI levels, volume descriptions from it), detail any limiting factors, suggest user actions for clearer insights if analysis is constrained, and be tailored to the userLevel. Acknowledge probabilities and potential alternative scenarios explicitly."),
   keyIndicators: z.array(z.object({ 
     name: z.string(), value: z.string(), sentiment: z.enum(['positive', 'negative', 'neutral']).optional()
-  })).optional().describe("Legacy field for general key indicators. Prefer detailed fields like rsiEstimate/macdEstimate."),
+  })).optional().describe("Legacy field for general key indicators. Prefer detailed fields like rsiEstimate/macdEstimate which are derived from extractedData."),
   volatilityLevel: z.enum(['low', 'normal', 'high', 'extreme']).optional().describe("Assessed market volatility based on the chart data. Use 'normal' if not obviously low, high or extreme."),
 });
 export type PredictMarketTrendOutput = z.infer<typeof PredictMarketTrendOutputSchema>;
 
 
 export async function predictMarketTrend(input: PredictMarketTrendInput): Promise<PredictMarketTrendOutput> {
-  return predictMarketTrendFlow_v4_deep_analysis_second_entry(input);
+  return predictMarketTrendFlow_v5_expert_analyst(input);
 }
 
 const MANDATORY_DISCLAIMER = "This analysis is based on the provided chart data for educational and informational purposes only and should not be considered financial advice. Trading financial markets involves significant risk of loss. Always conduct your own thorough research and consult with a qualified financial advisor before making any trading decisions. Past performance is not indicative of future results. Predictions are probabilistic, not guaranteed.";
 
 const prompt = ai.definePrompt({
-  name: 'predictMarketTrendPrompt_v4_deep_analysis_second_entry', 
+  name: 'predictMarketTrendPrompt_v5_expert_analyst', 
   input: {schema: PredictMarketTrendInputSchema},
   output: {schema: PredictMarketTrendOutputSchema},
-  prompt: `You are an exceptionally skilled, meticulous, and cautious **world-class financial technical analyst AI**. Your primary function is to provide a deeply scientific, evidence-based analysis of financial charts. Your analysis MUST be based *exclusively* on the provided 'extractedData' JSON. Do NOT invent data, make assumptions beyond what is present, or use external knowledge. Financial markets are probabilistic; reflect this in your language and confidence.
+  prompt: `You are an **EXPERT-LEVEL financial technical analyst AI**, a master of chart interpretation. Your primary directive is to evolve beyond simple observations into providing a flawless, comprehensive, and trustworthy assessment. You will receive DETAILED ` + "`{{{extractedData}}}`" + ` JSON, which includes descriptions of candles, price action, volume, and any visible indicators like EMAs, RSI, or MACD. This ` + "`{{{extractedData}}}`" + ` is your SOLE source of truth. Do NOT invent data or use external knowledge.
 
-**Core Task:** Deeply analyze the provided trading chart image data ({{{extractedData}}}) to:
-1.  Predict future price direction (Up/Down/Sideways/Neutral).
-2.  Calculate precise Take Profit (TP) and Stop Loss (SL) levels. These must always be provided, even if conservative.
-3.  Provide a clear confidence score for your directional prediction.
-4.  Accompany every output with a detailed, technical explanation of your rationale.
+**Core Task:** From the ` + "`{{{extractedData}}}`" + `, perform a deep, multi-layered analysis to:
+1.  **Confidently identify the market trend** (Up/Down/Sideways). Avoid "Neutral" unless signals are overwhelmingly mixed.
+2.  **Pinpoint critical support and resistance zones.**
+3.  **Recognize both simple and complex candlestick and chart patterns.**
+4.  Your **PRIMARY OUTPUT** must be **precise, actionable, and logically justified Stop Loss (SL) and Take Profit (TP) levels.**
+    *   SL should be at the point where the trade premise is invalidated.
+    *   TP should be at the next high-probability target, ensuring a favorable risk-reward.
+5.  Accompany EVERY output with a **detailed, clear rationale in ` + "`fullScientificAnalysis`" + `** explaining *why* you arrived at your conclusions, referencing specific visual evidence from the ` + "`{{{extractedData}}}`" + ` (e.g., "The bullish engulfing pattern on increasing volume, as noted in ` + "`extractedData.candlestickDetails` and `extractedData.volumeAnalysis`" + `, supports the entry.").
+6.  The final goal is a **holistic, professional-grade assessment** that empowers the user, moving far beyond uncertain predictions.
 
 Input Data:
-- Extracted Chart Data (JSON): {{{extractedData}}}
+- Extracted Chart Data (JSON describing visual elements): ` + "`{{{extractedData}}}`" + `
 - User Trading Experience: {{#if userLevel}} {{{userLevel}}} {{else}} intermediate {{/if}}
 {{#if userDefinedEntry}}- User Defined Entry: {{{userDefinedEntry}}}{{/if}}
 {{#if userDefinedStopLoss}}- User Defined Stop Loss: {{{userDefinedStopLoss}}}{{/if}}
@@ -118,194 +122,182 @@ Input Data:
 
 Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON structure. All fields are mandatory unless marked optional.
 
-**Analytical Requirements & Output Structure:**
+**Analytical Requirements & Output Structure (Referencing ` + "`{{{extractedData}}}`" + `):**
 
 1.  **Primary Prediction & Overall Assessment (Mandatory Fields)**:
-    *   \\\`trendPrediction\\\`: ('up', 'down', 'sideways', 'neutral') Your main directional call. **Must always be provided.**
-    *   \\\`confidence\\\`: (0.0-1.0) Justify this score based on the strength, clarity, and convergence of all technical signals from {{{extractedData}}}. Be conservative; high confidence requires overwhelming evidence. **Must always be provided.**
-    *   \\\`riskLevel\\\`: ('low', 'medium', 'high') Overall risk of taking a trade based on current chart conditions (volatility, clarity of signals, proximity to strong levels).
-    *   \\\`opportunityScore\\\`: (0.0-1.0) Score representing perceived opportunity. High score needs clear patterns, favorable risk/reward, and confirmation.
-    *   \\\`tradingRecommendation\\\`: ('buy', 'hold', 'avoid', 'neutral') Must align with \\\`trendPrediction\\\` and overall assessment. 'Avoid' if signals are mixed, unclear, or risk is too high.
-    *   \\\`volatilityLevel\\\`: ('low', 'normal', 'high', 'extreme') Assess from price action in {{{extractedData}}}.
+    *   \\\`trendPrediction\\\`: ('up', 'down', 'sideways', 'neutral') Your main directional call. Strive for a clear directional call. **Must always be provided.**
+    *   \\\`confidence\\\`: (0.0-1.0) Justify based on convergence of signals from ` + "`{{{extractedData}}}`" + `. High confidence requires overwhelming, converging evidence. **Must always be provided.**
+    *   \\\`riskLevel\\\`: ('low', 'medium', 'high') Based on volatility (from ` + "`{{{extractedData}}}`" + `), clarity of signals.
+    *   \\\`opportunityScore\\\`: (0.0-1.0) Clarity, favorable R:R, confirmation.
+    *   \\\`tradingRecommendation\\\`: ('buy', 'hold', 'avoid', 'neutral') Align with \\\`trendPrediction\\\`. 'Avoid' if signals are unclear or risk too high despite efforts.
+    *   \\\`volatilityLevel\\\`: ('low', 'normal', 'high', 'extreme') Assess from price action in ` + "`{{{extractedData}}}`" + `.
 
 2.  **Trend Analysis (\\\`trendAnalysis\\\`)**:
-    *   \\\`direction\\\`: Dominant trend ('Uptrend', 'Downtrend', 'Sideways', 'Neutral') based on *at least the last 5-10 candles* or more if a clear longer-term trend is evident in {{{extractedData}}}.
-    *   \\\`candleCountBasis\\\`: Number of candles used for this trend assessment (minimum 5).
-    *   \\\`trendlineDescription\\\`: Describe key trendlines, channels, significant moving averages (e.g., MA20, MA50 if inferable from data), or other visual chart elements that define or support this trend. E.g., "Uptrend defined by an ascending channel, price currently testing lower channel bound. MA50 providing dynamic support."
+    *   \\\`direction\\\`: Dominant trend ('Uptrend', 'Downtrend', 'Sideways', 'Neutral') based on *at least the last 5-10 candles* described in ` + "`{{{extractedData}}}`" + `.
+    *   \\\`candleCountBasis\\\`: Number of candles used (min 5).
+    *   \\\`trendlineDescription\\\`: Describe key trendlines, channels, significant moving averages (identified in ` + "`{{{extractedData}}.movingAverages`" + `), or other visual chart elements from ` + "`{{{extractedData}}}`" + ` that define or support this trend.
 
-3.  **Candlestick Pattern Analysis (\\\`candlestickAnalysis\\\`)**:
-    *   \\\`patterns\\\`: Identify 2-4 of the *most significant and recent* candlestick patterns. Include a broad range: Doji, Hammer/Inverted Hammer, Bullish/Bearish Engulfing, Piercing Line, Dark Cloud Cover, Morning/Evening Star, Three White Soldiers/Black Crows, Harami, Marubozu.
-        *   For each pattern: provide \\\`name\\\`, \\\`implications\\\` (what it suggests), \\\`candleCount\\\` (1, 2, 3 etc.), and critically, \\\`isStatisticallyWeakOrNeutral\\\` (true if the pattern's formation is imperfect, occurs in an unexpected location, lacks volume confirmation, or occurs against a strong counter-trend, making it less reliable or merely indicative of indecision).
-    *   Avoid drawing strong conclusions from single, isolated, or very few (e.g., 2) non-distinct candles unless they form a recognized, powerful pattern.
+3.  **Candlestick Pattern Analysis (\\\`candlestickAnalysis\\\`)**: (Based on candle descriptions in ` + "`{{{extractedData}}}`" + `)
+    *   \\\`patterns\\\`: Identify 2-4 of the *most significant and recent* candlestick patterns. Include a broad range.
+        *   For each: \\\`name\\\`, \\\`implications\\\`, \\\`candleCount\\\`, \\\`isStatisticallyWeakOrNeutral\\\` (true if imperfect, poor location, lacks volume confirmation from ` + "`{{{extractedData}}.volumeAnalysis`" + `, or against strong counter-trend).
+    *   Avoid strong conclusions from isolated or few non-distinct candles unless they form a recognized, powerful pattern.
     *   \\\`summary\\\`: Briefly summarize overall sentiment from recent candlesticks.
 
-4.  **Chart Pattern Analysis (Integrate into \\\`fullScientificAnalysis\\\` and \\\`trendAnalysis.trendlineDescription\\\` where appropriate)**:
-    *   Identify common chart patterns if present (e.g., Triangles (ascending, descending, symmetrical), Wedges (rising, falling), Flags, Pennants, Head and Shoulders (and inverse), Double/Triple Tops/Bottoms, Channels).
-    *   Describe the pattern, its implications, and potential price targets if applicable. These details should be part of \\\`fullScientificAnalysis\\\`.
+4.  **Chart Pattern Analysis (Integrate into \\\`fullScientificAnalysis\\\` and \\\`trendAnalysis.trendlineDescription\\\` where appropriate)**: (Based on overall price action in ` + "`{{{extractedData}}}`" + `)
+    *   Identify common chart patterns (Triangles, Wedges, Flags, Pennants, Head and Shoulders, Double/Triple Tops/Bottoms, Channels).
+    *   Describe the pattern, implications, and potential price targets.
 
-5.  **Support & Resistance (S/R) Levels (Integrate into \\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, \\\`stopLossLevels\\\`, and \\\`fullScientificAnalysis\\\`)**:
-    *   Accurately delineate significant S/R levels. Justify these based on previous price action, swing highs/lows, psychological numbers, or other technical formations visible in {{{extractedData}}}. This justification is key for the TP/SL levels.
+5.  **Support & Resistance (S/R) Levels (Integrate into trade levels and \\\`fullScientificAnalysis\\\`)**: (Based on ` + "`{{{extractedData}}.keyHorizontalLevels`" + ` and price action)
+    *   Accurately delineate significant S/R. Justify based on previous price action, swing highs/lows visible in ` + "`{{{extractedData}}}`" + `.
 
-6.  **Volume & Momentum (\\\`volumeAndMomentum\\\`)**:
-    *   \\\`volumeStatus\\\`: Assess if volume data seems 'Present - Adequate', 'Present - Low', 'Present - High', 'Missing', or 'Not Applicable' from {{{extractedData}}}.
-    *   \\\`volumeInterpretation\\\`: If volume is present, how does it relate to price action? (e.g., "Volume increasing on up-moves, confirming uptrend strength", "Price rally on declining volume suggests weakness and potential reversal", "Spike in volume at support indicates strong buying interest"). If 'Missing', state "Volume data not available for analysis."
-    *   \\\`rsiEstimate\\\`: From {{{extractedData}}}, estimate RSI (e.g., 14-period) status and its implications. Mention divergences if visible (e.g., "RSI at 65 - Bullish momentum", "RSI bearish divergence with price highs"). If not determinable, state "RSI not determinable".
-    *   \\\`macdEstimate\\\`: From {{{extractedData}}}, estimate MACD status (e.g., "MACD bullish crossover above signal line", "MACD bearish divergence with price"). If not determinable, state "MACD not determinable".
-    *   Interpret visual cues from any other common indicators if discernible from {{{extractedData}}}.
+6.  **Volume & Momentum (\\\`volumeAndMomentum\\\`)**: (Based on ` + "`{{{extractedData}}.volumeAnalysis`" + `, ` + "`{{{extractedData}}.rsi`" + `, ` + "`{{{extractedData}}.macd`" + `)
+    *   \\\`volumeStatus\\\`: Assess from ` + "`{{{extractedData}}.volumeAnalysis.volumePresent`" + `. If 'Missing', state "Volume data not found in extracted chart details."
+    *   \\\`volumeInterpretation\\\`: If volume present, correlate with price action using ` + "`{{{extractedData}}.volumeAnalysis.recentVolumeDescription`" + `.
+    *   \\\`rsiEstimate\\\`: Use ` + "`{{{extractedData}}.rsi.value` and `{{{extractedData}}.rsi.condition`" + `. If not determinable from ` + "`{{{extractedData}}}`" + `, state "RSI not determinable from chart data."
+    *   \\\`macdEstimate\\\`: Use ` + "`{{{extractedData}}.macd.status`" + `. If not determinable from ` + "`{{{extractedData}}}`" + `, state "MACD not determinable from chart data."
 
-7.  **Advanced Pattern: Second Entry Opportunities (Integrate into \\\`fullScientificAnalysis\\\` and related fields)**:
-    *   Your analysis MUST also actively look for "second entry" opportunities for both long and short positions.
-    *   **For a Long Second Entry**:
-        1.  Identify an initial strong bullish impulse wave from the chart data.
-        2.  Observe a subsequent corrective pullback (not a full reversal) that re-tests a clearly confirmed support level (e.g., prior resistance flipped to support, a key upward trendline, or a significant moving average if discernible from data).
-        3.  Look for **clear bullish confirmation** at this re-tested support. This MUST include robust evidence such as:
-            *   A strong bullish candlestick pattern (e.g., Bullish Engulfing, Hammer, Piercing Line, Morning Star).
-            *   A notable increase in volume on the confirmation candle(s) compared to the pullback phase.
-            *   The formation of a higher low compared to a significant low within the initial impulse wave or its preceding consolidation.
-        4.  If all these conditions are met, articulate this as a "Second Entry Long opportunity" within the \\\`fullScientificAnalysis\\\`. Detail each element of the setup.
-        5.  Provide precise entry (e.g., "Entry above confirmation candle high at X.XX"), stop-loss (e.g., "SL below the low of the pullback/support at Y.YY"), and take-profit (e.g., "TP targeting re-test of initial impulse high at Z.ZZ, or next significant resistance"). These levels should be part of the \\\`suggestedEntryPoints\\\`, \\\`stopLossLevels\\\`, and \\\`takeProfitLevels\\\` arrays, with clear justification linking them to the second entry setup.
-        6.  **Critically, explain WHY this is a second entry** and not a failed pullback or reversal. Differentiate by analyzing the depth of the pullback, volume characteristics during pullback vs. confirmation, strength of the support level, and the decisiveness of the bullish confirmation signals.
-    *   **For a Short Second Entry**:
-        1.  Identify an initial strong bearish impulse wave from the chart data.
-        2.  Observe a subsequent corrective bounce (not a full reversal) that re-tests a clearly confirmed resistance level (e.g., prior support flipped to resistance, a key downward trendline, or a significant moving average).
-        3.  Look for **clear bearish confirmation** at this re-tested resistance. This MUST include robust evidence such as:
-            *   A strong bearish candlestick pattern (e.g., Bearish Engulfing, Shooting Star, Dark Cloud Cover, Evening Star).
-            *   A notable increase in volume on the confirmation candle(s) compared to the bounce phase.
-            *   The formation of a lower high compared to a significant high within the initial impulse wave or its preceding consolidation.
-        4.  If all these conditions are met, articulate this as a "Second Entry Short opportunity" within the \\\`fullScientificAnalysis\\\`. Detail each element.
-        5.  Provide precise entry, stop-loss, and take-profit levels with justifications, integrating them into the respective output arrays.
-        6.  **Explain WHY this is a second entry** and not a failed bounce or reversal. Differentiate by analyzing the strength of the bounce, volume characteristics, strength of the resistance level, and the decisiveness of bearish confirmation.
-    *   If such a second entry is the most compelling setup, your primary \\\`tradingRecommendation\\\` and \\\`trendPrediction\\\` should reflect this, and the confidence score adjusted. The justifications for entry/TP/SL levels must clearly reference the second entry rationale.
+7.  **Advanced Pattern: Second Entry Opportunities (Integrate into \\\`fullScientificAnalysis\\\`)**:
+    *   Actively look for "second entry" opportunities (long and short) based on sequences in ` + "`{{{extractedData}}}`" + `.
+    *   **Long Second Entry**: Initial strong bullish impulse, corrective pullback to *confirmed support* (e.g., prior resistance, trendline, MA from ` + "`{{{extractedData}}}`" + `), then *clear bullish confirmation* (strong bullish candle pattern from ` + "`{{{extractedData}}}`" + `, volume increase noted in ` + "`{{{extractedData}}.volumeAnalysis`" + `, higher low).
+    *   **Short Second Entry**: Initial strong bearish impulse, corrective bounce to *confirmed resistance*, then *clear bearish confirmation*.
+    *   Detail each element. Explain WHY it's a second entry. Provide precise entry, SL, TP in the main output arrays, justified by this pattern.
 
 8.  **Trading Levels & Risk/Reward (\\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, \\\`stopLossLevels\\\` - ALL MANDATORY, \\\`rewardRiskRatio\\\`, \\\`riskRewardDetails\\\`)**:
-    *   Provide *specific, actionable* price levels or narrow ranges for \\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, and \\\`stopLossLevels\\\`. **These fields must always be populated with at least one string value each, even if the market is neutral or the recommendation is 'avoid'.** In such cases, levels can be wider, indicative, or based on breakouts from current consolidation.
-    *   **EACH LEVEL MUST BE JUSTIFIED** with robust reasoning from {{{extractedData}}}.
-        *   **For Stop Loss (SL)**: Identify the most logical point where the trade premise is invalidated. This typically involves placing it just beyond a confirmed support (for long) or resistance (for short), or beneath the low/above the high of a significant reversal candle/pattern. Explain *why* this level invalidates the trade (e.g., "SL at 147.50, below the recent swing low at 147.80 and the identified bullish engulfing pattern's low; a break below this level would negate the bullish premise.").
-        *   **For Take Profit (TP)**: Target a realistic profit objective. Identify the next significant resistance (for long) or support (for short) level. If a clear next level isn't immediately visible or is too distant, consider applying established risk-reward ratios (e.g., aiming for 1.5:1 or 2:1 relative to your SL) and clearly state this. Explain the target (e.g., "TP1 at 155.00, targeting the prominent resistance visible at the 154.80-155.20 zone from early May." or "TP set at 158.00 to achieve a 2:1 Reward:Risk ratio, as the next clear resistance is significantly further.").
-    *   If user-defined levels are provided, use them for \\\`rewardRiskRatio\\\` calculation and in \\\`riskRewardDetails\\\`. You can still suggest your own levels in the arrays if they differ significantly and provide rationale.
-    *   If chart data is insufficient for high-confidence levels (e.g., very new asset, extreme low liquidity, very short timeframe chart with no history), you MUST provide conservative, volatility-adjusted estimations for SL/TP. Clearly state the basis for these estimates (e.g., "SL based on 2x Average True Range (ATR) due to high volatility and lack of clear S/R.") and the inherent uncertainty.
-    *   \\\`rewardRiskRatio\\\`: Calculate based on the primary suggested TP/SL or user-defined levels. Ensure 'risk' is at least 1. If not calculable (e.g. SL=TP), describe why.
-    *   \\\`riskRewardDetails.tradeAssessment\\\`: ('Good', 'Medium', 'Bad', 'Neutral') Based on the R:R ratio, probability of success from TA, and overall market conditions.
-    *   \\\`riskRewardDetails.assessmentReasoning\\\`: Brief justification. (e.g., "Good: R:R > 2:1 with pattern confirmation." or "Bad: R:R < 1:1, trading into resistance.")
+    *   Provide *specific, actionable* price levels. **These fields must always be populated with at least one string value each.**
+    *   **EACH LEVEL MUST BE JUSTIFIED** with robust reasoning from ` + "`{{{extractedData}}}`" + `.
+        *   **Stop Loss (SL)**: Identify the most logical point where the trade premise is invalidated (beyond confirmed S/R from ` + "`{{{extractedData}}}`" + `, or below/above low/high of significant reversal candle/pattern from ` + "`{{{extractedData}}}`" + `). Explain *why* this level invalidates the trade.
+        *   **Take Profit (TP)**: Target a realistic profit objective. Identify the next significant S/R level (from ` + "`{{{extractedData}}}`" + `). If unclear, apply risk-reward ratios (e.g., 1.5:1 or 2:1 relative to SL) and state this. Explain the target.
+    *   If user-defined levels are provided, use them for \\\`rewardRiskRatio\\\` and \\\`riskRewardDetails\\\`. You can still suggest your own.
+    *   If ` + "`{{{extractedData}}}`" + ` is insufficient for high-confidence levels, YOU MUST provide conservative, volatility-adjusted estimations. Clearly state the basis and uncertainty.
+    *   \\\`rewardRiskRatio\\\`: Calculate based on primary suggested TP/SL or user-defined. Ensure 'risk' >= 1.
+    *   \\\`riskRewardDetails.tradeAssessment\\\`: ('Good', 'Medium', 'Bad', 'Neutral').
+    *   \\\`riskRewardDetails.assessmentReasoning\\\`: Brief justification.
 
 9.  **Explanation & Justification**:
-    *   \\\`explanationSummary\\\`: A very concise (1-3 sentences) summary of the MOST DOMINANT technical factor(s) driving your \\\`trendPrediction\\\` and \\\`tradingRecommendation\\\`. If a second entry is key, mention it.
-    *   \\\`fullScientificAnalysis\\\`: This is CRITICAL. Provide an extensive, in-depth, and scientific explanation for your entire analysis.
-        *   Synthesize all findings: how trend, patterns (candlestick, chart, second entries), S/R levels, volume, momentum, and indicators converge or diverge.
-        *   Clearly state the evidence from {{{extractedData}}} for each assertion.
-        *   Discuss probabilities and alternative scenarios (e.g., "If support at X breaks, the next likely target is Y.").
-        *   **Limiting Factors**: Explicitly detail any limiting factors (e.g., insufficient data in view, conflicting signals, low volume reducing pattern reliability).
-        *   **Suggestions for Clearer Insights**: If the analysis is constrained, suggest user actions (e.g., 'Provide a chart with a longer timeframe,' 'Look for volume confirmation on the next candle,' 'This pattern would be stronger if it occurred at a key S/R level.').
-        *   Tailor language to \\\`userLevel\\\` ('beginner': explain terms; 'intermediate': standard terms; 'advanced': nuanced discussion).
+    *   \\\`explanationSummary\\\`: 1-3 sentences MAX of DOMINANT factors from ` + "`{{{extractedData}}}`" + ` driving prediction.
+    *   \\\`fullScientificAnalysis\\\`: CRITICAL. Extensive, in-depth, scientific explanation.
+        *   Synthesize all findings: how trend, patterns, S/R, volume, momentum, indicators (all from ` + "`{{{extractedData}}}`" + `) converge or diverge.
+        *   **Explicitly reference elements from ` + "`{{{extractedData}}}`" + ` for each assertion.**
+        *   Discuss probabilities, alternative scenarios.
+        *   **Limiting Factors**: Detail any (e.g., ` + "`{{{extractedData}}}`" + ` lacks clarity on indicator X, volume is low per ` + "`{{{extractedData}}.volumeAnalysis`" + `).
+        *   **Suggestions for Clearer Insights**: If analysis constrained by ` + "`{{{extractedData}}}`" + `, suggest user actions (e.g., 'Provide chart with clearer MA lines,' 'Higher resolution image needed to confirm candle details.').
+        *   Tailor language to \\\`userLevel\\\`.
         *   **Mandatory Disclaimer**: ALWAYS conclude \\\`fullScientificAnalysis\\\` with: "${MANDATORY_DISCLAIMER}"
 
 **Critical Evaluation & Caution**:
-*   Be extremely cautious. Avoid definitive statements where uncertainty exists.
-*   If {{{extractedData}}} is insufficient for a reliable analysis in any section, clearly state this.
-*   Your primary goal is a responsible, technically sound analysis. 'Neutral' or 'Avoid' are valid if conditions are unclear or too risky, but you must still provide TP/SL levels based on potential breakouts or ranges.
-*   Ensure every field in the output schema is populated thoughtfully and accurately based *only* on {{{extractedData}}}. If specific data points are unavailable/undeterminable, use appropriate defaults ("Not determinable", empty arrays for lists IF appropriate but TP/SL/Entry must have values).
-*   Crucially, ensure your entire response strictly adheres to the 'PredictMarketTrendOutputSchema' JSON structure, populating ALL required fields. \\\`trendPrediction\\\` is mandatory. Within \\\`trendAnalysis\\\`, \\\`direction\\\`, \\\`candleCountBasis\\\` (min 5), and \\\`trendlineDescription\\\` are all mandatory.
+*   Be extremely cautious. If ` + "`{{{extractedData}}}`" + ` is poor or sparse, state this clearly and reflect it in low confidence and wider TP/SL ranges.
+*   Your goal is a responsible, technically sound analysis. 'Neutral' or 'Avoid' are valid if ` + "`{{{extractedData}}}`" + ` makes a directional call too risky, but you must still provide reasoned TP/SL levels.
+*   Ensure every field in output schema is populated based *only* on ` + "`{{{extractedData}}}`" + `.
 
-Final check: Is \\\`trendPrediction\\\` provided? Are \\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, and \\\`stopLossLevels\\\` ALL provided with at least one string entry each, and is EACH level clearly justified based on technical analysis from the chart data? Is the second entry analysis, if applicable, fully detailed in \\\`fullScientificAnalysis\\\` and reflected in suggested levels?
+**Final Check:** Is \\\`trendPrediction\\\` provided with a non-neutral value if evidence supports it? Are \\\`suggestedEntryPoints\\\`, \\\`takeProfitLevels\\\`, and \\\`stopLossLevels\\\` ALL provided with at least one string entry each, and is EACH level clearly justified using specifics from ` + "`{{{extractedData}}}`" + `? Is second entry analysis (if applicable) fully detailed?
 `,
 });
 
-const predictMarketTrendFlow_v4_deep_analysis_second_entry = ai.defineFlow(
+const predictMarketTrendFlow_v5_expert_analyst = ai.defineFlow( // Renamed flow
   {
-    name: 'predictMarketTrendFlow_v4_deep_analysis_second_entry',
+    name: 'predictMarketTrendFlow_v5_expert_analyst', // Renamed flow
     inputSchema: PredictMarketTrendInputSchema,
     outputSchema: PredictMarketTrendOutputSchema,
   },
   async (input): Promise<PredictMarketTrendOutputType> => {
     const {output: aiOutput} = await prompt(input);
 
+    // Define a comprehensive base output that satisfies the schema
     const baseOutput: PredictMarketTrendOutputType = {
-      trendPrediction: 'neutral',
-      confidence: 0.1,
-      riskLevel: 'high',
+      trendPrediction: 'neutral', // Default to neutral if AI fails
+      confidence: 0.1, // Low confidence for fallback
+      riskLevel: 'high', // High risk for fallback
       opportunityScore: 0.1,
-      tradingRecommendation: 'avoid',
+      tradingRecommendation: 'avoid', // Avoid if analysis is poor
       trendAnalysis: {
           direction: 'Neutral',
-          candleCountBasis: 5, 
-          trendlineDescription: "Trend analysis details were not explicitly provided or are inconclusive based on current data. Consider providing a chart with more historical data or clearer trend indicators for a better assessment.",
+          candleCountBasis: 5, // Minimum as per schema
+          trendlineDescription: "Trend analysis details were not explicitly provided by the AI or are inconclusive based on current data. The provided `extractedData` may have been insufficient for a clear assessment. Consider providing a chart with more historical data or clearer trend indicators.",
       },
       candlestickAnalysis: {
-          patterns: [], 
-          summary: "Candlestick analysis summary not provided or patterns are inconclusive. Look for clearer candlestick formations or confirmation from volume.",
+          patterns: [], // Empty array is valid
+          summary: "Candlestick analysis summary not provided by AI or patterns are inconclusive. The `extractedData` might lack clear candlestick formations or volume confirmation.",
       },
       volumeAndMomentum: {
-          volumeStatus: 'Missing',
-          volumeInterpretation: "Volume data or interpretation not provided or insufficient for analysis. Volume is crucial for confirming patterns and trends.",
-          rsiEstimate: "RSI not determinable from data or AI output. Consider adding RSI to your chart or providing clearer data.",
-          macdEstimate: "MACD not determinable from data or AI output. Consider adding MACD to your chart or providing clearer data.",
+          volumeStatus: 'Missing', // Default if not specified by AI from extractedData
+          volumeInterpretation: "Volume data or interpretation not provided by AI or insufficient for analysis based on `extractedData`. Volume is crucial for confirming patterns and trends.",
+          rsiEstimate: "RSI not determinable from the provided `extractedData` or AI output. Consider if RSI was visible and described in the chart image.",
+          macdEstimate: "MACD not determinable from the provided `extractedData` or AI output. Consider if MACD was visible and described in the chart image.",
       },
-      suggestedEntryPoints: ["Entry levels are highly speculative due to unclear signals. Consider waiting for a breakout or breakdown from a defined range."],
-      takeProfitLevels: ["Take profit levels are highly speculative. Define based on your risk tolerance and potential S/R zones if they become clearer."],
-      stopLossLevels: ["Stop loss levels are highly speculative. Place based on recent swing lows/highs or volatility if market direction clarifies."],
+      suggestedEntryPoints: ["Entry levels are highly speculative due to unclear signals or insufficient `extractedData`. Consider waiting for a breakout or breakdown from a defined range."],
+      takeProfitLevels: ["Take profit levels are highly speculative due to unclear signals or insufficient `extractedData`. Define based on your risk tolerance and potential S/R zones if they become clearer."],
+      stopLossLevels: ["Stop loss levels are highly speculative due to unclear signals or insufficient `extractedData`. Place based on recent swing lows/highs or volatility if market direction clarifies."],
+      rewardRiskRatio: undefined, // Optional
       riskRewardDetails: {
-          tradeAssessment: 'Neutral', 
-          assessmentReasoning: "Risk/reward assessment could not be reliably performed or was not provided due to unclear market signals or insufficient data.",
+          tradeAssessment: 'Neutral', // Default assessment
+          assessmentReasoning: "Risk/reward assessment could not be reliably performed or was not provided by AI, likely due to unclear market signals or insufficient `extractedData`.",
       },
-      explanationSummary: "The AI model was unable to provide a concise summary. Analysis may be limited by data quality, conflicting signals, or insufficient chart information.",
-      fullScientificAnalysis: "The AI model did not provide a full scientific analysis, or the analysis was severely limited. This may be due to limitations in the provided chart data (e.g., insufficient history, unclear patterns, missing volume) or conflicting indicators. For a clearer and more reliable analysis, try providing a chart with more data points, clearer patterns, and visible volume bars. Also, consider different timeframes for a broader market context. " + MANDATORY_DISCLAIMER,
-      keyIndicators: [], 
-      volatilityLevel: 'normal', 
+      explanationSummary: "The AI model was unable to provide a concise summary. Analysis may be limited by the quality or completeness of `extractedData`, conflicting signals, or insufficient chart information.",
+      fullScientificAnalysis: "The AI model did not provide a full scientific analysis, or the analysis was severely limited. This may be due to limitations in the provided `extractedData` (e.g., insufficient history, unclear patterns, missing volume details) or conflicting indicators. For a clearer and more reliable analysis, ensure the uploaded chart is clear and contains sufficient detail for the extraction phase. " + MANDATORY_DISCLAIMER,
+      keyIndicators: [], // Optional, empty is fine
+      volatilityLevel: 'normal', // Default volatility
     };
 
     if (!aiOutput) { 
+      console.warn("AI output was null for predictMarketTrendFlow_v5. Returning baseOutput.");
       return baseOutput; 
     }
 
+    // Create a deep copy of baseOutput to modify
     const finalOutput: PredictMarketTrendOutputType = JSON.parse(JSON.stringify(baseOutput));
 
+    // Merge AI output with base, ensuring schema compliance
     if (aiOutput.trendPrediction && ['up', 'down', 'sideways', 'neutral'].includes(aiOutput.trendPrediction)) {
         finalOutput.trendPrediction = aiOutput.trendPrediction;
-    } 
+    } // Else: keeps baseOutput.trendPrediction ('neutral')
 
     if (typeof aiOutput.confidence === 'number' && aiOutput.confidence >= 0 && aiOutput.confidence <= 1) {
         finalOutput.confidence = aiOutput.confidence;
-    } 
+    } // Else: keeps baseOutput.confidence
 
     if (aiOutput.riskLevel && ['low', 'medium', 'high'].includes(aiOutput.riskLevel)) {
         finalOutput.riskLevel = aiOutput.riskLevel;
-    } 
+    } // Else: keeps baseOutput.riskLevel
 
     if (typeof aiOutput.opportunityScore === 'number' && aiOutput.opportunityScore >= 0 && aiOutput.opportunityScore <= 1) {
         finalOutput.opportunityScore = aiOutput.opportunityScore;
-    } 
+    } // Else: keeps baseOutput.opportunityScore
 
     if (aiOutput.tradingRecommendation && ['buy', 'hold', 'avoid', 'neutral'].includes(aiOutput.tradingRecommendation)) {
         finalOutput.tradingRecommendation = aiOutput.tradingRecommendation;
-    } 
+    } // Else: keeps baseOutput.tradingRecommendation
 
+    // Trend Analysis (nested object)
     if (aiOutput.trendAnalysis) {
         if (aiOutput.trendAnalysis.direction && ['Uptrend', 'Downtrend', 'Sideways', 'Neutral'].includes(aiOutput.trendAnalysis.direction)) {
             finalOutput.trendAnalysis.direction = aiOutput.trendAnalysis.direction;
         }
         if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number' && aiOutput.trendAnalysis.candleCountBasis >= 5) {
             finalOutput.trendAnalysis.candleCountBasis = aiOutput.trendAnalysis.candleCountBasis;
-        } else if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number' && aiOutput.trendAnalysis.candleCountBasis < 5) {
-            finalOutput.trendAnalysis.candleCountBasis = 5; // Force minimum if AI provides smaller
+        } else if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number') {
+             finalOutput.trendAnalysis.candleCountBasis = 5; // Force minimum if AI provides smaller valid number
         }
+        // If AI provides an invalid type for candleCountBasis (e.g. string), it will keep the baseOutput value (5)
         if (typeof aiOutput.trendAnalysis.trendlineDescription === 'string' && aiOutput.trendAnalysis.trendlineDescription.trim() !== "") {
             finalOutput.trendAnalysis.trendlineDescription = aiOutput.trendAnalysis.trendlineDescription;
         }
-    } 
+    } // Else: finalOutput.trendAnalysis remains as defined in baseOutput
 
+    // Candlestick Analysis
     if (aiOutput.candlestickAnalysis) {
-        if (Array.isArray(aiOutput.candlestickAnalysis.patterns)) { 
+        if (Array.isArray(aiOutput.candlestickAnalysis.patterns)) { // patterns is required
             finalOutput.candlestickAnalysis.patterns = aiOutput.candlestickAnalysis.patterns.filter(p => 
                 p && typeof p.name === 'string' && typeof p.implications === 'string' && 
                 typeof p.candleCount === 'number' && p.candleCount >= 1 && 
                 typeof p.isStatisticallyWeakOrNeutral === 'boolean'
-            ); 
-        } 
-        if (typeof aiOutput.candlestickAnalysis.summary === 'string') {
+            ); // Filter for valid patterns
+        } // Else: keeps baseOutput.candlestickAnalysis.patterns ([])
+        if (typeof aiOutput.candlestickAnalysis.summary === 'string') { // summary is optional
             finalOutput.candlestickAnalysis.summary = aiOutput.candlestickAnalysis.summary;
-        } 
+        }
     }
 
+    // Volume and Momentum
     if (aiOutput.volumeAndMomentum) {
         if (aiOutput.volumeAndMomentum.volumeStatus && ['Present - Adequate', 'Present - Low', 'Present - High', 'Missing', 'Not Applicable'].includes(aiOutput.volumeAndMomentum.volumeStatus)) {
             finalOutput.volumeAndMomentum.volumeStatus = aiOutput.volumeAndMomentum.volumeStatus;
@@ -319,29 +311,29 @@ const predictMarketTrendFlow_v4_deep_analysis_second_entry = ai.defineFlow(
         if (typeof aiOutput.volumeAndMomentum.macdEstimate === 'string' && aiOutput.volumeAndMomentum.macdEstimate.trim() !== "") {
             finalOutput.volumeAndMomentum.macdEstimate = aiOutput.volumeAndMomentum.macdEstimate;
         }
-    }
+    } // Else: finalOutput.volumeAndMomentum remains as defined in baseOutput
 
-    if (Array.isArray(aiOutput.suggestedEntryPoints) && aiOutput.suggestedEntryPoints.length > 0) {
-        finalOutput.suggestedEntryPoints = aiOutput.suggestedEntryPoints.filter(s => typeof s === 'string' && s.trim() !== "");
-    }
-    if (finalOutput.suggestedEntryPoints.length === 0) finalOutput.suggestedEntryPoints = baseOutput.suggestedEntryPoints;
+    // Suggested Levels - must be non-empty arrays of strings
+    if (Array.isArray(aiOutput.suggestedEntryPoints) && aiOutput.suggestedEntryPoints.length > 0 && aiOutput.suggestedEntryPoints.every(s => typeof s === 'string' && s.trim() !== "")) {
+        finalOutput.suggestedEntryPoints = aiOutput.suggestedEntryPoints;
+    } // Else: keeps baseOutput.suggestedEntryPoints
     
-    if (Array.isArray(aiOutput.takeProfitLevels) && aiOutput.takeProfitLevels.length > 0) {
-        finalOutput.takeProfitLevels = aiOutput.takeProfitLevels.filter(s => typeof s === 'string' && s.trim() !== "");
-    }
-    if (finalOutput.takeProfitLevels.length === 0) finalOutput.takeProfitLevels = baseOutput.takeProfitLevels;
+    if (Array.isArray(aiOutput.takeProfitLevels) && aiOutput.takeProfitLevels.length > 0 && aiOutput.takeProfitLevels.every(s => typeof s === 'string' && s.trim() !== "")) {
+        finalOutput.takeProfitLevels = aiOutput.takeProfitLevels;
+    } // Else: keeps baseOutput.takeProfitLevels
 
-    if (Array.isArray(aiOutput.stopLossLevels) && aiOutput.stopLossLevels.length > 0) {
-        finalOutput.stopLossLevels = aiOutput.stopLossLevels.filter(s => typeof s === 'string' && s.trim() !== "");
-    }
-    if (finalOutput.stopLossLevels.length === 0) finalOutput.stopLossLevels = baseOutput.stopLossLevels;
+    if (Array.isArray(aiOutput.stopLossLevels) && aiOutput.stopLossLevels.length > 0 && aiOutput.stopLossLevels.every(s => typeof s === 'string' && s.trim() !== "")) {
+        finalOutput.stopLossLevels = aiOutput.stopLossLevels;
+    } // Else: keeps baseOutput.stopLossLevels
     
-    if (aiOutput.rewardRiskRatio && typeof aiOutput.rewardRiskRatio.reward === 'number' && typeof aiOutput.rewardRiskRatio.risk === 'number' && aiOutput.rewardRiskRatio.risk >=1) {
+    // RewardRiskRatio (optional)
+    if (aiOutput.rewardRiskRatio && typeof aiOutput.rewardRiskRatio.reward === 'number' && aiOutput.rewardRiskRatio.reward >= 0 && typeof aiOutput.rewardRiskRatio.risk === 'number' && aiOutput.rewardRiskRatio.risk >=1) {
       finalOutput.rewardRiskRatio = aiOutput.rewardRiskRatio;
     } else {
-      finalOutput.rewardRiskRatio = undefined; 
+      finalOutput.rewardRiskRatio = undefined; // Explicitly undefined if AI provides invalid one
     }
 
+    // RiskRewardDetails
     if (aiOutput.riskRewardDetails) {
         if (aiOutput.riskRewardDetails.tradeAssessment && ['Good', 'Medium', 'Bad', 'Neutral'].includes(aiOutput.riskRewardDetails.tradeAssessment)) {
             finalOutput.riskRewardDetails.tradeAssessment = aiOutput.riskRewardDetails.tradeAssessment;
@@ -349,30 +341,35 @@ const predictMarketTrendFlow_v4_deep_analysis_second_entry = ai.defineFlow(
         if (typeof aiOutput.riskRewardDetails.assessmentReasoning === 'string' && aiOutput.riskRewardDetails.assessmentReasoning.trim() !== "") {
             finalOutput.riskRewardDetails.assessmentReasoning = aiOutput.riskRewardDetails.assessmentReasoning;
         }
-    }
+    } // Else: finalOutput.riskRewardDetails remains as defined in baseOutput
 
+    // Explanation Summary
     if (typeof aiOutput.explanationSummary === 'string' && aiOutput.explanationSummary.trim().length >= 1) {
-        finalOutput.explanationSummary = aiOutput.explanationSummary.substring(0, 250);
-    } 
+        finalOutput.explanationSummary = aiOutput.explanationSummary.substring(0, 250); // Enforce max length
+    } // Else: keeps baseOutput.explanationSummary
     
+    // Full Scientific Analysis
     if (typeof aiOutput.fullScientificAnalysis === 'string' && aiOutput.fullScientificAnalysis.trim().length >= 1) {
         finalOutput.fullScientificAnalysis = aiOutput.fullScientificAnalysis;
-    } 
+    } // Else: keeps baseOutput.fullScientificAnalysis
+    // Ensure disclaimer is always present
     if (!finalOutput.fullScientificAnalysis.includes(MANDATORY_DISCLAIMER)) {
         finalOutput.fullScientificAnalysis += " " + MANDATORY_DISCLAIMER;
     }
     
-    if (Array.isArray(aiOutput.keyIndicators)) {
-        finalOutput.keyIndicators = aiOutput.keyIndicators.filter(k => k && typeof k.name === 'string' && typeof k.value === 'string');
-    } 
+    // Key Indicators (optional)
+    if (Array.isArray(aiOutput.keyIndicators)) { // Check if it's an array
+        finalOutput.keyIndicators = aiOutput.keyIndicators.filter(k => k && typeof k.name === 'string' && typeof k.value === 'string'); // Filter for valid items
+    } else {
+        finalOutput.keyIndicators = []; // Default to empty array if not provided or invalid type
+    }
 
+    // Volatility Level (optional)
     if (aiOutput.volatilityLevel && ['low', 'normal', 'high', 'extreme'].includes(aiOutput.volatilityLevel)) {
         finalOutput.volatilityLevel = aiOutput.volatilityLevel;
-    } 
+    } // Else: keeps baseOutput.volatilityLevel or undefined if AI provides invalid
 
     return finalOutput;
   }
 );
-    
-
     
