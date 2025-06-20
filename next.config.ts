@@ -23,6 +23,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'thehillstimes.in',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // Add allowedDevOrigins to address cross-origin warnings in development
