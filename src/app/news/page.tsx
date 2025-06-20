@@ -119,37 +119,37 @@ export default function NewsPage() {
   };
 
   return (
-    <div className="container mx-auto py-3 px-2 md:px-3 space-y-3"> {/* Simplified padding/spacing */}
+    <div className="container mx-auto py-3 px-2 md:px-3 space-y-3">
       <Card className="border">
         <CardHeader className="p-2 md:p-3">
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-2"> {/* Simplified gap */}
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-2">
             <div className="flex items-center">
-                <Newspaper className="h-6 w-6 mr-1.5" /> {/* Simpler icon/margin */}
+                <Newspaper className="h-6 w-6 mr-1.5" />
                 <div>
-                    <CardTitle className="text-lg">Market News</CardTitle> {/* Simpler font */}
-                    <CardDescription className="text-xs">Latest financial news.</CardDescription> {/* Simplified */}
+                    <CardTitle className="text-lg">Market News</CardTitle>
+                    <CardDescription className="text-xs">Latest financial news.</CardDescription>
                 </div>
             </div>
-            <div className="relative w-full sm:w-60"> {/* Simplified width */}
+            <div className="relative w-full sm:w-60">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <Input
                 type="search" placeholder="Search news..." value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-7 w-full h-8 text-sm" /* Simplified */ aria-label="Search news"
+                className="pl-7 w-full h-8 text-sm" aria-label="Search news"
               />
             </div>
           </div>
         </CardHeader>
       </Card>
       
-      <BreakingNewsSection /> {/* Added Breaking News Section */}
+      <BreakingNewsSection />
 
-      <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 p-0.5 h-auto"> {/* Simplified */}
+      <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full max-w-[80%] mx-auto">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 p-0.5 h-auto">
           {(Object.keys(topicLabels) as NewsTopic[]).map(topic => {
             const Icon = topicIcons[topic];
             return (
-              <TabsTrigger key={topic} value={topic} className="py-1.5 text-xs data-[state=active]:shadow-none flex items-center gap-1"> {/* Simpler */}
+              <TabsTrigger key={topic} value={topic} className="py-1.5 text-xs data-[state=active]:shadow-none flex items-center gap-1">
                 <Icon className="h-3 w-3" /> {topicLabels[topic]}
               </TabsTrigger>
             );
@@ -157,15 +157,15 @@ export default function NewsPage() {
         </TabsList>
       </Tabs>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start"> {/* Simplified gap/width */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] xl:grid-cols-[minmax(0,1fr)_300px] gap-4 items-start max-w-[80%] w-full mx-auto">
         <section aria-labelledby="news-articles-heading">
           <h2 id="news-articles-heading" className="sr-only">News Articles for {topicLabels[selectedTopic]} {debouncedSearchTerm && `matching "${debouncedSearchTerm}"`}</h2>
           {isLoadingNews && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"> {/* Simplified gap */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {[...Array(6)].map((_, i) => (
                 <Card key={i} className="overflow-hidden border">
-                  <Skeleton className="h-36 w-full" /> {/* Smaller skeleton */}
-                  <CardHeader className="pb-1 pt-1.5 px-2"><Skeleton className="h-3.5 w-3/4" /></CardHeader> {/* Simpler */}
+                  <Skeleton className="h-36 w-full" />
+                  <CardHeader className="pb-1 pt-1.5 px-2"><Skeleton className="h-3.5 w-3/4" /></CardHeader>
                   <CardContent className="px-2 space-y-1 pb-1.5"><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-5/6" /></CardContent>
                   <CardFooter className="p-2 flex justify-between items-center">
                      <Skeleton className="h-4 w-16" /> <Skeleton className="h-6 w-20" />
@@ -175,9 +175,9 @@ export default function NewsPage() {
             </div>
           )}
           {!isLoadingNews && error && (
-             <Card className="col-span-full border p-3"> {/* Simplified */}
+             <Card className="col-span-full border p-3">
                 <CardContent className="py-8 flex flex-col items-center justify-center text-center">
-                    <AlertTriangle className="w-8 h-8 mb-2" /> {/* Simpler */}
+                    <AlertTriangle className="w-8 h-8 mb-2" />
                     <p className="text-md font-medium">Error Loading News</p>
                     <p className="text-sm text-muted-foreground whitespace-pre-line">{error}</p>
                     <Button onClick={() => fetchNews(selectedTopic, debouncedSearchTerm)} className="mt-2 text-xs h-7">Try Again</Button>
@@ -199,7 +199,7 @@ export default function NewsPage() {
             </Card>
           )}
           {!isLoadingNews && !error && newsArticles.length > 0 && (
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3"> {/* Simplified gap */}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {newsArticles.map((article) => (
                 <NewsCard
                   key={article.id}
@@ -212,12 +212,12 @@ export default function NewsPage() {
           )}
         </section>
         
-        <aside className="sticky top-14 space-y-3 lg:block hidden"> {/* Simplified spacing */}
+        <aside className="sticky top-14 space-y-3 lg:block hidden">
             <TrendingTickersSidebar tickers={trendingTickers} isLoading={isLoadingTickers} />
         </aside>
       </div>
       
-      <div className="lg:hidden mt-4"> {/* Simplified margin */}
+      <div className="lg:hidden mt-4 max-w-[80%] w-full mx-auto">
           <TrendingTickersSidebar tickers={trendingTickers} isLoading={isLoadingTickers} />
       </div>
 

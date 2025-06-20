@@ -41,7 +41,7 @@ export function BreakingNewsSection() {
 
   if (isLoading && breakingNews.length === 0) {
     return (
-      <div className="p-2 border-y border-border bg-muted h-12 flex items-center justify-center">
+      <div className="p-2 border-y border-border bg-muted h-12 flex items-center justify-center max-w-[80%] w-full mx-auto">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         <span className="ml-2 text-sm text-muted-foreground">Loading breaking news...</span>
       </div>
@@ -50,7 +50,7 @@ export function BreakingNewsSection() {
 
   if (error && breakingNews.length === 0) {
     return (
-      <div className="p-2 border-y border-border bg-destructive/10 h-12 flex items-center justify-center text-destructive">
+      <div className="p-2 border-y border-border bg-destructive/10 h-12 flex items-center justify-center text-destructive max-w-[80%] w-full mx-auto">
         <AlertTriangle className="h-5 w-5 mr-2" />
         <span className="text-sm">Error: {error}</span>
         <button
@@ -65,7 +65,7 @@ export function BreakingNewsSection() {
   
   if (!isLoading && breakingNews.length === 0 && !error) {
       return (
-        <div className="p-2 border-y border-border bg-muted h-12 flex items-center justify-center">
+        <div className="p-2 border-y border-border bg-muted h-12 flex items-center justify-center max-w-[80%] w-full mx-auto">
             <Newspaper className="h-5 w-5 mr-2 text-muted-foreground"/>
             <span className="text-sm text-muted-foreground">No breaking news at the moment.</span>
         </div>
@@ -79,7 +79,7 @@ export function BreakingNewsSection() {
   const duplicatedNews = [...breakingNews, ...breakingNews];
 
   return (
-    <div className="ticker-container"> {/* Removed mb-3 from here */}
+    <div className="ticker-container max-w-[80%] w-full mx-auto">
       <div className="ticker-track">
         {duplicatedNews.map((article, index) => (
           <React.Fragment key={`${article.id}-${index}`}>
