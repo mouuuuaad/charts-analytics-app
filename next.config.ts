@@ -35,6 +35,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'files.ozbargain.com.au',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.nzherald.co.nz',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // Add allowedDevOrigins to address cross-origin warnings in development
