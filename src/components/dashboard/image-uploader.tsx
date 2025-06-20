@@ -297,7 +297,7 @@ export function ImageUploader({ onImageUpload, isProcessing }: ImageUploaderProp
             ) : (
               <div className="relative w-full max-w-xs mx-auto text-center">
                 <div className="overflow-hidden rounded-lg border border-border shadow-md">
-                  <Image
+                  <img
                     src={previewUrl}
                     alt="Chart preview"
                     width={320}
