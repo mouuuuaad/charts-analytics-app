@@ -79,7 +79,7 @@ export function BreakingNewsSection() {
   const duplicatedNews = [...breakingNews, ...breakingNews];
 
   return (
-    <div className="ticker-container mb-3"> {/* Removed dir="ltr" */}
+    <div className="ticker-container"> {/* Removed mb-3 from here */}
       <div className="ticker-track">
         {duplicatedNews.map((article, index) => (
           <React.Fragment key={`${article.id}-${index}`}>
