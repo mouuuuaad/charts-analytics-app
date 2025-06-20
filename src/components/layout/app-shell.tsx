@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -22,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft, LineChart } from 'lucide-react'; // Added LineChart
+import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft, LineChart, Settings } from 'lucide-react'; // Added Settings
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -69,8 +70,8 @@ const UserMenu = () => {
         <DropdownMenuItem onClick={() => router.push('/profile')} className="text-sm py-1 px-1.5">
           <UserCircle className="mr-1.5 h-3.5 w-3.5" /> Profile
         </DropdownMenuItem>
-        <DropdownMenuItem disabled className="text-sm py-1 px-1.5">
-          <Settings className="mr-1.5 h-3.5 w-3.5" /> Settings (Soon)
+        <DropdownMenuItem onClick={() => router.push('/settings')} className="text-sm py-1 px-1.5">
+          <Settings className="mr-1.5 h-3.5 w-3.5" /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={async () => { await logOut(); }} className="text-sm py-1 px-1.5">
@@ -89,8 +90,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/news', label: 'News', icon: Newspaper, tooltip: 'Market News' },
     { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
     { href: '/training', label: 'AI Quiz', icon: GraduationCap, tooltip: 'Training Quiz' },
-    { href: '/training/charts', label: 'Practice Charts', icon: LineChart, tooltip: 'Interactive Charts' }, // New item
+    { href: '/training/charts', label: 'Practice Charts', icon: LineChart, tooltip: 'Interactive Charts' },
     { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
+    { href: '/settings', label: 'Settings', icon: Settings, tooltip: 'App Settings' }, // New Settings item
   ];
 
   return (

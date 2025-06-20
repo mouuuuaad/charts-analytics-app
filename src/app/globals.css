@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -106,6 +107,13 @@
     font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
     /* Removed overflow-x: hidden; */
   }
+  /* Added for settings page font scaling */
+  html.text-scale-large {
+    font-size: 105%; /* Increase base font size slightly, e.g., by 5-10% */
+  }
+  /* You could also target specific Tailwind classes if needed: */
+  /* html.text-scale-large .text-sm { @apply text-base; } */
+  /* html.text-scale-large .text-base { @apply text-lg; } */
 }
 
 /* News Ticker Styles */
