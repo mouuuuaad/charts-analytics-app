@@ -30,7 +30,7 @@ const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKe
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
-  useRequireAuth(); // Ensures user is authenticated
+  useRequireAuth(); 
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -43,7 +43,7 @@ export default function ProfilePage() {
   const [stripePriceId, setStripePriceId] = useState<string>(stripePriceIdValue);
   const [timeRemainingToNextBilling, setTimeRemainingToNextBilling] = useState<string | null>(null);
 
-  const fetchSetIsStripeKey = () => {
+  const fetchSetIsStripeKey = useCallback(() => {
     if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") && !stripePublishableKeyValue.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
       setIsStripeKeySet(true);
     } else {
@@ -54,10 +54,10 @@ export default function ProfilePage() {
     } else {
       setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     }
-  }
+  }, []); // Empty dependency array as it only reads env vars
 
   const fetchUserProfile = useCallback(async () => {
-    if (user) {
+    if (user && !authLoading) {
       setIsLoadingProfileData(true);
       fetchSetIsStripeKey();
       try {
@@ -66,7 +66,6 @@ export default function ProfilePage() {
       } catch (e) {
         console.error("Failed to load profile from Firestore:", e);
         toast({ variant: 'destructive', title: 'Profile Error', description: "Could not load your profile." });
-        // Fallback to a default local state to prevent app crash
         setUserProfile({
             analysisAttempts: 0, isPremium: false, userLevel: null,
             subscriptionStartDate: null, subscriptionNextBillingDate: null,
@@ -74,49 +73,54 @@ export default function ProfilePage() {
       } finally {
         setIsLoadingProfileData(false);
       }
-    } else if (!authLoading) {
-      // If auth is done loading and there's no user, stop loading profile
+    } else if (!authLoading && !user) {
       setIsLoadingProfileData(false);
+      setUserProfile(null);
     }
-  }, [user, authLoading, toast]);
+  }, [user, authLoading, toast, fetchSetIsStripeKey]);
 
   useEffect(() => {
     fetchUserProfile();
   }, [fetchUserProfile]);
 
-  useEffect(() => {
-    const paymentSuccess = searchParams.get('payment_success');
-    const paymentCanceled = searchParams.get('payment_canceled');
-
-    const handlePaymentSuccess = async () => {
-      if (user) {
-        const today = new Date();
-        const startDateISO = today.toISOString();
-        const nextBillingDate = addDays(today, 30);
-        const nextBillingDateISO = nextBillingDate.toISOString();
-        
-        try {
-          await setUserPremiumStatus(user.uid, true, startDateISO, nextBillingDateISO);
-          // No need to call resetUserAnalysisAttempts separately if setUserPremiumStatus handles it
-          const updatedProfile = await getUserProfile(user.uid); // Re-fetch to get latest state
-          setUserProfile(updatedProfile);
-          toast({ title: 'Payment Successful!', description: 'Welcome to Premium!', duration: 6000 });
-        } catch (error) {
-          console.error("Error updating premium status:", error);
-          toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update premium status.'});
-        }
+  const handlePaymentSuccess = useCallback(async () => {
+    if (user && searchParams.get('payment_success') === 'true') {
+      const today = new Date();
+      const startDateISO = today.toISOString();
+      const nextBillingDate = addDays(today, 30);
+      const nextBillingDateISO = nextBillingDate.toISOString();
+      
+      setIsLoadingProfileData(true);
+      try {
+        await setUserPremiumStatus(user.uid, true, startDateISO, nextBillingDateISO);
+        const updatedProfile = await getUserProfile(user.uid);
+        setUserProfile(updatedProfile);
+        toast({ title: 'Payment Successful!', description: 'Welcome to Premium!', duration: 6000 });
+      } catch (error) {
+        console.error("Error updating premium status:", error);
+        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update premium status.'});
+      } finally {
+        setIsLoadingProfileData(false);
         router.replace('/profile', { scroll: false });
       }
-    };
+    }
+  }, [user, searchParams, router, toast]);
 
-    if (paymentSuccess === 'true') {
-      handlePaymentSuccess();
+  const handlePaymentCanceled = useCallback(() => {
+    if (searchParams.get('payment_canceled') === 'true') {
+        toast({ title: 'Payment Canceled', description: 'Payment process canceled.', variant: 'destructive', duration: 6000 });
+        router.replace('/profile', { scroll: false });
     }
-    if (paymentCanceled === 'true') {
-      toast({ title: 'Payment Canceled', description: 'Payment process canceled.', variant: 'destructive', duration: 6000 });
-      router.replace('/profile', { scroll: false });
+  }, [searchParams, router, toast]);
+
+  useEffect(() => {
+    // Only attempt to handle payment status if user is loaded
+    if (user && !authLoading) {
+        handlePaymentSuccess();
+        handlePaymentCanceled();
     }
-  }, [searchParams, router, toast, user]);
+  }, [user, authLoading, searchParams, handlePaymentSuccess, handlePaymentCanceled]); // searchParams is key for re-evaluating on URL change
+
 
   useEffect(() => {
     if (!userProfile?.subscriptionNextBillingDate) { setTimeRemainingToNextBilling(null); return; }
@@ -188,9 +192,9 @@ export default function ProfilePage() {
   const handleDowngradeToFree = async () => {
     if (user) {
         try {
-            await setUserPremiumStatus(user.uid, false); // This will also reset attempts if handled in service
-            await resetUserAnalysisAttempts(user.uid); // Explicitly reset attempts when downgrading to free.
-            const updatedProfile = await getUserProfile(user.uid); // Re-fetch
+            await setUserPremiumStatus(user.uid, false); 
+            await resetUserAnalysisAttempts(user.uid); 
+            const updatedProfile = await getUserProfile(user.uid); 
             setUserProfile(updatedProfile);
             toast({ title: 'Subscription Changed', description: 'Now on Free plan (Simulated).', });
         } catch (error) {
@@ -317,3 +321,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+
