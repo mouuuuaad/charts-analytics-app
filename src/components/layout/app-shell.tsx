@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -23,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft, LineChart } from 'lucide-react'; // Added LineChart
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -85,6 +84,15 @@ const UserMenu = () => {
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
+  const navItems = [
+    { href: '/dashboard', label: 'Dashboard', icon: Home, tooltip: 'Dashboard' },
+    { href: '/news', label: 'News', icon: Newspaper, tooltip: 'Market News' },
+    { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
+    { href: '/training', label: 'AI Quiz', icon: GraduationCap, tooltip: 'Training Quiz' },
+    { href: '/training/charts', label: 'Practice Charts', icon: LineChart, tooltip: 'Interactive Charts' }, // New item
+    { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
+  ];
+
   return (
     <SidebarProvider defaultOpen>
       <Sidebar variant="sidebar" collapsible="icon" className="border-r">
@@ -93,19 +101,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarHeader>
         <SidebarContent className="p-1">
           <SidebarMenu className="gap-0.5">
-            {[
-              { href: '/dashboard', label: 'Dashboard', icon: Home, tooltip: 'Dashboard' },
-              { href: '/news', label: 'News', icon: Newspaper, tooltip: 'Market News' },
-              { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
-              { href: '/training', label: 'Training', icon: GraduationCap, tooltip: 'Training & Quiz' },
-              { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
-            ].map(item => {
+            {navItems.map(item => {
               const Icon = item.icon;
               return (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.tooltip} size="sm" className="h-8">
                     <Link href={item.href}>
-                      {/* Wrap Icon and span in a single element */}
                       <span className="flex items-center gap-2">
                         <Icon className="h-4 w-4" />
                         <span>{item.label}</span>
