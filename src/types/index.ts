@@ -26,7 +26,6 @@ export interface NewsArticle {
   publishedAt: string; // ISO string format
   summary: string; // Will map from 'description' field
   url: string;
-  // sentiment: 'positive' | 'negative' | 'neutral'; // Removed: Not directly available from NewsAPI
   topic: NewsTopic; // The topic used for fetching this article
   ticker?: string; // If the search was for a specific ticker
   imageUrl?: string | null; // Will map from 'urlToImage', can be null
@@ -49,4 +48,15 @@ export interface WatchlistItem {
   imageUrl?: string | null;
   imageHint?: string;
   url?: string;
+}
+
+export type UserLevel = 'beginner' | 'intermediate' | 'advanced';
+
+export interface UserProfileData {
+  analysisAttempts: number;
+  isPremium: boolean;
+  userLevel: UserLevel | null; // Changed from optional to allow null explicitly
+  subscriptionStartDate: string | null; // Changed from optional
+  subscriptionNextBillingDate: string | null; // Changed from optional
+  // uid: string; // No longer needed here, doc ID is uid
 }
