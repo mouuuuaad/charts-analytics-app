@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'd.ibtimes.com.au',
+        port: '',
+        pathname: '/**',
+      },
     ],
   },
   // Add allowedDevOrigins to address cross-origin warnings in development
