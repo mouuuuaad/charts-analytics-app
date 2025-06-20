@@ -18,7 +18,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, TextSize, Settings as SettingsIcon } from 'lucide-react';
+import { Trash2, Text, Settings as SettingsIcon } from 'lucide-react'; // Changed TextSize to Text
 
 const FONT_SCALE_CLASS = 'text-scale-large';
 const FONT_SCALE_STORAGE_KEY = 'settingsFontSizeLargeEnabled';
@@ -78,7 +78,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center">
-            <TextSize className="mr-2 h-5 w-5" />
+            <Text className="mr-2 h-5 w-5" /> {/* Changed TextSize to Text */}
             Appearance
           </CardTitle>
           <CardDescription>
