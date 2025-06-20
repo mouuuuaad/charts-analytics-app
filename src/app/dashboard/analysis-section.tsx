@@ -19,8 +19,8 @@ import {
   setUserTradingLevel,
 } from '@/services/firestore';
 
-const MAX_HISTORY_ITEMS = 20; // For localStorage history, Firestore history is separate
-const MAX_FREE_ATTEMPTS = 2; // This constant will now be checked against Firestore data
+const MAX_HISTORY_ITEMS = 20; 
+const MAX_FREE_ATTEMPTS = 2; 
 
 export function AnalysisSection() {
   const { user, loading: authLoading } = useAuth();
@@ -41,13 +41,14 @@ export function AnalysisSection() {
       try {
         const profile = await getUserProfile(user.uid);
         setUserProfile(profile);
-        if (!profile.userLevel) {
-          setShowSurveyModal(true); // Prompt for assessment if level is not set
+        if (!profile.userLevel && !authLoading && !isLoadingProfile) { // Ensure not to show modal if profile is still loading
+          // Check added: only show modal if userLevel is null AND we are not in an initial loading state
+          // This prevents modal from flashing if userLevel is fetched slightly later
+           if (profile.userLevel === null) setShowSurveyModal(true);
         }
       } catch (error) {
         console.error("Failed to fetch user profile:", error);
         toast({ variant: 'destructive', title: 'Profile Error', description: 'Could not load your profile data.' });
-        // Set a default local profile to allow basic functionality or show error
         setUserProfile({
             analysisAttempts: 0, isPremium: false, userLevel: null,
             subscriptionStartDate: null, subscriptionNextBillingDate: null
@@ -57,9 +58,9 @@ export function AnalysisSection() {
       }
     } else {
       setIsLoadingProfile(false);
-      setUserProfile(null); // Clear profile if no user
+      setUserProfile(null); 
     }
-  }, [user, toast]);
+  }, [user, toast, authLoading, isLoadingProfile]); // Added authLoading and isLoadingProfile as dependencies
 
   useEffect(() => {
     fetchUserProfileData();
@@ -69,7 +70,9 @@ export function AnalysisSection() {
     if (user && userProfile) {
       try {
         await setUserTradingLevel(user.uid, level);
-        setUserProfile(prev => prev ? { ...prev, userLevel: level } : null);
+        // Optimistically update or re-fetch
+        const updatedProfile = await getUserProfile(user.uid);
+        setUserProfile(updatedProfile);
         setShowSurveyModal(false);
         toast({ title: "Assessment Complete!", description: `Your trading level: ${level}. You can now analyze charts.` });
       } catch (error) {
@@ -94,8 +97,6 @@ export function AnalysisSection() {
       localStorage.setItem('chartSightAnalysesHistory', JSON.stringify(history));
     } catch (e) {
       console.error("Failed to save analysis to localStorage:", e);
-      // Non-critical, so don't bother user too much
-      // toast({ variant: 'destructive', title: 'History Error', description: 'Could not save analysis to local history.' });
     }
   };
 
@@ -108,24 +109,36 @@ export function AnalysisSection() {
       toast({ variant: 'destructive', title: 'Authentication Required', description: 'Please log in to analyze charts.' });
       return;
     }
-    if (!userProfile) {
-        toast({ variant: 'destructive', title: 'Profile Error', description: 'User profile not loaded. Please try again.' });
-        await fetchUserProfileData(); // Attempt to reload profile
+
+    let profileForChecks: UserProfileData | null = userProfile;
+
+    // Force refresh profile data before checks
+    try {
+        const refreshedProfile = await getUserProfile(user.uid);
+        setUserProfile(refreshedProfile); // Update the main state
+        profileForChecks = refreshedProfile; // Use this for immediate checks
+    } catch (refreshError) {
+        console.error("Failed to refresh profile for analysis check:", refreshError);
+        toast({ variant: 'destructive', title: 'Profile Sync Error', description: 'Could not verify latest profile. Please try again.'});
+        return;
+    }
+    
+    if (!profileForChecks) { // Should not happen if refresh is successful and user exists
+        toast({ variant: 'destructive', title: 'Profile Error', description: 'User profile data is unavailable.' });
         return;
     }
 
-    if (!userProfile.userLevel && !showSurveyModal) {
+    if (!profileForChecks.userLevel && !showSurveyModal) {
       setShowSurveyModal(true);
       toast({ variant: 'destructive', title: 'Assessment Required', description: 'Please complete the trading level assessment before analyzing charts.' });
       return;
     }
-    if (showSurveyModal) { // If modal is already open due to no level, prevent analysis
+    if (showSurveyModal && !profileForChecks.userLevel) { 
         toast({ variant: 'destructive', title: 'Assessment In Progress', description: 'Complete the assessment to proceed.' });
         return;
     }
 
-
-    if (!userProfile.isPremium && userProfile.analysisAttempts >= MAX_FREE_ATTEMPTS) {
+    if (!profileForChecks.isPremium && profileForChecks.analysisAttempts >= MAX_FREE_ATTEMPTS) {
       toast({
           variant: 'destructive', title: 'Free Limit Reached',
           description: ( <div className="flex flex-col gap-1.5"> <p>Used all {MAX_FREE_ATTEMPTS} free attempts. Upgrade for unlimited analyses.</p> 
@@ -164,23 +177,24 @@ export function AnalysisSection() {
         setIsLoadingAnalysis(false); return;
       }
       
-      const trendInput = { extractedData: extractedDataResult.extractedData || "{}", userLevel: userProfile.userLevel || 'intermediate' };
+      const trendInput = { extractedData: extractedDataResult.extractedData || "{}", userLevel: profileForChecks.userLevel || 'intermediate' };
       const trendPredictionResult: PredictMarketTrendOutput = await predictMarketTrend(trendInput);
       
       if (!trendPredictionResult) throw new Error('Failed to predict market trend.');
       
       setPrediction(trendPredictionResult);
-      addAnalysisToLocalStorage(trendPredictionResult, dataUrl, file.name, extractedDataResult.extractedData); // Keep local history for now
+      addAnalysisToLocalStorage(trendPredictionResult, dataUrl, file.name, extractedDataResult.extractedData);
 
-      // Increment attempts in Firestore if user is not premium
-      if (!userProfile.isPremium) {
+      if (!profileForChecks.isPremium) {
         await incrementUserAnalysisAttempts(user.uid);
-        const newAttempts = userProfile.analysisAttempts + 1;
-        setUserProfile(prev => prev ? { ...prev, analysisAttempts: newAttempts } : null); // Update local state
-        if (newAttempts === MAX_FREE_ATTEMPTS) {
-            toast({ title: "Last Free Attempt", description: "You've used all your free analyses. Upgrade for unlimited access.", action: (<Button size="sm" asChild className="h-7 text-xs"><Link href="/profile" legacyBehavior passHref><a>Upgrade</a></Link></Button>), duration: 7000 });
-        } else if (newAttempts < MAX_FREE_ATTEMPTS) {
-            toast({ title: "Analysis Successful", description: `${MAX_FREE_ATTEMPTS - newAttempts} free attempts remaining.`, duration: 4000 });
+        // After incrementing in Firestore, update local state based on the PRE-INCREMENT value + 1
+        const attemptsAfterIncrement = (profileForChecks.analysisAttempts ?? 0) + 1;
+        setUserProfile(prev => prev ? { ...prev, analysisAttempts: attemptsAfterIncrement } : { ...profileForChecks, analysisAttempts: attemptsAfterIncrement });
+        
+        if (attemptsAfterIncrement >= MAX_FREE_ATTEMPTS) { // Check >= because it could jump if there was an issue
+            toast({ title: "Last Free Attempt Used", description: "You've used all your free analyses. Upgrade for unlimited access.", action: (<Button size="sm" asChild className="h-7 text-xs"><Link href="/profile" legacyBehavior passHref><a>Upgrade</a></Link></Button>), duration: 7000 });
+        } else {
+            toast({ title: "Analysis Successful", description: `${MAX_FREE_ATTEMPTS - attemptsAfterIncrement} free attempts remaining.`, duration: 4000 });
         }
       } else {
          toast({ title: "Analysis Successful!", description: "Premium insights generated.", duration: 4000 });
@@ -196,7 +210,7 @@ export function AnalysisSection() {
     }
   };
 
-  if (authLoading || isLoadingProfile) {
+  if (authLoading || isLoadingProfile && !userProfile) { // Show loader if auth is loading OR profile is loading AND not yet set
     return (
       <div className="flex h-[calc(100vh-theme(spacing.14))] items-center justify-center">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -207,7 +221,7 @@ export function AnalysisSection() {
 
   return (
     <>
-      <LevelAssessmentModal isOpen={showSurveyModal} onComplete={handleSurveyComplete} />
+      <LevelAssessmentModal isOpen={showSurveyModal && !userProfile?.userLevel} onComplete={handleSurveyComplete} />
       <div className="container mx-auto py-4 px-2 md:px-0">
         <div className="grid grid-cols-1 lg:grid-cols-[1fr,400px] xl:grid-cols-[1fr,450px] gap-4 items-start">
           <ImageUploader onImageUpload={handleImageAnalysis} isProcessing={isLoadingAnalysis} />
@@ -222,3 +236,4 @@ export function AnalysisSection() {
     </>
   );
 }
+
