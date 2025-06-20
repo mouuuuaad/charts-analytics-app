@@ -174,7 +174,7 @@ Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON s
     *   \\\`riskRewardDetails.assessmentReasoning\\\`: Brief justification.
 
 9.  **Explanation & Justification**:
-    *   \\\`explanationSummary\\\`: 1-3 sentences MAX of DOMINANT factors from the JSON in \\\`{{{extractedData}}}\\\` driving prediction.
+    *   \\\`explanationSummary\\\`: 1-3 sentences MAX of DOMINANT factors from the JSON in \\\`{{{extractedData}}}\\\` driving prediction. **CRITICAL: This field MUST NOT exceed 250 characters.**
     *   \\\`fullScientificAnalysis\\\`: CRITICAL. Extensive, in-depth, scientific explanation.
         *   Synthesize all findings: how trend, patterns, S/R, volume, momentum, indicators (all from the JSON in \\\`{{{extractedData}}}\\\`) converge or diverge.
         *   **Explicitly reference elements from the JSON in \\\`{{{extractedData}}}\\\` for each assertion.**
@@ -372,4 +372,6 @@ const predictMarketTrendFlow_v5_expert_analyst = ai.defineFlow( // Renamed flow
     return finalOutput;
   }
 );
+    
+
     
