@@ -23,7 +23,6 @@ import {
   resetUserAnalysisAttempts,
 } from '@/services/firestore';
 
-const MAX_FREE_ATTEMPTS = 2;
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; // Default fallback
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
@@ -54,7 +53,7 @@ export default function ProfilePage() {
     } else {
       setStripePriceId(process.env.NEXT_PUBLIC_STRIPE_PRICE_ID);
     }
-  }, []); // Empty dependency array as it only reads env vars
+  }, []);
 
   const fetchUserProfile = useCallback(async () => {
     if (user && !authLoading) {
@@ -114,12 +113,11 @@ export default function ProfilePage() {
   }, [searchParams, router, toast]);
 
   useEffect(() => {
-    // Only attempt to handle payment status if user is loaded
     if (user && !authLoading) {
         handlePaymentSuccess();
         handlePaymentCanceled();
     }
-  }, [user, authLoading, searchParams, handlePaymentSuccess, handlePaymentCanceled]); // searchParams is key for re-evaluating on URL change
+  }, [user, authLoading, searchParams, handlePaymentSuccess, handlePaymentCanceled]);
 
 
   useEffect(() => {
@@ -259,7 +257,7 @@ export default function ProfilePage() {
                 {!userProfile.isPremium && (
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">Attempts:</span>
-                    <span>{userProfile.analysisAttempts} / {MAX_FREE_ATTEMPTS}</span>
+                    <span>{userProfile.analysisAttempts} / {2 /* MAX_FREE_ATTEMPTS is 2 */}</span>
                   </div>
                 )}
                  {userProfile.isPremium && userProfile.subscriptionStartDate && (
@@ -282,7 +280,7 @@ export default function ProfilePage() {
                     )}
                   </>
                 )}
-                {userProfile.analysisAttempts >= MAX_FREE_ATTEMPTS && !userProfile.isPremium && (
+                {userProfile.analysisAttempts >= 2 /* MAX_FREE_ATTEMPTS */ && !userProfile.isPremium && (
                     <div className="p-1.5 border border-destructive/50 rounded text-xs flex items-center bg-destructive/10 text-destructive">
                         <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
                         Free attempts used. Upgrade.
@@ -321,4 +319,4 @@ export default function ProfilePage() {
     </div>
   );
 }
-
+    
