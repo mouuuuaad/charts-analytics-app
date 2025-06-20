@@ -1,96 +1,17 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Brain, Lightbulb } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion'; // For animations
+import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Brain, Lightbulb, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { generateQuizQuestions, type QuizQuestion, type GenerateQuizInput } from '@/ai/flows/generate-quiz-questions-flow';
+import { useToast } from '@/hooks/use-toast';
 
-interface QuizOption {
-  value: string;
-  text: string;
-}
 
-interface QuizQuestion {
-  id: string;
-  questionText: string;
-  options: QuizOption[];
-  correctAnswer: string;
-  explanation: string;
-}
-
-const initialQuestionBank: QuizQuestion[] = [
-  {
-    id: 'q1',
-    questionText: 'ماذا يعني "مستوى الدعم" عادة في التحليل الفني؟',
-    options: [
-      { value: 'a', text: 'سقف سعري تكون فيه ضغوط البيع قوية.' },
-      { value: 'b', text: 'أرضية سعرية يُتوقع أن يكون فيها اهتمام بالشراء.' },
-      { value: 'c', text: 'فترة يكون فيها حجم التداول منخفضًا.' },
-    ],
-    correctAnswer: 'b',
-    explanation: 'مستوى الدعم هو مستوى سعر يتوقع أن يجد فيه السهم أو الأصل المالي مشترين، مما يمنع السعر من الانخفاض أكثر.',
-  },
-  {
-    id: 'q2',
-    questionText: 'أي من هذه المؤشرات يُعتبر مؤشرًا شائعًا لاتباع الاتجاه؟',
-    options: [
-      { value: 'a', text: 'مؤشر القوة النسبية (RSI)' },
-      { value: 'b', text: 'المتوسط المتحرك (Moving Average)' },
-      { value: 'c', text: 'تصحيحات فيبوناتشي (Fibonacci Retracement)' },
-    ],
-    correctAnswer: 'b',
-    explanation: 'المتوسطات المتحركة تساعد في تحديد وتأكيد الاتجاهات السائدة في السوق عن طريق تمهيد بيانات السعر.',
-  },
-  {
-    id: 'q3',
-    questionText: 'ماذا يعني "الشراء على المكشوف" (Going Long) في التداول؟',
-    options: [
-      { value: 'a', text: 'المراهنة على أن السعر سينخفض.' },
-      { value: 'b', text: 'المراهنة على أن السعر سيرتفع.' },
-      { value: 'c', text: 'الاحتفاظ بمركز تداول لفترة طويلة.' },
-    ],
-    correctAnswer: 'b',
-    explanation: 'الشراء على المكشوف يعني شراء أصل مالي مع توقع ارتفاع قيمته لتحقيق ربح عند بيعه بسعر أعلى.',
-  },
-  {
-    id: 'q4',
-    questionText: 'يُستخدم أمر "إيقاف الخسارة" (Stop-Loss) بشكل أساسي لـ:',
-    options: [
-      { value: 'a', text: 'تأمين الأرباح.' },
-      { value: 'b', text: 'الحد من الخسائر المحتملة.' },
-      { value: 'c', text: 'الدخول في صفقة بسعر محدد.' },
-    ],
-    correctAnswer: 'b',
-    explanation: 'أمر إيقاف الخسارة هو أداة لإدارة المخاطر تغلق الصفقة تلقائيًا عند وصول السعر لمستوى محدد للحد من الخسائر.',
-  },
-  {
-    id: 'q5',
-    questionText: 'ما هي السمة المشتركة لنموذج شمعة "الدوجي" (Doji)؟',
-    options: [
-      { value: 'a', text: 'جسم طويل مع ظلال قصيرة.' },
-      { value: 'b', text: 'أسعار الافتتاح والإغلاق متقاربة جدًا أو متطابقة.' },
-      { value: 'c', text: 'يشير إلى استمرار قوي للاتجاه الحالي.' },
-    ],
-    correctAnswer: 'b',
-    explanation: 'شمعة الدوجي تتميز بأن سعر الافتتاح والإغلاق متساويان أو متقاربان جدًا، مما يشير إلى حيرة أو توازن في السوق.',
-  },
-  {
-    id: 'q6',
-    questionText: 'يهدف "التنويع" في المحفظة الاستثمارية إلى:',
-    options: [
-      { value: 'a', text: 'تركيز الاستثمارات لتحقيق عوائد أعلى.' },
-      { value: 'b', text: 'تقليل المخاطر الإجمالية عن طريق توزيع الاستثمارات.' },
-      { value: 'c', text: 'ضمان تحقيق الأرباح.' },
-    ],
-    correctAnswer: 'b',
-    explanation: 'التنويع هو استراتيجية لإدارة المخاطر تتضمن توزيع الاستثمارات عبر فئات أصول مختلفة لتقليل تأثير أداء أي استثمار فردي سيء.',
-  },
-];
-
-type QuizStatus = 'not_started' | 'in_progress' | 'feedback_shown' | 'completed';
+type QuizStatus = 'not_started' | 'loading_questions' | 'error_loading' | 'in_progress' | 'feedback_shown' | 'completed';
 type UserLevel = 'مبتدئ' | 'متوسط' | 'محترف' | 'غير محدد';
 
 export default function TrainingQuizPage() {
@@ -103,26 +24,59 @@ export default function TrainingQuizPage() {
   const [quizStatus, setQuizStatus] = useState<QuizStatus>('not_started');
   const [score, setScore] = useState(0);
   const [userLevel, setUserLevel] = useState<UserLevel>('غير محدد');
+  const { toast } = useToast();
 
-  const shuffleArray = <T>(array: T[]): T[] => {
-    return array.sort(() => Math.random() - 0.5);
+  const shuffleArray = <T extends {}>(array: T[]): T[] => {
+    if (!array || array.length === 0) return [];
+    return [...array].sort(() => Math.random() - 0.5);
+  };
+
+  const loadQuestions = useCallback(async () => {
+    setQuizStatus('loading_questions');
+    try {
+      const input: GenerateQuizInput = {
+        topic: "أساسيات التداول والتحليل الفني", // Trading Basics and Technical Analysis
+        numQuestions: 6,
+        language: "Arabic",
+      };
+      const generatedQuestions = await generateQuizQuestions(input);
+      if (generatedQuestions && generatedQuestions.length > 0) {
+        setQuestions(shuffleArray(generatedQuestions)); // Shuffle questions after fetching
+        setCurrentQuestionIndex(0);
+        setSelectedOption(null);
+        setAnswers({});
+        setFeedback(null);
+        setIsCorrect(null);
+        setScore(0);
+        setUserLevel('غير محدد');
+        setQuizStatus('in_progress');
+      } else {
+        throw new Error("AI returned no questions or an invalid format.");
+      }
+    } catch (error: any) {
+      console.error("Failed to load AI questions:", error);
+      toast({
+        variant: 'destructive',
+        title: 'خطأ في تحميل الأسئلة',
+        description: error.message || 'لم يتمكن الذكاء الاصطناعي من إنشاء أسئلة الاختبار. حاول مرة أخرى.',
+        duration: 7000,
+      });
+      setQuizStatus('error_loading');
+    }
+  }, [toast]);
+
+  const startQuiz = () => {
+    loadQuestions();
   };
 
   useEffect(() => {
-    startQuiz();
-  }, []);
+    // Automatically start loading questions when the component mounts for the first time
+    // or if returning to 'not_started' state (e.g. after an error and user wants to retry)
+    if (quizStatus === 'not_started') {
+        startQuiz();
+    }
+  }, [quizStatus, loadQuestions]);
 
-  const startQuiz = () => {
-    setQuestions(shuffleArray([...initialQuestionBank]));
-    setCurrentQuestionIndex(0);
-    setSelectedOption(null);
-    setAnswers({});
-    setFeedback(null);
-    setIsCorrect(null);
-    setScore(0);
-    setUserLevel('غير محدد');
-    setQuizStatus('in_progress');
-  };
 
   const currentQuestion = useMemo(() => {
     return questions[currentQuestionIndex];
@@ -155,14 +109,12 @@ export default function TrainingQuizPage() {
       setIsCorrect(null);
       setQuizStatus('in_progress');
     } else {
-      // Quiz finished
       setQuizStatus('completed');
       calculateUserLevel();
     }
   };
 
   const handleSkipQuestion = () => {
-    // Mark as skipped implicitly by not answering
     if (currentQuestionIndex < questions.length - 1) {
         setCurrentQuestionIndex(prevIndex => prevIndex + 1);
         setSelectedOption(null);
@@ -186,19 +138,20 @@ export default function TrainingQuizPage() {
     }
   };
 
-  if (quizStatus === 'not_started' || !currentQuestion) {
+  if (quizStatus === 'not_started' || quizStatus === 'loading_questions') {
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] p-4">
         <Card className="w-full max-w-md text-center shadow-xl">
           <CardHeader>
             <CardTitle className="text-3xl font-headline text-primary">اختبار معلومات التداول</CardTitle>
-            <CardDescription>اختبر معلوماتك في أساسيات التداول والتحليل الفني.</CardDescription>
+            <CardDescription>يقوم الذكاء الاصطناعي بإعداد الاختبار لك...</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Brain className="w-24 h-24 text-primary mx-auto mb-6 opacity-70" />
+          <CardContent className="h-32 flex flex-col items-center justify-center">
+            <Loader2 className="w-16 h-16 text-primary animate-spin" />
+            <p className="mt-3 text-muted-foreground">جاري تحميل الأسئلة...</p>
           </CardContent>
-          <CardFooter>
-            <Button onClick={startQuiz} size="lg" className="w-full">
+           <CardFooter>
+            <Button onClick={startQuiz} size="lg" className="w-full" disabled>
               ابدأ الاختبار
             </Button>
           </CardFooter>
@@ -206,6 +159,29 @@ export default function TrainingQuizPage() {
       </div>
     );
   }
+  
+  if (quizStatus === 'error_loading') {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] p-4">
+        <Card className="w-full max-w-md text-center shadow-xl">
+          <CardHeader>
+            <CardTitle className="text-3xl font-headline text-destructive">حدث خطأ</CardTitle>
+            <CardDescription>فشل تحميل أسئلة الاختبار من الذكاء الاصطناعي.</CardDescription>
+          </CardHeader>
+          <CardContent className="h-32 flex flex-col items-center justify-center">
+            <AlertCircle className="w-16 h-16 text-destructive mb-4" />
+            <p className="text-muted-foreground">يرجى المحاولة مرة أخرى.</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={startQuiz} size="lg" className="w-full">
+              <RefreshCw className="mr-2 h-5 w-5" /> حاول مجددًا
+            </Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
+
 
   if (quizStatus === 'completed') {
     return (
@@ -221,7 +197,7 @@ export default function TrainingQuizPage() {
           <CardContent className="space-y-6">
             <Award className="w-24 h-24 mx-auto text-accent animate-pulse" />
             <p className="text-2xl font-semibold">
-              نتيجتك: {score} من {questions.length} ( {((score / questions.length) * 100).toFixed(0)}% )
+              نتيجتك: {score} من {questions.length} ( {questions.length > 0 ? ((score / questions.length) * 100).toFixed(0) : 0}% )
             </p>
             <p className="text-xl">
               المستوى المقترح: <span className="font-bold text-primary">{userLevel}</span>
@@ -230,7 +206,7 @@ export default function TrainingQuizPage() {
               <Button onClick={startQuiz} variant="outline" size="lg">
                 <RefreshCw className="mr-2 h-5 w-5" /> أعد الاختبار
               </Button>
-              <Button size="lg" disabled> {/* Placeholder */}
+              <Button size="lg" disabled>
                 ابدأ وحدات التعلم <ChevronRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
@@ -239,6 +215,17 @@ export default function TrainingQuizPage() {
       </motion.div>
     );
   }
+  
+  if (!currentQuestion && quizStatus === 'in_progress') {
+     // This might happen briefly if questions array is cleared unexpectedly
+     return (
+        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-10rem)] p-4">
+            <Loader2 className="w-16 h-16 text-primary animate-spin" />
+            <p className="mt-3 text-muted-foreground">إعداد السؤال...</p>
+        </div>
+     );
+  }
+
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0 max-w-2xl">
@@ -275,15 +262,12 @@ export default function TrainingQuizPage() {
 
                   if (quizStatus === 'feedback_shown') {
                     if (option.value === currentQuestion.correctAnswer) {
-                      buttonVariant = "default"; // Correct answer is always 'default' (greenish if theme supports)
-                       // Apply green directly for feedback
+                      buttonVariant = "default"; 
                       icon = <CheckCircle2 className="mr-2 h-5 w-5 text-green-500" />;
                     } else if (isSelected) {
-                      buttonVariant = "destructive"; // Incorrect and selected
+                      buttonVariant = "destructive"; 
                       icon = <AlertCircle className="mr-2 h-5 w-5 text-red-500" />;
                     }
-                  } else if (isSelected) {
-                     // buttonVariant = "secondary"; // User has selected this, before feedback
                   }
 
                   return (
@@ -338,7 +322,7 @@ export default function TrainingQuizPage() {
         </CardFooter>
       </Card>
        <p className="text-xs text-center text-muted-foreground mt-4 px-2">
-         ملاحظة: هذا الاختبار لأغراض تعليمية فقط ولا يشكل نصيحة استثمارية.
+         ملاحظة: هذا الاختبار لأغراض تعليمية فقط ولا يشكل نصيحة استثمارية. يتم إنشاء الأسئلة بواسطة الذكاء الاصطناعي وقد تحتوي على أخطاء.
        </p>
     </div>
   );
