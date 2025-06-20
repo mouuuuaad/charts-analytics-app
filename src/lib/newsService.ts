@@ -7,7 +7,7 @@ import type { NewsArticle, NewsTopic } from '@/types';
 
 const API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY;
 const BASE_URL = 'https://newsapi.org/v2/everything'; // Using 'everything' for more specific queries and sorting
-const TOP_HEADLINES_URL = 'https://newsapi.org/v2/top-headlines'; // Alternative for general breaking news
+// const TOP_HEADLINES_URL = 'https://newsapi.org/v2/top-headlines'; // Alternative for general breaking news
 
 // Helper to get a more relevant image hint based on keywords in headline or summary
 const generateImageHint = (headline: string, summary: string, topic: NewsTopic | 'breaking'): string => {
@@ -39,7 +39,7 @@ const generateImageHint = (headline: string, summary: string, topic: NewsTopic |
 
 
 export async function fetchNewsFromAPI(
-  topic: NewsTopic | 'breaking', // Allow 'breaking' as a special topic
+  topic: NewsTopic | 'breaking', 
   searchTerm?: string,
   isBreakingNews: boolean = false
 ): Promise<NewsArticle[]> {
@@ -51,25 +51,21 @@ export async function fetchNewsFromAPI(
   const params = new URLSearchParams({
     apiKey: API_KEY,
     language: 'en',
-    pageSize: isBreakingNews ? '10' : '21', // Fetch fewer for breaking, more for general
-    sortBy: 'publishedAt',
+    pageSize: isBreakingNews ? '7' : '21', 
+    sortBy: 'publishedAt', // Keep sortBy for 'everything' endpoint
   });
 
   let q = "";
-  let currentBaseUrl = BASE_URL; // Default to 'everything' endpoint
+  // Always use BASE_URL (everything endpoint) for more control, especially for breaking news refinement
+  const currentBaseUrl = BASE_URL; 
 
   if (isBreakingNews) {
-    // For breaking news, we might use more generic financial terms or top-headlines endpoint
-    currentBaseUrl = TOP_HEADLINES_URL; // Switch to top-headlines for more "breaking" style news
-    params.delete('sortBy'); // top-headlines doesn't support sortBy, it's inherently latest
-    params.set('category', 'business'); // General business category for top headlines
-    // Optionally, refine q for top-headlines if needed, but category often suffices
-    q = '(forex OR stock OR crypto OR "financial markets" OR "breaking finance")';
-     // For top-headlines, `q` acts as a keyword filter on the headlines/content of top news.
-    // `country` or `category` are primary filters for top-headlines.
-    // `sources` could also be used if you have specific breaking news sources.
+    // Refined query for "breaking" financial news focusing on urgency and relevance to specified topics
+    q = `("breaking financial" OR "market alert" OR "urgent market update" OR "latest finance brief" OR "just in finance") 
+         AND (forex OR stocks OR stock OR cryptocurrency OR crypto OR bitcoin OR ethereum OR "exchange rate" OR "stock price" OR "trading volume")`;
+    params.set('pageSize', '7'); // Fetch fewer for breaking news section
   } else {
-    // Topic mapping for the 'everything' endpoint
+    // Topic mapping for the 'everything' endpoint for general news
     const topicQueryMap: Partial<Record<NewsTopic, string>> = {
       'crypto': '(cryptocurrency OR Bitcoin OR Ethereum OR Ripple OR Solana OR Cardano OR Dogecoin OR Shiba Inu OR Binance Coin OR NFT OR DeFi OR blockchain)',
       'stocks': '(stocks OR shares OR "stock market" OR equities OR NYSE OR NASDAQ OR Dow Jones OR S&P 500 OR specific company stocks like Apple OR Microsoft OR Google OR Tesla OR Amazon OR Nvidia)',
@@ -81,7 +77,6 @@ export async function fetchNewsFromAPI(
       q = topicQueryMap[topic]!;
     }
   }
-
 
   if (searchTerm) {
     const sanitizedSearchTerm = searchTerm.trim().replace(/[^\w\s/-]/gi, '');
@@ -95,11 +90,14 @@ export async function fetchNewsFromAPI(
   }
   
   if (!q && !isBreakingNews) { // If q is still empty for non-breaking, non-search general topic
-      q = 'business OR finance';
+      q = 'business OR finance'; // Fallback to general business/finance
   }
 
-  if (q) { // Only set 'q' if it's not empty; top-headlines can work with just category
+  if (q) {
     params.set('q', q);
+  } else if (isBreakingNews) {
+    // Fallback for breaking news if the complex query above yields nothing, try something broader
+    params.set('q', '(forex OR stock OR crypto OR "financial markets") AND (breaking OR alert OR urgent)');
   }
 
 
@@ -107,7 +105,7 @@ export async function fetchNewsFromAPI(
   // console.log("NewsAPI Request URL:", requestUrl);
 
   try {
-    const response = await fetch(requestUrl, { cache: 'no-store' }); // Ensure fresh data for breaking news
+    const response = await fetch(requestUrl, { cache: 'no-store' }); 
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -147,14 +145,14 @@ export async function fetchNewsFromAPI(
         headline: article.title,
         source: article.source.name,
         publishedAt: article.publishedAt,
-        summary: articleSummary.substring(0, 100) + (articleSummary.length > 100 ? "..." : ""), // Shorter summary for ticker
+        summary: articleSummary.substring(0, 100) + (articleSummary.length > 100 ? "..." : ""),
         url: article.url,
-        topic: topic, // Keep original topic for categorization, even if fetched via breaking news
+        topic: topic, 
         ticker: searchTerm && /^[A-Z]{1,5}(\/[A-Z]{1,3})?$/.test(searchTerm.toUpperCase()) ? searchTerm.toUpperCase() : undefined,
         imageUrl: article.urlToImage,
         imageHint: generateImageHint(article.title, articleSummary, articleTopicActual),
       };
-    }).slice(0, isBreakingNews ? 7 : 20); // Take fewer for breaking news display
+    }).slice(0, isBreakingNews ? 7 : 20); 
   } catch (error: any) {
     console.error('Error fetching or processing news from API:', error);
     throw new Error(error.message || 'An unknown error occurred while fetching news.');

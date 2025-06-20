@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { NewsArticle } from '@/types';
 import { fetchNewsFromAPI } from '@/lib/newsService';
 import { AlertTriangle, Loader2, ExternalLink } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, parseISO } from 'date-fns'; // Added parseISO
 
 const REFRESH_INTERVAL = 60 * 1000; // 1 minute in milliseconds
 
@@ -18,7 +18,7 @@ export function BreakingNewsSection() {
     setIsLoading(true);
     setError(null);
     try {
-      // Query for broad financial terms, sorted by publishedAt by default by the service
+      // The 'breaking' topic is now handled by a specific query in fetchNewsFromAPI
       const articles = await fetchNewsFromAPI('breaking', undefined, true);
       setBreakingNews(articles.slice(0, 5)); // Take top 5 for the ticker
     } catch (err: any) {
@@ -77,7 +77,7 @@ export function BreakingNewsSection() {
                 <div className="flex justify-between items-center text-xs text-muted-foreground mt-0.5">
                   <span className="truncate max-w-[150px]">{article.source}</span>
                   <span>
-                    {formatDistanceToNow(parseISO(article.publishedAt), { addSuffix: true })}
+                    {article.publishedAt ? formatDistanceToNow(parseISO(article.publishedAt), { addSuffix: true }) : 'Recently'}
                   </span>
                   <ExternalLink className="h-3 w-3 ml-1 opacity-50 group-hover:opacity-100" />
                 </div>
