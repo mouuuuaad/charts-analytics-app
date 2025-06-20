@@ -8,6 +8,7 @@ import { fetchNewsFromAPI } from '@/lib/newsService';
 import { NewsCard } from '@/components/news/NewsCard';
 import { TrendingTickersSidebar } from '@/components/news/TrendingTickersSidebar';
 import { FloatingAIButton } from '@/components/news/FloatingAIButton';
+import { BreakingNewsSection } from '@/components/news/BreakingNewsSection'; // Added
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -54,7 +55,7 @@ export default function NewsPage() {
   const fetchNews = useCallback(async (topic: NewsTopic, term?: string) => {
     setIsLoadingNews(true); setError(null);
     try {
-      const articles = await fetchNewsFromAPI(topic, term);
+      const articles = await fetchNewsFromAPI(topic, term, false); // false for isBreakingNews
       setNewsArticles(articles);
     } catch (err: any) {
       console.error("Failed to fetch news:", err);
@@ -140,6 +141,8 @@ export default function NewsPage() {
           </div>
         </CardHeader>
       </Card>
+      
+      <BreakingNewsSection /> {/* Added Breaking News Section */}
 
       <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 p-0.5 h-auto"> {/* Simplified */}
