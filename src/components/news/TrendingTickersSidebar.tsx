@@ -15,15 +15,15 @@ interface TrendingTickersSidebarProps {
 export function TrendingTickersSidebar({ tickers, isLoading }: TrendingTickersSidebarProps) {
   if (isLoading) {
     return (
-      <Card className="shadow-md border-border/20">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-primary">Trending Tickers</CardTitle>
+      <Card className="border"> {/* Removed shadow */}
+        <CardHeader className="p-3">
+          <CardTitle className="text-lg font-medium text-primary">Trending</CardTitle> {/* Simplified */}
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-2 p-3">
           {[...Array(5)].map((_, i) => (
-            <div key={i} className="flex justify-between items-center p-2 rounded-md bg-muted/50 animate-pulse">
-              <div className="h-4 w-16 bg-muted rounded"></div>
-              <div className="h-4 w-10 bg-muted rounded"></div>
+            <div key={i} className="flex justify-between items-center p-1.5 rounded bg-muted/50 animate-pulse">
+              <div className="h-3.5 w-14 bg-muted rounded"></div>
+              <div className="h-3.5 w-8 bg-muted rounded"></div>
             </div>
           ))}
         </CardContent>
@@ -33,36 +33,36 @@ export function TrendingTickersSidebar({ tickers, isLoading }: TrendingTickersSi
   
   if (!tickers || tickers.length === 0) {
     return (
-      <Card className="shadow-md border-border/20">
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-primary">Trending Tickers</CardTitle>
+      <Card className="border">
+        <CardHeader className="p-3">
+          <CardTitle className="text-lg font-medium text-primary">Trending</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">No trending tickers available at the moment.</p>
+        <CardContent className="p-3">
+          <p className="text-sm text-muted-foreground">No trending tickers.</p>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="shadow-md border-border/20 h-full">
-      <CardHeader>
-        <CardTitle className="text-xl font-semibold text-primary">Trending Tickers Today</CardTitle>
+    <Card className="border h-full"> {/* Removed shadow */}
+      <CardHeader className="p-3">
+        <CardTitle className="text-lg font-medium text-primary">Trending Today</CardTitle>
       </CardHeader>
-      <CardContent>
-        <ScrollArea className="h-[400px] pr-3"> {/* Adjust height as needed */}
-          <ul className="space-y-3">
+      <CardContent className="p-0"> {/* Remove CardContent padding, handle in ScrollArea */}
+        <ScrollArea className="h-[380px] px-3 pb-3"> {/* Adjusted height and padding */}
+          <ul className="space-y-2">
             {tickers.map((ticker) => (
-              <li key={ticker.id} className="flex justify-between items-center p-2.5 rounded-lg hover:bg-muted/50 transition-colors border border-transparent hover:border-border/30">
+              <li key={ticker.id} className="flex justify-between items-center p-2 rounded hover:bg-muted/50 border border-transparent hover:border-border/70">
                 <div>
-                  <span className="font-medium text-foreground">{ticker.ticker}</span>
-                  <p className="text-xs text-muted-foreground truncate max-w-[150px]">{ticker.name}</p>
+                  <span className="font-medium text-sm text-foreground">{ticker.ticker}</span>
+                  <p className="text-xs text-muted-foreground truncate max-w-[140px]">{ticker.name}</p>
                 </div>
                 <Badge
-                  variant={ticker.changePercent >= 0 ? 'default' : 'destructive'}
-                  className={`text-xs tabular-nums ${ticker.changePercent >= 0 ? 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200 dark:bg-green-700/30 dark:text-green-300 dark:border-green-600' : 'bg-red-100 text-red-700 border-red-300 hover:bg-red-200 dark:bg-red-700/30 dark:text-red-300 dark:border-red-600'}`}
+                  variant="outline" // Simpler badge variant
+                  className={`text-xs tabular-nums px-1.5 py-0.5 ${ticker.changePercent >= 0 ? 'border-green-500 text-green-600' : 'border-red-500 text-red-600'}`}
                 >
-                  {ticker.changePercent >= 0 ? <TrendingUp className="mr-1 h-3.5 w-3.5" /> : <TrendingDown className="mr-1 h-3.5 w-3.5" />}
+                  {ticker.changePercent >= 0 ? <TrendingUp className="mr-0.5 h-3 w-3" /> : <TrendingDown className="mr-0.5 h-3 w-3" />}
                   {ticker.changePercent.toFixed(2)}%
                 </Badge>
               </li>

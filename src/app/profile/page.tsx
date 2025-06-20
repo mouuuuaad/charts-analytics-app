@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Zap, Edit3, AlertTriangle, Star, Copy, Clock, CalendarDays } from 'lucide-react';
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Copy, Clock, CalendarDays } from 'lucide-react'; // Removed Zap
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
@@ -107,7 +107,7 @@ export default function ProfilePage() {
 
         toast({
             title: 'Payment Successful!',
-            description: 'Welcome to ChartSight AI Premium! Enjoy unlimited analyses.',
+            description: 'Welcome to Premium! Enjoy unlimited analyses.', // Simplified
             variant: 'default',
             duration: 8000,
         });
@@ -118,7 +118,7 @@ export default function ProfilePage() {
     if (paymentCanceled === 'true') {
       toast({
         title: 'Payment Canceled',
-        description: 'Your payment process was canceled. You can try again anytime.',
+        description: 'Your payment process was canceled.', // Simplified
         variant: 'destructive',
         duration: 8000,
       });
@@ -138,7 +138,6 @@ export default function ProfilePage() {
 
       if (now >= nextBilling) {
         setTimeRemainingToNextBilling("Renewal due");
-        // Here you might want to trigger logic to revert to free or prompt for renewal in a real app
         return;
       }
 
@@ -149,10 +148,9 @@ export default function ProfilePage() {
       setTimeRemainingToNextBilling(`${days}d ${hours}h ${minutes}m`);
     };
 
-    calculateRemaining(); // Initial calculation
-    const intervalId = setInterval(calculateRemaining, 60000); // Update every minute
-
-    return () => clearInterval(intervalId); // Cleanup interval on unmount
+    calculateRemaining(); 
+    const intervalId = setInterval(calculateRemaining, 60000); 
+    return () => clearInterval(intervalId);
   }, [subscriptionNextBillingDate]);
 
 
@@ -165,7 +163,7 @@ export default function ProfilePage() {
   };
 
   const getLevelDisplayName = (level: UserLevel | null): string => {
-    if (!level) return 'Not Assessed Yet';
+    if (!level) return 'Not Assessed'; // Simplified
     if (level === 'beginner') return 'Beginner';
     if (level === 'intermediate') return 'Intermediate';
     if (level === 'advanced') return 'Advanced';
@@ -182,7 +180,7 @@ export default function ProfilePage() {
       localStorage.setItem('userTradingLevel', level);
     }
     setShowSurveyModal(false);
-    toast({ title: "Level Updated", description: `Your trading level is now set to ${getLevelDisplayName(level)}.` });
+    toast({ title: "Level Updated", description: `Your level: ${getLevelDisplayName(level)}.` }); // Simplified
   };
 
   const handleServerSideCheckout = async (priceIdToCheckout: string): Promise<void> => {
@@ -203,17 +201,13 @@ export default function ProfilePage() {
       });
 
       if (!response.ok) {
-        let errorMessage = 'Failed to create checkout session. The server returned an error.';
+        let errorMessage = 'Checkout session creation failed.'; // Simplified
         try {
           const errorBody = await response.json();
           if (errorBody && errorBody.error) {
             errorMessage = errorBody.error;
-          } else {
-            errorMessage = `Server error: ${response.status} ${response.statusText}`;
           }
-        } catch (e) {
-          errorMessage = `Server error: ${response.status} ${response.statusText}. Could not parse error response.`;
-        }
+        } catch (e) { /* Do nothing */ }
         throw new Error(errorMessage);
       }
 
@@ -239,168 +233,89 @@ export default function ProfilePage() {
           if (stripeJsError) {
             if (stripeJsError.message && stripeJsError.message.includes('permission to navigate')) {
               if (url) {
-                window.location.href = url;
-                return;
+                window.location.href = url; return;
               }
             }
             throw stripeJsError;
           }
           return;
         } else if (url) {
-          window.location.href = url;
-          return;
+          window.location.href = url; return;
         } else {
-          throw new Error("Stripe.js not loaded and no fallback URL provided by server for session-based checkout.");
+          throw new Error("Stripe.js not loaded or no fallback URL."); // Simplified
         }
       } else if (url) {
-        window.location.href = url;
-        return;
+        window.location.href = url; return;
       } else {
-        throw new Error("Server did not return a session ID or URL for checkout.");
+        throw new Error("No session ID or URL from server."); // Simplified
       }
 
     } catch (error: any) {
       if (error instanceof Error) {
         throw error;
       } else {
-        throw new Error(String(error?.message || error) || 'An unknown error occurred during the server-side checkout attempt.');
+        throw new Error(String(error?.message || error) || 'Unknown checkout error.'); // Simplified
       }
     }
   };
 
   const handleUpgradeToPremiumViaStripe = async () => {
     if (!isStripeKeySet) {
-        toast({
-          title: "Stripe Error",
-          description: "Stripe is not configured correctly. Please ensure NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY is set with a valid test key in your .env file. Cannot proceed to payment.",
-          variant: "destructive",
-          duration: 10000
-        });
+        toast({ title: "Stripe Error", description: "Stripe not configured. Check .env.", variant: "destructive", duration: 7000 }); // Simplified
         return;
     }
     if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId.trim() === '') {
-        toast({
-          title: "Stripe Error",
-          description: "Stripe Price ID is not configured correctly. Please set NEXT_PUBLIC_STRIPE_PRICE_ID in your .env file with a valid Price ID.",
-          variant: "destructive",
-          duration: 10000
-        });
+        toast({ title: "Stripe Error", description: "Stripe Price ID missing. Check .env.", variant: "destructive", duration: 7000 }); // Simplified
         return;
     }
 
     setIsRedirectingToCheckout(true);
-
     try {
       await handleServerSideCheckout(stripePriceId);
     } catch (serverError: any) {
-      let description: React.ReactNode = serverError.message || "Could not initiate checkout via server.";
-      let duration = 10000;
-
-      if (serverError.message && (
-          serverError.message.includes("permission to navigate") ||
-          serverError.message.includes("Location") ||
-          serverError.message.includes("target frame") ||
-          serverError.message.includes("cross-origin frame") ||
-          serverError.message.includes("Failed to set a named property 'href' on 'Location'")
-        )) {
-          description = (
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">Checkout Blocked by Browser Security</p>
-              <p className="text-sm">This appears to be running in a restricted environment (like an iframe or development platform).</p>
-              <div className="text-sm space-y-1">
-                <p className="font-medium">Try these solutions:</p>
-                <ul className="list-disc list-inside space-y-1 ml-2">
-                  <li>Open this app in a new browser tab/window</li>
-                  <li>Allow popups for this site</li>
-                  <li>Use a different browser</li>
-                  <li>Use the "Copy Payment Link" button below</li>
-                </ul>
-              </div>
-            </div>
-          );
-          duration = 20000;
-      } else if (serverError.message && serverError.message.includes("The Checkout client-only integration is not enabled")) {
-           description = (
-              <div className="space-y-2">
-                  <p className="text-sm">{serverError.message}</p>
-                  <p className="text-sm">Please go to:{' '}
-                  <a href="https://dashboard.stripe.com/account/checkout/settings" target="_blank" rel="noopener noreferrer" className="font-bold text-primary underline">Stripe Checkout Settings</a>{' '}
-                  and enable "Client-only integration".</p>
-              </div>
-            );
-          duration = 30000;
-      }
-
-      toast({
-        title: "Checkout Failed",
-        description: description,
-        variant: "destructive",
-        duration: duration,
-      });
+      let description: React.ReactNode = serverError.message || "Could not initiate checkout.";
+      // Removed complex iframe/blocked logic for simplicity as per user request
+      toast({ title: "Checkout Failed", description, variant: "destructive", duration: 10000 });
     }
-
     setIsRedirectingToCheckout(false);
   };
-
+  
   const handleCopyCheckoutLink = async () => {
     try {
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json', },
         body: JSON.stringify({
           priceId: stripePriceId,
           successUrl: `${window.location.origin}/profile?payment_success=true`,
           cancelUrl: `${window.location.origin}/profile?payment_canceled=true`,
         }),
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create checkout session');
-      }
-
+      if (!response.ok) throw new Error('Failed to create checkout session');
       const { url } = await response.json();
-
       if (url) {
         await navigator.clipboard.writeText(url);
-        toast({
-          title: "Checkout Link Copied!",
-          description: "The payment link has been copied to your clipboard. Paste it in a new browser tab to complete payment.",
-          duration: 8000,
-        });
+        toast({ title: "Link Copied!", description: "Paste in new tab to pay.", duration: 5000 }); // Simplified
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to create checkout link. Please try again.",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create link.", variant: "destructive", }); // Simplified
     }
   };
 
   const handleDowngradeToFree = () => {
     if (typeof window !== 'undefined') {
-        localStorage.setItem('isUserPremium', 'false');
-        setIsPremium(false);
-        localStorage.setItem('analysisAttempts', '0');
-        setAnalysisAttempts(0);
-        localStorage.removeItem('subscriptionStartDate');
-        localStorage.removeItem('subscriptionNextBillingDate');
-        setSubscriptionStartDate(null);
-        setSubscriptionNextBillingDate(null);
-        setTimeRemainingToNextBilling(null);
-        toast({
-            title: 'Subscription Changed',
-            description: 'You are now on the Free plan. (Simulated)',
-        });
+        localStorage.setItem('isUserPremium', 'false'); setIsPremium(false);
+        localStorage.setItem('analysisAttempts', '0'); setAnalysisAttempts(0);
+        localStorage.removeItem('subscriptionStartDate'); localStorage.removeItem('subscriptionNextBillingDate');
+        setSubscriptionStartDate(null); setSubscriptionNextBillingDate(null); setTimeRemainingToNextBilling(null);
+        toast({ title: 'Subscription Changed', description: 'Now on Free plan (Simulated).', }); // Simplified
     }
   };
 
   if (authLoading || isLoadingProfileData || !user) {
     return (
       <div className="flex h-[calc(100vh-theme(spacing.14))] items-center justify-center">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <Loader2 className="h-10 w-10 animate-spin text-primary" /> {/* Slightly smaller loader */}
       </div>
     );
   }
@@ -408,114 +323,108 @@ export default function ProfilePage() {
   const attemptsRemaining = isPremium ? Infinity : Math.max(0, MAX_FREE_ATTEMPTS - analysisAttempts);
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-0 max-w-3xl">
-       <LevelAssessmentModal
-        isOpen={showSurveyModal}
-        onComplete={handleSurveyComplete}
-      />
-      <Card className="shadow-xl overflow-hidden border border-primary/20">
-        <CardHeader className="bg-gradient-to-br from-primary/80 via-primary to-accent/70 text-primary-foreground p-8">
-          <div className="flex items-center space-x-4">
-            <Avatar className="h-20 w-20 border-2 border-background shadow-lg">
+    <div className="container mx-auto py-6 px-2 md:px-0 max-w-2xl"> {/* Reduced padding/max-width slightly */}
+       <LevelAssessmentModal isOpen={showSurveyModal} onComplete={handleSurveyComplete} />
+      <Card className="overflow-hidden border"> {/* Removed shadow, simplified border */}
+        <CardHeader className="bg-muted/50 p-4 md:p-6"> {/* Simplified background, adjusted padding */}
+          <div className="flex items-center space-x-3">
+            <Avatar className="h-16 w-16 border"> {/* Simplified avatar */}
               <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
-              <AvatarFallback className="text-2xl bg-background text-primary">{getInitials(user.displayName, user.email)}</AvatarFallback>
+              <AvatarFallback className="text-xl bg-muted text-primary">{getInitials(user.displayName, user.email)}</AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-3xl font-headline">{user.displayName || 'Valued User'}</CardTitle>
-              <CardDescription className="text-primary-foreground/80 text-sm flex items-center mt-1">
-                <Mail className="mr-2 h-4 w-4" />{user.email}
+              <CardTitle className="text-2xl">{user.displayName || 'User'}</CardTitle> {/* Simpler font */}
+              <CardDescription className="text-xs text-muted-foreground flex items-center mt-0.5">
+                <Mail className="mr-1.5 h-3.5 w-3.5" />{user.email}
               </CardDescription>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center text-primary"><BarChart3 className="mr-2 h-5 w-5" />Trading Profile</CardTitle>
+        <CardContent className="p-4 md:p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border"> {/* Simplified card */}
+              <CardHeader className="pb-2 pt-3 px-3">
+                <CardTitle className="text-md flex items-center text-primary"><BarChart3 className="mr-1.5 h-4 w-4" />Trading Profile</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
+              <CardContent className="space-y-2 text-sm px-3 pb-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Experience Level:</span>
-                  <Badge variant={userLevel ? "secondary" : "outline"} className={userLevel ? "bg-accent/20 text-accent-foreground border-accent/30" : ""}>
+                  <span className="text-muted-foreground text-xs">Level:</span>
+                  <Badge variant={userLevel ? "secondary" : "outline"} className="text-xs">
                     {getLevelDisplayName(userLevel)}
                   </Badge>
                 </div>
                  <Button variant="outline" size="sm" onClick={handleRetakeAssessment} className="w-full text-xs">
-                    <Edit3 className="mr-2 h-3.5 w-3.5" /> {userLevel ? 'Retake Assessment' : 'Take Level Assessment'}
+                    <Edit3 className="mr-1.5 h-3 w-3" /> {userLevel ? 'Retake' : 'Assess Level'} {/* Shorter text */}
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-border/50">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center text-primary"><ShieldCheck className="mr-2 h-5 w-5" />Subscription</CardTitle>
+            <Card className="border"> {/* Simplified card */}
+              <CardHeader className="pb-2 pt-3 px-3">
+                <CardTitle className="text-md flex items-center text-primary"><ShieldCheck className="mr-1.5 h-4 w-4" />Subscription</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3 text-sm">
+              <CardContent className="space-y-2 text-sm px-3 pb-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Current Plan:</span>
-                  <Badge variant={isPremium ? "default" : "destructive"} className={isPremium ? "bg-green-500 hover:bg-green-600" : "bg-orange-500 hover:bg-orange-600"}>
-                    {isPremium ? <><Star className="mr-1.5 h-4 w-4"/>Premium User</> : 'Free Tier'}
+                  <span className="text-muted-foreground text-xs">Plan:</span>
+                  <Badge variant={isPremium ? "default" : "destructive"} className={`text-xs ${isPremium ? "bg-green-500 hover:bg-green-600" : "bg-orange-500 hover:bg-orange-600"}`}>
+                    {isPremium ? <><Star className="mr-1 h-3 w-3"/>Premium</> : 'Free'}
                   </Badge>
                 </div>
                 {!isPremium && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground">Analysis Attempts:</span>
-                    <span>{analysisAttempts} / {MAX_FREE_ATTEMPTS} used</span>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-muted-foreground">Attempts:</span>
+                    <span>{analysisAttempts} / {MAX_FREE_ATTEMPTS}</span>
                   </div>
                 )}
                  {isPremium && subscriptionStartDate && (
                   <div className="flex justify-between items-center text-xs">
-                    <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-1.5 h-3.5 w-3.5"/>Active Since:</span>
-                    <span className="font-medium">{format(parseISO(subscriptionStartDate), "MMMM d, yyyy")}</span>
+                    <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-1 h-3 w-3"/>Active Since:</span>
+                    <span className="font-medium">{format(parseISO(subscriptionStartDate), "MMM d, yyyy")}</span>
                   </div>
                 )}
                 {isPremium && subscriptionNextBillingDate && (
                   <>
                     <div className="flex justify-between items-center text-xs">
-                      <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-1.5 h-3.5 w-3.5"/>Next Billing:</span>
-                      <span className="font-medium">{format(parseISO(subscriptionNextBillingDate), "MMMM d, yyyy")}</span>
+                      <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-1 h-3 w-3"/>Next Bill:</span>
+                      <span className="font-medium">{format(parseISO(subscriptionNextBillingDate), "MMM d, yyyy")}</span>
                     </div>
                      {timeRemainingToNextBilling && (
-                        <div className="flex justify-between items-center text-xs pt-1 border-t border-dashed">
-                            <span className="text-muted-foreground flex items-center"><Clock className="mr-1.5 h-3.5 w-3.5"/>Time to Renewal:</span>
+                        <div className="flex justify-between items-center text-xs pt-1 border-t border-dashed mt-1">
+                            <span className="text-muted-foreground flex items-center"><Clock className="mr-1 h-3 w-3"/>Renewal In:</span>
                             <span className="font-semibold text-primary">{timeRemainingToNextBilling}</span>
                         </div>
                     )}
                   </>
                 )}
                 {attemptsRemaining <= 0 && !isPremium && (
-                    <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-md text-xs text-destructive-foreground flex items-center">
-                        <AlertTriangle className="h-4 w-4 mr-2 shrink-0" />
-                        You've used all free analysis attempts. Upgrade to continue.
+                    <div className="p-2 bg-destructive/10 border border-destructive/20 rounded text-xs text-destructive-foreground flex items-center">
+                        <AlertTriangle className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                        Free attempts used. Upgrade to continue.
                     </div>
                 )}
               </CardContent>
             </Card>
           </div>
-
         </CardContent>
-        <CardFooter className="p-6 border-t bg-muted/20">
-            <div className="w-full space-y-3">
+        <CardFooter className="p-4 md:p-6 border-t bg-muted/30">
+            <div className="w-full space-y-2">
                 {isPremium ? (
-                     <Button onClick={handleDowngradeToFree} variant="outline" className="w-full">
-                        Switch to Free Plan (Simulated)
+                     <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-sm">
+                        Switch to Free Plan
                     </Button>
                 ) : (
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Button
                           onClick={handleUpgradeToPremiumViaStripe}
-                          className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-lg py-6 shadow-lg"
+                          className="w-full text-sm py-2.5" // Simplified button
                           disabled={isRedirectingToCheckout || !isStripeKeySet}
                       >
                           {isRedirectingToCheckout ? (
-                              <Loader2 className="mr-2 h-5 w-5 animate-spin"/>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin"/>
                           ) : (
-                              <Zap className="mr-2 h-5 w-5"/>
+                             "Upgrade to Premium"
                           )}
-                           Upgrade to Premium
                       </Button>
-
                       <Button
                         onClick={handleCopyCheckoutLink}
                         variant="outline"
@@ -523,20 +432,20 @@ export default function ProfilePage() {
                         className="w-full text-xs"
                         disabled={!isStripeKeySet}
                       >
-                        <Copy className="mr-2 h-3 w-3" />
-                        Copy Payment Link (if blocked)
+                        <Copy className="mr-1.5 h-3 w-3" />
+                        Copy Payment Link
                       </Button>
                     </div>
                 )}
                 {!isStripeKeySet && (
-                  <p className="text-xs text-center text-destructive mt-1">
-                    Stripe is not configured correctly. Please set your test publishable key in .env to enable payments.
+                  <p className="text-xs text-center text-destructive">
+                    Stripe not configured. Payments disabled.
                   </p>
                 )}
-                <p className="text-xs text-center text-muted-foreground mt-1">
-                  By upgrading, you agree to our Terms of Service (not yet created).
+                <p className="text-xs text-center text-muted-foreground">
+                  Terms of Service apply (not yet created).
                 </p>
-                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="w-full">
+                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="w-full text-sm">
                     Back to Dashboard
                 </Button>
             </div>
