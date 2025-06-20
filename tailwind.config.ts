@@ -11,9 +11,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        // Using 'sans' as the main channel for Inter, which is set on body
-        sans: ['Inter', 'sans-serif'], 
-        // code: ['Source Code Pro', 'monospace'], // Keep if used for code blocks
+        // Rely on system fonts specified in globals.css body
+        sans: ['system-ui', '-apple-system', 'BlinkMacSystemFont', "Segoe UI", 'Roboto', "Helvetica Neue", 'Arial', "Noto Sans", 'sans-serif', "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"],
       },
       colors: {
         background: 'hsl(var(--background))',
@@ -49,7 +48,7 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        chart: {
+        chart: { // Kept for chart component if used, can be removed if charts are unstyled
           '1': 'hsl(var(--chart-1))',
           '2': 'hsl(var(--chart-2))',
           '3': 'hsl(var(--chart-3))',
@@ -68,11 +67,13 @@ export default {
         },
       },
       borderRadius: {
-        lg: 'var(--radius)',
+        lg: 'var(--radius)', // Will use 0.3rem from globals.css
         md: 'calc(var(--radius) - 2px)',
         sm: 'calc(var(--radius) - 4px)',
       },
-      keyframes: { // Standard accordion animations are kept for basic functionality
+      // Remove all custom keyframes and animations
+      keyframes: {
+         // Standard accordion animations are kept for basic functionality
         'accordion-down': {
           from: {
             height: '0',
@@ -94,7 +95,7 @@ export default {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
       },
-      // Removed custom boxShadow for glows
+      // Removed custom boxShadow
     },
   },
   plugins: [require('tailwindcss-animate'), require('@tailwindcss/typography')],

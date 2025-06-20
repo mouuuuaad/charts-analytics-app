@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Analysis } from '@/types'; // No need for getAnalysesForUser
+import type { Analysis } from '@/types'; 
 import {
   Table,
   TableBody,
@@ -11,104 +11,80 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import Image from 'next/image';
+import Image from 'next/image'; // Keep Next/Image for data URIs for basic structure
 import { formatDistanceToNow } from 'date-fns';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowUp, ArrowDown, MinusCircle } from 'lucide-react'; // Added MinusCircle for sideways
+import { ArrowUp, ArrowDown, MinusCircle } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface HistoryTableProps {
-  analyses: Analysis[]; // Accept analyses directly
+  analyses: Analysis[];
 }
 
 export function HistoryTable({ analyses }: HistoryTableProps) {
-  // isLoading and error state management is moved to the parent component (HistoryPage)
-  // useEffect fetching data is removed.
 
   if (!analyses || analyses.length === 0) {
-    // This case should ideally be handled by the parent component (HistoryPage)
-    // But as a fallback:
-    return <p className="text-center text-muted-foreground">No analysis history found.</p>;
+    return <p className="text-center text-muted-foreground p-4">No analysis history found.</p>;
   }
 
   return (
     <TooltipProvider>
-      <ScrollArea className="h-[500px] rounded-md border">
-        <Table>
-          <TableHeader className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+      <ScrollArea className="h-[450px] md:h-[500px] rounded-none md:rounded-md border-t md:border"> {/* Simpler border/rounded */}
+        <Table className="text-xs md:text-sm"> {/* Smaller text overall */}
+          <TableHeader className="sticky top-0 bg-background z-10"> {/* Simpler background */}
             <TableRow>
-              <TableHead className="w-[120px]">Chart</TableHead>
-              <TableHead>File Name</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead>Trend</TableHead>
-              <TableHead className="text-right">Confidence</TableHead>
-              <TableHead>Reasoning</TableHead>
+              <TableHead className="w-[80px] md:w-[100px] px-1 md:px-2 py-1.5">Chart</TableHead> {/* Simplified padding */}
+              <TableHead className="px-1 md:px-2 py-1.5">File Name</TableHead>
+              <TableHead className="px-1 md:px-2 py-1.5">Date</TableHead>
+              <TableHead className="px-1 md:px-2 py-1.5">Trend</TableHead>
+              <TableHead className="text-right px-1 md:px-2 py-1.5">Confidence</TableHead>
+              <TableHead className="px-1 md:px-2 py-1.5">Reasoning</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {analyses.map((analysis) => (
               <TableRow key={analysis.id}>
-                <TableCell>
-                  <div className="w-24 h-16 relative rounded-md overflow-hidden border bg-muted">
+                <TableCell className="px-1 md:px-2 py-1.5">
+                  <div className="w-16 h-10 md:w-20 md:h-12 relative rounded overflow-hidden border bg-muted"> {/* Simplified */}
                     <Image
                       src={analysis.imageUrl}
                       alt={analysis.chartFileName || 'Chart image'}
                       layout="fill"
                       objectFit="contain"
                       data-ai-hint="chart analysis"
-                      unoptimized={true} // Data URIs are typically not optimized by Next/Image by default
+                      unoptimized={true} 
                     />
                   </div>
                 </TableCell>
-                <TableCell className="font-medium max-w-[150px] truncate">
+                <TableCell className="font-medium max-w-[100px] md:max-w-[150px] truncate px-1 md:px-2 py-1.5">
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <span>{analysis.chartFileName || 'N/A'}</span>
                     </TooltipTrigger>
-                    <TooltipContent>
-                      <p>{analysis.chartFileName || 'N/A'}</p>
-                    </TooltipContent>
+                    <TooltipContent> <p>{analysis.chartFileName || 'N/A'}</p> </TooltipContent>
                   </Tooltip>
                 </TableCell>
-                <TableCell>
-                  {analysis.createdAt ? 
-                    formatDistanceToNow(new Date(analysis.createdAt), { addSuffix: true })
-                    : 'N/A'}
+                <TableCell className="px-1 md:px-2 py-1.5 whitespace-nowrap">
+                  {analysis.createdAt ? formatDistanceToNow(new Date(analysis.createdAt), { addSuffix: true }) : 'N/A'}
                 </TableCell>
-                <TableCell>
+                <TableCell className="px-1 md:px-2 py-1.5">
                   <Badge 
-                    variant={
-                      analysis.prediction.trendPrediction === 'up' ? 'default' 
-                      : analysis.prediction.trendPrediction === 'down' ? 'destructive' 
-                      : 'secondary'
-                    }
-                    className={`${
-                      analysis.prediction.trendPrediction === 'up' ? 'bg-green-500 hover:bg-green-600' 
-                      : analysis.prediction.trendPrediction === 'down' ? 'bg-red-500 hover:bg-red-600' 
-                      : 'bg-yellow-500 hover:bg-yellow-600 text-black'
-                    } text-white`}
+                    variant="outline" // Simpler variant
+                    className="text-xs px-1 py-0 capitalize" // Simplified padding/colors
                   >
-                    {analysis.prediction.trendPrediction === 'up' ? (
-                      <ArrowUp className="mr-1 h-4 w-4" />
-                    ) : analysis.prediction.trendPrediction === 'down' ? (
-                      <ArrowDown className="mr-1 h-4 w-4" />
-                    ) : (
-                      <MinusCircle className="mr-1 h-4 w-4" />
-                    )}
-                    {analysis.prediction.trendPrediction.toUpperCase()}
+                    {analysis.prediction.trendPrediction === 'up' ? <ArrowUp className="mr-0.5 h-3 w-3" />
+                    : analysis.prediction.trendPrediction === 'down' ? <ArrowDown className="mr-0.5 h-3 w-3" />
+                    : <MinusCircle className="mr-0.5 h-3 w-3" />}
+                    {analysis.prediction.trendPrediction}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right px-1 md:px-2 py-1.5">
                   {Math.round(analysis.prediction.confidence * 100)}%
                 </TableCell>
-                <TableCell className="max-w-xs truncate">
+                <TableCell className="max-w-xs truncate px-1 md:px-2 py-1.5">
                   <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span>{analysis.prediction.reason}</span>
-                    </TooltipTrigger>
-                    <TooltipContent className="max-w-md">
-                      <p className="text-sm whitespace-pre-wrap">{analysis.prediction.reason}</p>
-                    </TooltipContent>
+                    <TooltipTrigger asChild><span>{analysis.prediction.reason}</span></TooltipTrigger>
+                    <TooltipContent className="max-w-sm"> <p className="text-sm whitespace-pre-wrap">{analysis.prediction.reason}</p> </TooltipContent>
                   </Tooltip>
                 </TableCell>
               </TableRow>

@@ -11,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  // SidebarInset, // Replaced by direct main tag in RootLayout logic
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
@@ -24,185 +23,107 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Newspaper, Loader2 } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, Settings, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft } from 'lucide-react'; // Added PanelLeft
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
 
 const Logo = () => (
-  <Link href="/dashboard" className="flex items-center gap-2 px-2" aria-label="ChartSight AI Home">
-     <BarChart3 className="h-8 w-8 text-primary" />
-    <h1 className="text-xl font-headline font-semibold text-foreground group-data-[collapsible=icon]:hidden">
+  <Link href="/dashboard" className="flex items-center gap-1.5 px-1.5 py-1" aria-label="ChartSight AI Home"> {/* Simplified padding/gap */}
+     <BarChart3 className="h-6 w-6" /> {/* Simplified size, removed text-primary */}
+    <h1 className="text-lg font-semibold group-data-[collapsible=icon]:hidden"> {/* Simplified */}
       ChartSight AI
     </h1>
   </Link>
 );
 
-
 const UserMenu = () => {
   const { user, logOut, loading } = useAuth();
   const router = useRouter();
 
-  if (loading) {
-    return <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />;
-  }
-
-  if (!user) {
-    // This could redirect to login or show a "Sign In" button if AppShell was visible to guests
-    // For now, with useRequireAuth, user should always exist here.
-    return (
-        <Button variant="outline" onClick={() => router.push('/')}>Sign In</Button>
-    );
-  }
+  if (loading) return <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />; {/* Simplified */}
+  if (!user) return <Button variant="outline" size="sm" onClick={() => router.push('/')}>Sign In</Button>; {/* Simplified */}
 
   const getInitials = (displayName: string | null | undefined, email: string | null | undefined) => {
-    if (displayName) {
-      const names = displayName.split(' ');
-      if (names.length > 1) {
-        return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase();
-      }
-      return displayName.substring(0, 2).toUpperCase();
-    }
-    if (email) return email.substring(0, 2).toUpperCase();
-    return 'U';
+    if (displayName) { const names = displayName.split(' '); if (names.length > 1) return `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase(); return displayName.substring(0, 2).toUpperCase(); }
+    if (email) return email.substring(0, 2).toUpperCase(); return 'U';
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-9 w-9">
+        <Button variant="ghost" className="relative h-8 w-8 rounded-full"> {/* Simplified size */}
+          <Avatar className="h-7 w-7"> {/* Simplified size */}
             <AvatarImage src={user.photoURL || undefined} alt={user.displayName || user.email || 'User'} />
             <AvatarFallback>{getInitials(user.displayName, user.email)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <DropdownMenuLabel className="font-normal">
-          <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">
-              {user.displayName || 'User'}
-            </p>
-            {user.email && (
-                <p className="text-xs leading-none text-muted-foreground">
-                {user.email}
-                </p>
-            )}
+      <DropdownMenuContent className="w-48" align="end" forceMount> {/* Simplified width */}
+        <DropdownMenuLabel className="font-normal p-1.5"> {/* Simplified padding */}
+          <div className="flex flex-col space-y-0.5"> {/* Simplified spacing */}
+            <p className="text-sm font-medium leading-none"> {user.displayName || 'User'} </p>
+            {user.email && ( <p className="text-xs leading-none text-muted-foreground"> {user.email} </p> )}
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push('/profile')}>
-          <UserCircle className="mr-2 h-4 w-4" />
-          Profile
+        <DropdownMenuItem onClick={() => router.push('/profile')} className="text-sm py-1 px-1.5"> {/* Simplified */}
+          <UserCircle className="mr-1.5 h-3.5 w-3.5" /> Profile
         </DropdownMenuItem>
-        <DropdownMenuItem disabled>
-          <Settings className="mr-2 h-4 w-4" />
-          Settings (Soon)
+        <DropdownMenuItem disabled className="text-sm py-1 px-1.5">
+          <Settings className="mr-1.5 h-3.5 w-3.5" /> Settings (Soon)
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={async () => {
-          await logOut();
-          // router.push('/'); // Auth context now handles redirect on logout
-        }}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Log out
+        <DropdownMenuItem onClick={async () => { await logOut(); }} className="text-sm py-1 px-1.5">
+          <LogOut className="mr-1.5 h-3.5 w-3.5" /> Log out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 };
 
-// AppShell no longer needs to handle the main content area itself,
-// as RootLayout now conditionally renders AppShell or children directly.
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   
   return (
     <SidebarProvider defaultOpen>
-      <Sidebar
-        variant="sidebar" 
-        collapsible="icon" 
-        className="border-r dark:border-neutral-700"
-      >
-        <SidebarHeader>
+      <Sidebar variant="sidebar" collapsible="icon" className="border-r"> {/* Removed dark mode specific border */}
+        <SidebarHeader className="p-1"> {/* Simplified padding */}
           <Logo />
         </SidebarHeader>
-        <SidebarContent>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/dashboard'}
-                tooltip="Dashboard"
-              >
-                <Link href="/dashboard">
-                  <Home />
-                  <span>Dashboard</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/news'}
-                tooltip="Market News"
-              >
-                <Link href="/news">
-                  <Newspaper />
-                  <span>News</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/history'}
-                tooltip="Analysis History"
-              >
-                <Link href="/history">
-                  <History />
-                  <span>Analysis History</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/training'}
-                tooltip="Training & Quiz"
-              >
-                <Link href="/training">
-                  <GraduationCap />
-                  <span>Training</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-             <SidebarMenuItem>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === '/profile'}
-                tooltip="My Profile"
-              >
-                <Link href="/profile">
-                  <UserCircle />
-                  <span>My Profile</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+        <SidebarContent className="p-1"> {/* Simplified padding */}
+          <SidebarMenu className="gap-0.5"> {/* Simplified gap */}
+            {[
+              { href: '/dashboard', label: 'Dashboard', icon: Home, tooltip: 'Dashboard' },
+              { href: '/news', label: 'News', icon: Newspaper, tooltip: 'Market News' },
+              { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
+              { href: '/training', label: 'Training', icon: GraduationCap, tooltip: 'Training & Quiz' },
+              { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
+            ].map(item => {
+              const Icon = item.icon;
+              return (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.tooltip} size="sm" className="h-8"> {/* Simplified size */}
+                    <Link href={item.href}> <Icon className="h-4 w-4" /> <span>{item.label}</span> </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              );
+            })}
           </SidebarMenu>
         </SidebarContent>
-        <SidebarFooter className="items-center">
+        <SidebarFooter className="p-1"> {/* Simplified padding */}
+           {/* Footer can be empty or have a simple trigger */}
         </SidebarFooter>
       </Sidebar>
-      {/* SidebarInset is removed, main content is handled by RootLayout's children */}
-      <div className="flex min-h-svh flex-1 flex-col bg-background md:ml-[var(--sidebar-width-icon)] group-data-[state=expanded]:md:ml-[var(--sidebar-width)] transition-[margin-left] duration-200 ease-linear">
-         <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6 py-2">
-            <SidebarTrigger className="md:hidden" />
-            <div className="ml-auto">
-                <UserMenu />
+      <div className="flex min-h-svh flex-1 flex-col md:ml-[var(--sidebar-width-icon)] group-data-[state=expanded]:md:ml-[var(--sidebar-width)] transition-[margin-left] duration-150 ease-linear"> {/* Faster transition */}
+         <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-2 border-b px-3 sm:px-4 py-1.5"> {/* Simplified */}
+            <SidebarTrigger className="md:hidden h-7 w-7 p-0" /> {/* Simplified size */}
+             <div className="md:hidden"> {/* Show logo on mobile header when sidebar is collapsed, similar to desktop icon view */}
+                <Logo />
             </div>
+            <div className="ml-auto"> <UserMenu /> </div>
         </header>
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-2 md:p-4"> {/* Simplified padding */}
           {children}
         </main>
       </div>

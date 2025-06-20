@@ -11,21 +11,21 @@ export function FloatingAIButton() {
   const handleAISummary = () => {
     toast({
       title: 'AI Market Summary',
-      description: 'AI analyzing market... (Coming soon!)', // Simplified
-      duration: 4000,
+      description: 'AI analyzing market... (Coming soon!)',
+      duration: 3000, // Shorter duration
     });
-    console.log("AI Summary button clicked.");
+    // console.log("AI Summary button clicked."); // Keep for debugging if needed
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50"> {/* Adjusted positioning */}
+    <div className="fixed bottom-3 right-3 z-50"> {/* Simplified positioning */}
       <Button
         onClick={handleAISummary}
-        size="default" // Standard size
-        className="rounded-full pl-4 pr-5 py-2.5" // Adjusted padding
+        size="sm" // Smaller button
+        className="rounded-full pl-2.5 pr-3 py-2 h-9" // Adjusted padding for smaller size
         aria-label="Ask AI to summarize market"
       >
-        <BotMessageSquare className="mr-1.5 h-4 w-4" /> {/* Adjusted icon size/margin */}
+        <BotMessageSquare className="mr-1 h-3.5 w-3.5" /> {/* Smaller icon/margin */}
         Ask AI
       </Button>
     </div>

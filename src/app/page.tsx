@@ -5,9 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, BarChart3, Zap, ShieldCheck, Brain } from 'lucide-react';
-// Using standard img tag for placeholder if next/image causes issues for user preference
-// import Image from 'next/image';
+import { Loader2, BarChart3 } from 'lucide-react'; // Removed Zap, ShieldCheck, Brain
 
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -35,23 +33,24 @@ export default function LandingPage() {
       router.push('/dashboard');
     } else {
       console.error("Google Sign-In Error:", result);
+      // Potentially show a user-facing error here
     }
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-3 text-md text-foreground">Loading...</p>
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <Loader2 className="h-10 w-10 animate-spin" /> {/* Removed text-primary */}
+        <p className="mt-2 text-sm">Loading...</p> {/* Simplified text */}
       </div>
     );
   }
 
   if (user) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary" />
-        <p className="mt-3 text-md text-foreground">Redirecting...</p>
+      <div className="flex min-h-screen flex-col items-center justify-center p-4">
+        <Loader2 className="h-10 w-10 animate-spin" /> {/* Removed text-primary */}
+        <p className="mt-2 text-sm">Redirecting...</p> {/* Simplified text */}
       </div>
     );
   }
@@ -61,8 +60,8 @@ export default function LandingPage() {
       <header className="py-3 px-4 md:px-6 absolute top-0 left-0 right-0 z-10">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-7 w-7 text-primary" />
-            <h1 className="text-xl font-semibold text-foreground">ChartSight AI</h1>
+            <BarChart3 className="h-6 w-6" /> {/* Removed text-primary */}
+            <h1 className="text-lg font-semibold">ChartSight AI</h1> {/* Simplified */}
           </div>
           <Button variant="outline" onClick={handleGoogleSignIn} size="sm">
              Sign In
@@ -70,52 +69,51 @@ export default function LandingPage() {
         </div>
       </header>
 
-      <main className="flex-grow flex flex-col items-center justify-center text-center px-4 py-16 bg-background relative">
-        {/* Removed complex background image for simplicity */}
-        <div className="relative z-10 max-w-2xl">
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-5">
-            Unlock Market Insights with <span className="text-primary">AI Analysis</span>
+      <main className="flex-grow flex flex-col items-center justify-center text-center px-4 py-16 relative">
+        <div className="relative z-10 max-w-xl"> {/* Reduced max-width */}
+            <h2 className="text-3xl md:text-4xl font-bold mb-4"> {/* Simplified text size */}
+            Unlock Market Insights
             </h2>
-            <p className="text-md md:text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
-            ChartSight AI uses AI to analyze financial charts, predict trends, and assess risk for smarter trading.
+            <p className="text-md text-muted-foreground mb-6 max-w-md mx-auto"> {/* Simplified */}
+            AI to analyze financial charts, predict trends, and assess risk.
             </p>
             <Button
             size="lg"
             onClick={handleGoogleSignIn}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-md px-8 py-3" // Simplified button
+            className="text-md px-6 py-2.5" // Simplified button classes
             >
             <GoogleIcon />
             Login with Google
             </Button>
-             <p className="mt-3 text-xs text-muted-foreground">Free to start.</p>
+             <p className="mt-2 text-xs text-muted-foreground">Free to start.</p>
         </div>
       </main>
 
-       <section className="py-12 md:py-16 bg-muted/50">
+       <section className="py-10 md:py-12"> {/* Simplified padding */}
         <div className="container mx-auto px-4">
-          <h3 className="text-2xl font-semibold text-center mb-10 text-foreground">Why ChartSight AI?</h3>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div className="flex flex-col items-center text-center p-4 bg-card rounded-md border">
-              <Zap className="h-10 w-10 text-primary mb-3" />
-              <h4 className="text-lg font-medium mb-1 text-foreground">Instant Analysis</h4>
-              <p className="text-sm text-muted-foreground">Upload a chart and get AI insights in seconds.</p>
+          <h3 className="text-xl font-semibold text-center mb-8">Why ChartSight AI?</h3> {/* Simplified */}
+          <div className="grid md:grid-cols-3 gap-4"> {/* Reduced gap */}
+            <div className="flex flex-col items-center text-center p-3 border rounded-md"> {/* Simplified */}
+              {/* <Zap className="h-8 w-8 mb-2" /> Removed text-primary */}
+              <h4 className="text-md font-medium mb-1">Instant Analysis</h4>
+              <p className="text-sm text-muted-foreground">Upload a chart, get AI insights.</p>
             </div>
-            <div className="flex flex-col items-center text-center p-4 bg-card rounded-md border">
-              <ShieldCheck className="h-10 w-10 text-primary mb-3" />
-              <h4 className="text-lg font-medium mb-1 text-foreground">Risk & Opportunity</h4>
-              <p className="text-sm text-muted-foreground">Understand risks and get trading recommendations.</p>
+            <div className="flex flex-col items-center text-center p-3 border rounded-md"> {/* Simplified */}
+              {/* <ShieldCheck className="h-8 w-8 mb-2" /> Removed text-primary */}
+              <h4 className="text-md font-medium mb-1">Risk & Opportunity</h4>
+              <p className="text-sm text-muted-foreground">Understand risks, get recommendations.</p>
             </div>
-            <div className="flex flex-col items-center text-center p-4 bg-card rounded-md border">
-              <Brain className="h-10 w-10 text-primary mb-3" />
-              <h4 className="text-lg font-medium mb-1 text-foreground">Personalized Learning</h4>
-              <p className="text-sm text-muted-foreground">Access training tailored to your experience level.</p>
+            <div className="flex flex-col items-center text-center p-3 border rounded-md"> {/* Simplified */}
+              {/* <Brain className="h-8 w-8 mb-2" /> Removed text-primary */}
+              <h4 className="text-md font-medium mb-1">Personalized Learning</h4>
+              <p className="text-sm text-muted-foreground">Access tailored training.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <footer className="py-6 text-center bg-background border-t">
-        <p className="text-sm text-muted-foreground">&copy; {new Date().getFullYear()} ChartSight AI. All rights reserved.</p>
+      <footer className="py-5 text-center border-t"> {/* Simplified */}
+        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} ChartSight AI.</p> {/* Simplified */}
       </footer>
     </div>
   );

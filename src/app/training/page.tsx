@@ -5,14 +5,13 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Loader2 } from 'lucide-react'; // Removed Brain, Lightbulb
+import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateQuizQuestions, type QuizQuestion, type GenerateQuizInput } from '@/ai/flows/generate-quiz-questions-flow';
 import { useToast } from '@/hooks/use-toast';
 
-
 type QuizStatus = 'not_started' | 'loading_questions' | 'error_loading' | 'in_progress' | 'feedback_shown' | 'completed';
-type UserLevel = 'مبتدئ' | 'متوسط' | 'محترف' | 'غير محدد'; // Kept Arabic for level display
+type UserLevel = 'مبتدئ' | 'متوسط' | 'محترف' | 'غير محدد';
 
 export default function TrainingQuizPage() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -34,67 +33,37 @@ export default function TrainingQuizPage() {
   const loadQuestions = useCallback(async () => {
     setQuizStatus('loading_questions');
     try {
-      const input: GenerateQuizInput = {
-        topic: "أساسيات التداول والتحليل الفني", 
-        numQuestions: 6,
-        language: "Arabic",
-      };
+      const input: GenerateQuizInput = { topic: "أساسيات التحليل الفني", numQuestions: 5, language: "Arabic" }; // Simplified topic/num
       const generatedQuestions = await generateQuizQuestions(input);
       if (generatedQuestions && generatedQuestions.length > 0) {
         setQuestions(shuffleArray(generatedQuestions)); 
-        setCurrentQuestionIndex(0);
-        setSelectedOption(null);
-        setAnswers({});
-        setFeedback(null);
-        setIsCorrect(null);
-        setScore(0);
-        setUserLevel('غير محدد');
+        setCurrentQuestionIndex(0); setSelectedOption(null); setAnswers({});
+        setFeedback(null); setIsCorrect(null); setScore(0); setUserLevel('غير محدد');
         setQuizStatus('in_progress');
-      } else {
-        throw new Error("AI returned no questions."); // Simplified
-      }
+      } else { throw new Error("AI returned no questions."); }
     } catch (error: any) {
       console.error("Failed to load AI questions:", error);
-      toast({
-        variant: 'destructive',
-        title: 'خطأ تحميل الأسئلة', // Kept Arabic
-        description: error.message || 'فشل تحميل الأسئلة. حاول مجددًا.', // Kept Arabic
-        duration: 6000,
-      });
+      toast({ variant: 'destructive', title: 'خطأ تحميل الأسئلة', description: error.message || 'فشل تحميل الأسئلة.', duration: 5000 });
       setQuizStatus('error_loading');
     }
   }, [toast]);
 
-  const startQuiz = () => {
-    loadQuestions();
-  };
+  const startQuiz = useCallback(() => { loadQuestions(); }, [loadQuestions]); // Make startQuiz stable
 
   useEffect(() => {
-    if (quizStatus === 'not_started') {
-        startQuiz();
-    }
-  }, [quizStatus, loadQuestions]);
+    if (quizStatus === 'not_started') { startQuiz(); }
+  }, [quizStatus, startQuiz]);
 
-
-  const currentQuestion = useMemo(() => {
-    return questions[currentQuestionIndex];
-  }, [questions, currentQuestionIndex]);
-
-  const progressPercentage = useMemo(() => {
-    if (questions.length === 0) return 0;
-    return ((currentQuestionIndex) / questions.length) * 100;
-  }, [currentQuestionIndex, questions.length]);
+  const currentQuestion = useMemo(() => questions[currentQuestionIndex], [questions, currentQuestionIndex]);
+  const progressPercentage = useMemo(() => questions.length === 0 ? 0 : ((currentQuestionIndex) / questions.length) * 100, [currentQuestionIndex, questions.length]);
 
   const handleOptionSelect = (optionValue: string) => {
     if (quizStatus === 'in_progress') {
       setSelectedOption(optionValue);
       const correct = optionValue === currentQuestion.correctAnswer;
-      setIsCorrect(correct);
-      setFeedback(currentQuestion.explanation);
+      setIsCorrect(correct); setFeedback(currentQuestion.explanation);
       setAnswers(prev => ({ ...prev, [currentQuestion.id]: optionValue }));
-      if (correct) {
-        setScore(prevScore => prevScore + 1);
-      }
+      if (correct) setScore(prevScore => prevScore + 1);
       setQuizStatus('feedback_shown');
     }
   };
@@ -102,52 +71,38 @@ export default function TrainingQuizPage() {
   const handleNextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(prevIndex => prevIndex + 1);
-      setSelectedOption(null);
-      setFeedback(null);
-      setIsCorrect(null);
+      setSelectedOption(null); setFeedback(null); setIsCorrect(null);
       setQuizStatus('in_progress');
     } else {
-      setQuizStatus('completed');
-      calculateUserLevel();
+      setQuizStatus('completed'); calculateUserLevel();
     }
   };
-
-  const handleSkipQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) {
-        setCurrentQuestionIndex(prevIndex => prevIndex + 1);
-        setSelectedOption(null);
-        setFeedback(null);
-        setIsCorrect(null);
-        setQuizStatus('in_progress');
-    } else {
-        setQuizStatus('completed');
-        calculateUserLevel();
-    }
+  
+  const handleSkipQuestion = () => { // Combined skip and next logic
+    handleNextQuestion();
   };
 
   const calculateUserLevel = () => {
     const percentageScore = (score / questions.length) * 100;
-    if (percentageScore >= 80) setUserLevel('محترف');
-    else if (percentageScore >= 50) setUserLevel('متوسط');
+    if (percentageScore >= 75) setUserLevel('محترف'); // Adjusted thresholds
+    else if (percentageScore >= 40) setUserLevel('متوسط');
     else setUserLevel('مبتدئ');
   };
 
   if (quizStatus === 'not_started' || quizStatus === 'loading_questions') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-4">
-        <Card className="w-full max-w-sm text-center border"> {/* Simplified card */}
-          <CardHeader className="p-4">
-            <CardTitle className="text-xl text-primary">اختبار معلومات التداول</CardTitle>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3"> {/* Simplified */}
+        <Card className="w-full max-w-xs text-center border p-3"> {/* Simplified */}
+          <CardHeader className="p-2">
+            <CardTitle className="text-lg">اختبار التداول</CardTitle> {/* Simplified */}
             <CardDescription className="text-xs">الذكاء الاصطناعي يعد الاختبار...</CardDescription>
           </CardHeader>
-          <CardContent className="h-28 flex flex-col items-center justify-center">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            <p className="mt-2 text-xs text-muted-foreground">جاري التحميل...</p>
+          <CardContent className="h-24 flex flex-col items-center justify-center">
+            <Loader2 className="w-10 h-10 animate-spin" /> {/* Simplified */}
+            <p className="mt-1.5 text-xs text-muted-foreground">جاري التحميل...</p>
           </CardContent>
-           <CardFooter className="p-3">
-            <Button onClick={startQuiz} size="default" className="w-full text-sm" disabled> 
-              ابدأ
-            </Button>
+           <CardFooter className="p-2">
+            <Button onClick={startQuiz} size="sm" className="w-full text-sm h-8" disabled>ابدأ</Button> {/* Simplified */}
           </CardFooter>
         </Card>
       </div>
@@ -156,19 +111,19 @@ export default function TrainingQuizPage() {
   
   if (quizStatus === 'error_loading') {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-4">
-        <Card className="w-full max-w-sm text-center border">
-          <CardHeader className="p-4">
-            <CardTitle className="text-xl text-destructive">حدث خطأ</CardTitle>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3">
+        <Card className="w-full max-w-xs text-center border p-3">
+          <CardHeader className="p-2">
+            <CardTitle className="text-lg text-destructive">حدث خطأ</CardTitle>
             <CardDescription className="text-xs">فشل تحميل أسئلة الاختبار.</CardDescription>
           </CardHeader>
-          <CardContent className="h-28 flex flex-col items-center justify-center">
-            <AlertCircle className="w-12 h-12 text-destructive mb-2" />
+          <CardContent className="h-24 flex flex-col items-center justify-center">
+            <AlertCircle className="w-10 h-10 text-destructive mb-1.5" />
             <p className="text-xs text-muted-foreground">يرجى المحاولة مرة أخرى.</p>
           </CardContent>
-          <CardFooter className="p-3">
-            <Button onClick={startQuiz} size="default" className="w-full text-sm">
-              <RefreshCw className="mr-1.5 h-4 w-4" /> حاول مجددًا
+          <CardFooter className="p-2">
+            <Button onClick={startQuiz} size="sm" className="w-full text-sm h-8">
+              <RefreshCw className="mr-1 h-3.5 w-3.5" /> حاول مجددًا
             </Button>
           </CardFooter>
         </Card>
@@ -178,30 +133,18 @@ export default function TrainingQuizPage() {
 
   if (quizStatus === 'completed') {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-4"
-      >
-        <Card className="w-full max-w-sm text-center border">
-          <CardHeader className="p-4">
-            <CardTitle className="text-xl text-primary">نتيجة الاختبار</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 p-4">
-            <Award className="w-20 h-20 mx-auto text-accent" /> {/* Removed animation */}
-            <p className="text-xl font-medium">
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3"> {/* Simplified */}
+        <Card className="w-full max-w-xs text-center border p-3">
+          <CardHeader className="p-2"> <CardTitle className="text-lg">نتيجة الاختبار</CardTitle> </CardHeader>
+          <CardContent className="space-y-3 p-2"> {/* Simplified */}
+            <Award className="w-16 h-16 mx-auto text-muted-foreground" /> {/* Simplified */}
+            <p className="text-lg font-medium">
               نتيجتك: {score} / {questions.length} ( {questions.length > 0 ? ((score / questions.length) * 100).toFixed(0) : 0}% )
             </p>
-            <p className="text-lg">
-              المستوى: <span className="font-semibold text-primary">{userLevel}</span>
-            </p>
-            <div className="flex flex-col sm:flex-row gap-2 justify-center">
-              <Button onClick={startQuiz} variant="outline" size="default" className="text-sm">
-                <RefreshCw className="mr-1.5 h-4 w-4" /> أعد الاختبار
-              </Button>
-              <Button size="default" disabled className="text-sm">
-                ابدأ التعلم <ChevronRight className="ml-1.5 h-4 w-4" />
-              </Button>
+            <p className="text-md"> المستوى: <span className="font-semibold">{userLevel}</span> </p> {/* Simplified */}
+            <div className="flex flex-col sm:flex-row gap-1.5 justify-center"> {/* Simplified */}
+              <Button onClick={startQuiz} variant="outline" size="sm" className="text-sm h-8"><RefreshCw className="mr-1 h-3.5 w-3.5" /> أعد الاختبار</Button>
+              <Button size="sm" disabled className="text-sm h-8"> ابدأ التعلم <ChevronRight className="ml-1 h-3.5 w-3.5" /> </Button>
             </div>
           </CardContent>
         </Card>
@@ -210,65 +153,43 @@ export default function TrainingQuizPage() {
   }
   
   if (!currentQuestion && quizStatus === 'in_progress') {
-     return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-8rem)] p-4">
-            <Loader2 className="w-12 h-12 text-primary animate-spin" />
-            <p className="mt-2 text-xs text-muted-foreground">إعداد السؤال...</p>
-        </div>
-     );
+     return ( <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3"> <Loader2 className="w-10 h-10 animate-spin" /> <p className="mt-1.5 text-xs text-muted-foreground">إعداد السؤال...</p> </div> );
   }
 
   return (
-    <div className="container mx-auto py-6 px-2 md:px-0 max-w-lg"> {/* Simplified max-width */}
+    <div className="container mx-auto py-4 px-2 md:px-0 max-w-md"> {/* Simplified */}
       <Card className="overflow-hidden border">
-        <CardHeader className="bg-muted/50 pb-3 p-3 md:p-4">
-          <div className="flex justify-between items-center mb-1.5">
-            <CardTitle className="text-lg text-primary">
-              سؤال {currentQuestionIndex + 1} / {questions.length}
-            </CardTitle>
-            <Button variant="ghost" size="sm" onClick={handleSkipQuestion} disabled={quizStatus === 'feedback_shown'} className="text-xs">
-              تخطى <SkipForward className="ml-1 h-3.5 w-3.5" />
-            </Button>
+        <CardHeader className="pb-2 p-2 md:p-3"> {/* Simplified */}
+          <div className="flex justify-between items-center mb-1">
+            <CardTitle className="text-md"> سؤال {currentQuestionIndex + 1} / {questions.length} </CardTitle> {/* Simplified */}
+            <Button variant="ghost" size="sm" onClick={handleSkipQuestion} disabled={quizStatus === 'feedback_shown'} className="text-xs h-7 px-1.5"> تخطى <SkipForward className="ml-0.5 h-3 w-3" /> </Button> {/* Simplified */}
           </div>
-          <Progress value={progressPercentage} className="w-full h-1.5" /> {/* Thinner progress bar */}
+          <Progress value={progressPercentage} className="w-full h-1" /> {/* Thinner */}
         </CardHeader>
 
         <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQuestion.id}
-            initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }}
-            transition={{ duration: 0.2 }} // Faster transition
-          >
-            <CardContent className="pt-4 p-3 md:p-4 space-y-4">
-              <p className="text-md font-medium leading-normal text-right" dir="rtl">
-                {currentQuestion.questionText}
-              </p>
-              <div className="space-y-2.5">
+          <motion.div key={currentQuestion.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.15 }}> {/* Faster transition */}
+            <CardContent className="pt-3 p-2 md:p-3 space-y-3"> {/* Simplified */}
+              <p className="text-md font-medium leading-normal text-right" dir="rtl"> {currentQuestion.questionText} </p>
+              <div className="space-y-2"> {/* Simplified */}
                 {currentQuestion.options.map((option) => {
                   const isSelected = selectedOption === option.value;
-                  let buttonVariant: "default" | "outline" | "secondary" | "destructive" | "ghost" | "link" = "outline";
-                  
+                  let buttonVariant: "default" | "outline" | "secondary" = "outline"; // Simpler variants
+                  let customClasses = "";
                   if (quizStatus === 'feedback_shown') {
-                    if (option.value === currentQuestion.correctAnswer) buttonVariant = "default"; 
-                    else if (isSelected) buttonVariant = "destructive"; 
+                    if (option.value === currentQuestion.correctAnswer) { buttonVariant = "default"; customClasses = "bg-foreground text-background hover:bg-foreground/90"; } // Correct: Black bg, white text
+                    else if (isSelected) { buttonVariant = "destructive"; customClasses = "bg-destructive text-destructive-foreground hover:bg-destructive/90 line-through"; } // Incorrect selected
+                  } else if (isSelected) {
+                     customClasses = "ring-1 ring-foreground"; // Selected but not yet submitted
                   }
-
                   return (
                     <Button
-                      key={option.value}
-                      variant={buttonVariant}
-                      size="default" // Standard size
-                      className={`w-full justify-start text-right py-2.5 h-auto whitespace-normal text-sm
-                        ${quizStatus === 'feedback_shown' && option.value === currentQuestion.correctAnswer ? 'bg-green-100 border-green-500 text-green-700 hover:bg-green-200 dark:bg-green-700/20 dark:text-green-300' : ''}
-                        ${quizStatus === 'feedback_shown' && option.value !== currentQuestion.correctAnswer && isSelected ? 'bg-red-100 border-red-500 text-red-700 hover:bg-red-200 dark:bg-red-700/20 dark:text-red-300' : ''}
-                        ${quizStatus === 'in_progress' && isSelected ? 'ring-1 ring-primary' : ''}
-                      `}
-                      onClick={() => handleOptionSelect(option.value)}
-                      disabled={quizStatus === 'feedback_shown'}
-                      dir="rtl"
+                      key={option.value} variant={buttonVariant} size="sm" // Smaller buttons
+                      className={`w-full justify-start text-right py-2 h-auto whitespace-normal text-sm ${customClasses}`}
+                      onClick={() => handleOptionSelect(option.value)} disabled={quizStatus === 'feedback_shown'} dir="rtl"
                     >
-                      {quizStatus === 'feedback_shown' && option.value === currentQuestion.correctAnswer && <CheckCircle2 className="mr-2 h-4 w-4 text-green-600" />}
-                      {quizStatus === 'feedback_shown' && option.value !== currentQuestion.correctAnswer && isSelected && <AlertCircle className="mr-2 h-4 w-4 text-red-600" />}
+                      {quizStatus === 'feedback_shown' && option.value === currentQuestion.correctAnswer && <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}
+                      {quizStatus === 'feedback_shown' && option.value !== currentQuestion.correctAnswer && isSelected && <AlertCircle className="mr-1.5 h-3.5 w-3.5" />}
                       {option.text}
                     </Button>
                   );
@@ -276,16 +197,12 @@ export default function TrainingQuizPage() {
               </div>
 
               {quizStatus === 'feedback_shown' && feedback && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                  transition={{ duration: 0.2 }}
-                  className={`p-3 rounded border text-xs ${
-                    isCorrect ? 'bg-green-50 border-green-300 text-green-700 dark:bg-green-900/20 dark:border-green-700 dark:text-green-300' : 'bg-red-50 border-red-300 text-red-700 dark:bg-red-900/20 dark:border-red-700 dark:text-red-300'
-                  }`}
+                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.15 }}
+                  className={`p-2 rounded border text-xs ${ isCorrect ? 'border-foreground bg-background' : 'border-destructive bg-destructive/10 text-destructive' }`} // Simplified feedback box
                   dir="rtl"
                 >
                   <div className="flex items-center mb-0.5">
-                    {isCorrect ? <CheckCircle2 className="h-4 w-4 mr-1.5" /> : <AlertCircle className="h-4 w-4 mr-1.5" />}
+                    {isCorrect ? <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> : <AlertCircle className="h-3.5 w-3.5 mr-1" />}
                     <span className="font-medium">{isCorrect ? 'صحيح!' : 'خطأ.'}</span>
                   </div>
                   {currentQuestion.explanation}
@@ -295,17 +212,17 @@ export default function TrainingQuizPage() {
           </motion.div>
         </AnimatePresence>
 
-        <CardFooter className="pt-4 p-3 md:p-4">
+        <CardFooter className="pt-3 p-2 md:p-3"> {/* Simplified */}
           {quizStatus === 'feedback_shown' && (
-            <Button onClick={handleNextQuestion} size="default" className="w-full text-sm">
+            <Button onClick={handleNextQuestion} size="sm" className="w-full text-sm h-8">
               {currentQuestionIndex < questions.length - 1 ? 'السؤال التالي' : 'النتيجة'}
-              <ChevronRight className="ml-1.5 h-4 w-4" />
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
             </Button>
           )}
         </CardFooter>
       </Card>
-       <p className="text-xs text-center text-muted-foreground mt-3 px-2">
-         ملاحظة: هذا الاختبار تعليمي فقط ولا يشكل نصيحة. يتم إنشاء الأسئلة بواسطة AI وقد تحتوي أخطاء.
+       <p className="text-xs text-center text-muted-foreground mt-2 px-1">
+         ملاحظة: هذا الاختبار تعليمي. يتم إنشاء الأسئلة بواسطة AI وقد تحتوي أخطاء.
        </p>
     </div>
   );
