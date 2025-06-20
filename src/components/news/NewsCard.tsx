@@ -64,7 +64,9 @@ export function NewsCard({ article, isWatchlisted, onToggleWatchlist }: NewsCard
           </Button>
           <Button variant="outline" size="sm" asChild className="text-xs h-6 px-1.5"> {/* Smaller button */}
             <a href={article.url} target="_blank" rel="noopener noreferrer">
-              Read <ExternalLink className="ml-0.5 h-3 w-3" /> {/* Smaller icon/margin */}
+              <span className="flex items-center">
+                Read <ExternalLink className="ml-0.5 h-3 w-3" /> {/* Smaller icon/margin */}
+              </span>
             </a>
           </Button>
         </div>
