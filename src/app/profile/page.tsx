@@ -15,17 +15,14 @@ import { useToast } from '@/hooks/use-toast';
 import { loadStripe, type Stripe } from '@stripe/stripe-js';
 import Link from 'next/link';
 import { format, addDays, differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns';
-import type { UserLevel, UserProfileData } from '@/types';
-import {
-  getUserProfile,
-  setUserTradingLevel,
-  setUserPremiumStatus,
-  resetUserAnalysisAttempts,
-} from '@/services/firestore';
+import type { UserLevel } from '@/types';
+// Removed Firestore service imports for user profile
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
-const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; // Default fallback
+const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
+
+const MAX_FREE_ATTEMPTS = 2; // Define it here or import from a shared constants file
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
@@ -34,8 +31,13 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const [userProfile, setUserProfile] = useState<UserProfileData | null>(null);
-  const [isLoadingProfileData, setIsLoadingProfileData] = useState(true);
+  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
+  const [isPremium, setIsPremium] = useState(false);
+  const [analysisAttempts, setAnalysisAttempts] = useState(0);
+  const [subscriptionStartDate, setSubscriptionStartDate] = useState<string | null>(null);
+  const [subscriptionNextBillingDate, setSubscriptionNextBillingDate] = useState<string | null>(null);
+  
+  const [isLoadingProfileData, setIsLoadingProfileData] = useState(true); // For initial localStorage load
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [isRedirectingToCheckout, setIsRedirectingToCheckout] = useState(false);
   const [isStripeKeySet, setIsStripeKeySet] = useState(false);
@@ -55,65 +57,92 @@ export default function ProfilePage() {
     }
   }, []);
 
-  const fetchUserProfile = useCallback(async () => {
-    if (user && !authLoading) {
+  const loadProfileFromLocalStorage = useCallback(() => {
+    if (typeof window !== 'undefined') {
       setIsLoadingProfileData(true);
       fetchSetIsStripeKey();
       try {
-        const profile = await getUserProfile(user.uid);
-        setUserProfile(profile);
+        const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
+        const savedIsPremium = localStorage.getItem('isUserPremium') === 'true';
+        const savedAttempts = parseInt(localStorage.getItem('analysisAttempts') || '0', 10);
+        const savedStartDate = localStorage.getItem('subscriptionStartDate');
+        const savedNextBillingDate = localStorage.getItem('subscriptionNextBillingDate');
+
+        if (savedLevel && ['beginner', 'intermediate', 'advanced'].includes(savedLevel)) {
+            setUserLevel(savedLevel);
+        } else {
+            setUserLevel(null);
+        }
+        setIsPremium(savedIsPremium);
+        setAnalysisAttempts(savedAttempts);
+        setSubscriptionStartDate(savedStartDate);
+        setSubscriptionNextBillingDate(savedNextBillingDate);
+
       } catch (e) {
-        console.error("Failed to load profile from Firestore:", e);
-        toast({ variant: 'destructive', title: 'Profile Error', description: "Could not load your profile." });
-        setUserProfile({
-            analysisAttempts: 0, isPremium: false, userLevel: null,
-            subscriptionStartDate: null, subscriptionNextBillingDate: null,
-        });
+        console.error("Failed to load profile from localStorage:", e);
+        toast({ variant: 'destructive', title: 'Profile Error', description: "Could not load your profile settings from local storage." });
+        // Set defaults if localStorage fails
+        setUserLevel(null);
+        setIsPremium(false);
+        setAnalysisAttempts(0);
+        setSubscriptionStartDate(null);
+        setSubscriptionNextBillingDate(null);
       } finally {
         setIsLoadingProfileData(false);
       }
-    } else if (!authLoading && !user) {
-      setIsLoadingProfileData(false);
-      setUserProfile(null);
     }
-  }, [user, authLoading, toast, fetchSetIsStripeKey]);
+  }, [toast, fetchSetIsStripeKey]);
+
 
   useEffect(() => {
-    fetchUserProfile();
-  }, [fetchUserProfile]);
+    if (!authLoading && user) { // Ensure user context is resolved before loading from localStorage
+        loadProfileFromLocalStorage();
+    } else if (!authLoading && !user) {
+        // If no user, clear local states or set defaults (already handled by useState defaults)
+        setIsLoadingProfileData(false); 
+    }
+  }, [user, authLoading, loadProfileFromLocalStorage]);
 
-  const handlePaymentSuccess = useCallback(async () => {
-    if (user && searchParams.get('payment_success') === 'true') {
+
+  const handlePaymentSuccess = useCallback(() => {
+    if (user && searchParams.get('payment_success') === 'true' && typeof window !== 'undefined') {
       const today = new Date();
       const startDateISO = today.toISOString();
-      const nextBillingDate = addDays(today, 30);
+      const nextBillingDate = addDays(today, 30); // Example: 30-day subscription
       const nextBillingDateISO = nextBillingDate.toISOString();
       
       setIsLoadingProfileData(true);
       try {
-        await setUserPremiumStatus(user.uid, true, startDateISO, nextBillingDateISO);
-        const updatedProfile = await getUserProfile(user.uid);
-        setUserProfile(updatedProfile);
+        localStorage.setItem('isUserPremium', 'true');
+        localStorage.setItem('analysisAttempts', '0'); // Reset attempts
+        localStorage.setItem('subscriptionStartDate', startDateISO);
+        localStorage.setItem('subscriptionNextBillingDate', nextBillingDateISO);
+
+        setIsPremium(true);
+        setAnalysisAttempts(0);
+        setSubscriptionStartDate(startDateISO);
+        setSubscriptionNextBillingDate(nextBillingDateISO);
+        
         toast({ title: 'Payment Successful!', description: 'Welcome to Premium!', duration: 6000 });
       } catch (error) {
-        console.error("Error updating premium status:", error);
-        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update premium status.'});
+        console.error("Error updating premium status in localStorage:", error);
+        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update premium status locally.'});
       } finally {
         setIsLoadingProfileData(false);
-        router.replace('/profile', { scroll: false });
+        router.replace('/profile', { scroll: false }); // Clear URL params
       }
     }
   }, [user, searchParams, router, toast]);
 
   const handlePaymentCanceled = useCallback(() => {
     if (searchParams.get('payment_canceled') === 'true') {
-        toast({ title: 'Payment Canceled', description: 'Payment process canceled.', variant: 'destructive', duration: 6000 });
-        router.replace('/profile', { scroll: false });
+        toast({ title: 'Payment Canceled', description: 'Your payment process was canceled.', variant: 'destructive', duration: 6000 });
+        router.replace('/profile', { scroll: false }); // Clear URL params
     }
   }, [searchParams, router, toast]);
 
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading) { // Ensure user context is available
         handlePaymentSuccess();
         handlePaymentCanceled();
     }
@@ -121,38 +150,48 @@ export default function ProfilePage() {
 
 
   useEffect(() => {
-    if (!userProfile?.subscriptionNextBillingDate) { setTimeRemainingToNextBilling(null); return; }
+    if (!subscriptionNextBillingDate) {
+      setTimeRemainingToNextBilling(null);
+      return;
+    }
     const calculateRemaining = () => {
-      const now = new Date(); const nextBilling = parseISO(userProfile.subscriptionNextBillingDate!);
-      if (now >= nextBilling) { setTimeRemainingToNextBilling("Renewal due"); return; }
-      const days = differenceInDays(nextBilling, now); const hours = differenceInHours(nextBilling, now) % 24;
+      const now = new Date();
+      const nextBilling = parseISO(subscriptionNextBillingDate);
+      if (now >= nextBilling) {
+        setTimeRemainingToNextBilling("Renewal due");
+        return;
+      }
+      const days = differenceInDays(nextBilling, now);
+      const hours = differenceInHours(nextBilling, now) % 24;
       const minutes = differenceInMinutes(nextBilling, now) % 60;
       setTimeRemainingToNextBilling(`${days}d ${hours}h ${minutes}m`);
     };
-    calculateRemaining(); const intervalId = setInterval(calculateRemaining, 60000); 
+    calculateRemaining();
+    const intervalId = setInterval(calculateRemaining, 60000); // Update every minute
     return () => clearInterval(intervalId);
-  }, [userProfile?.subscriptionNextBillingDate]);
+  }, [subscriptionNextBillingDate]);
+
 
   const getInitials = (displayName: string | null | undefined, email: string | null | undefined): string => {
     if (displayName) { const names = displayName.split(' '); return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase() : displayName.substring(0, 2).toUpperCase(); }
     return email ? email.substring(0, 2).toUpperCase() : 'U';
   };
 
-  const getLevelDisplayName = (level: UserLevel | null): string => {
-    if (!level) return 'Not Assessed';
-    return level.charAt(0).toUpperCase() + level.slice(1);
+  const getLevelDisplayName = (levelValue: UserLevel | null): string => {
+    if (!levelValue) return 'Not Assessed';
+    return levelValue.charAt(0).toUpperCase() + levelValue.slice(1);
   }
 
-  const handleSurveyComplete = async (level: UserLevel) => {
-    if (user) {
+  const handleSurveyComplete = async (levelValue: UserLevel) => {
+    if (user && typeof window !== 'undefined') {
       try {
-        await setUserTradingLevel(user.uid, level);
-        setUserProfile(prev => prev ? { ...prev, userLevel: level } : null);
+        localStorage.setItem('userTradingLevel', levelValue);
+        setUserLevel(levelValue);
         setShowSurveyModal(false);
-        toast({ title: "Level Updated", description: `Level: ${getLevelDisplayName(level)}.` });
+        toast({ title: "Level Updated", description: `Your trading level is now: ${getLevelDisplayName(levelValue)}.` });
       } catch (error) {
-        console.error("Error saving level:", error);
-        toast({ variant: 'destructive', title: 'Save Error', description: 'Could not save trading level.' });
+        console.error("Error saving level to localStorage:", error);
+        toast({ variant: 'destructive', title: 'Save Error', description: 'Could not save your trading level locally.' });
       }
     }
   };
@@ -171,8 +210,8 @@ export default function ProfilePage() {
   };
 
   const handleUpgradeToPremiumViaStripe = async () => {
-    if (!isStripeKeySet) { toast({ title: "Stripe Error", description: "Stripe not configured.", variant: "destructive" }); return; }
-    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId.trim() === '') { toast({ title: "Stripe Error", description: "Stripe Price ID missing.", variant: "destructive" }); return; }
+    if (!isStripeKeySet) { toast({ title: "Stripe Error", description: "Stripe is not configured on the server.", variant: "destructive" }); return; }
+    if (!stripePriceId || stripePriceId === 'YOUR_STRIPE_PRICE_ID_HERE' || stripePriceId.trim() === '') { toast({ title: "Stripe Error", description: "Stripe Price ID is missing.", variant: "destructive" }); return; }
     setIsRedirectingToCheckout(true);
     try { await handleServerSideCheckout(stripePriceId); }
     catch (error: any) { toast({ title: "Checkout Failed", description: error.message || "Could not initiate checkout.", variant: "destructive", duration: 8000 }); }
@@ -183,28 +222,35 @@ export default function ProfilePage() {
     try {
       const response = await fetch('/api/create-checkout-session', { method: 'POST', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify({ priceId: stripePriceId, successUrl: `${window.location.origin}/profile?payment_success=true`, cancelUrl: `${window.location.origin}/profile?payment_canceled=true`, }), });
       if (!response.ok) throw new Error('Failed to create session');
-      const { url } = await response.json(); if (url) { await navigator.clipboard.writeText(url); toast({ title: "Link Copied!", description: "Paste in new tab.", duration: 4000 }); }
-    } catch (error) { toast({ title: "Error", description: "Failed to create link.", variant: "destructive", }); }
+      const { url } = await response.json(); if (url) { await navigator.clipboard.writeText(url); toast({ title: "Link Copied!", description: "You can paste the link in a new tab to complete payment.", duration: 4000 }); }
+    } catch (error) { toast({ title: "Error", description: "Failed to create payment link.", variant: "destructive", }); }
   };
 
   const handleDowngradeToFree = async () => {
-    if (user) {
+    if (user && typeof window !== 'undefined') {
         try {
-            await setUserPremiumStatus(user.uid, false); 
-            await resetUserAnalysisAttempts(user.uid); 
-            const updatedProfile = await getUserProfile(user.uid); 
-            setUserProfile(updatedProfile);
-            toast({ title: 'Subscription Changed', description: 'Now on Free plan (Simulated).', });
+            localStorage.setItem('isUserPremium', 'false');
+            localStorage.setItem('analysisAttempts', '0'); // Reset attempts for free plan as well
+            localStorage.removeItem('subscriptionStartDate');
+            localStorage.removeItem('subscriptionNextBillingDate');
+
+            setIsPremium(false);
+            setAnalysisAttempts(0); 
+            setSubscriptionStartDate(null);
+            setSubscriptionNextBillingDate(null);
+            
+            toast({ title: 'Subscription Changed', description: 'You are now on the Free plan (Simulated).', });
         } catch (error) {
-            console.error("Error downgrading:", error);
-            toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to switch to free plan.'});
+            console.error("Error downgrading in localStorage:", error);
+            toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to switch to free plan locally.'});
         }
     }
   };
 
-  if (authLoading || isLoadingProfileData || !user || !userProfile) {
+  if (authLoading || isLoadingProfileData || !user) { // Check !user as well
     return ( <div className="flex h-[calc(100vh-theme(spacing.12))] items-center justify-center"> <Loader2 className="h-8 w-8 animate-spin" /> </div> );
   }
+
 
   return (
     <div className="container mx-auto py-4 px-2 md:px-0 max-w-lg">
@@ -233,12 +279,12 @@ export default function ProfilePage() {
               <CardContent className="space-y-1.5 text-xs px-2 pb-2">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Level:</span>
-                  <Badge variant={userProfile.userLevel ? "secondary" : "outline"} className="text-xs px-1.5 py-0">
-                    {getLevelDisplayName(userProfile.userLevel)}
+                  <Badge variant={userLevel ? "secondary" : "outline"} className="text-xs px-1.5 py-0">
+                    {getLevelDisplayName(userLevel)}
                   </Badge>
                 </div>
                  <Button variant="outline" size="sm" onClick={() => setShowSurveyModal(true)} className="w-full text-xs h-7">
-                    <Edit3 className="mr-1 h-3 w-3" /> {userProfile.userLevel ? 'Retake' : 'Assess Level'}
+                    <Edit3 className="mr-1 h-3 w-3" /> {userLevel ? 'Retake Assessment' : 'Take Assessment'}
                 </Button>
               </CardContent>
             </Card>
@@ -250,40 +296,40 @@ export default function ProfilePage() {
               <CardContent className="space-y-1.5 text-xs px-2 pb-2">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Plan:</span>
-                  <Badge variant={userProfile.isPremium ? "default" : "destructive"} className={`text-xs px-1.5 py-0 ${userProfile.isPremium ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"}`}>
-                    {userProfile.isPremium ? <><Star className="mr-0.5 h-2.5 w-2.5"/>Premium</> : 'Free'}
+                  <Badge variant={isPremium ? "default" : "destructive"} className={`text-xs px-1.5 py-0 ${isPremium ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"}`}>
+                    {isPremium ? <><Star className="mr-0.5 h-2.5 w-2.5"/>Premium</> : 'Free'}
                   </Badge>
                 </div>
-                {!userProfile.isPremium && (
+                {!isPremium && (
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">Attempts:</span>
-                    <span>{userProfile.analysisAttempts} / {2 /* MAX_FREE_ATTEMPTS is 2 */}</span>
+                    <span>{analysisAttempts} / {MAX_FREE_ATTEMPTS}</span>
                   </div>
                 )}
-                 {userProfile.isPremium && userProfile.subscriptionStartDate && (
+                 {isPremium && subscriptionStartDate && (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-0.5 h-3 w-3"/>Since:</span>
-                    <span className="font-medium">{format(parseISO(userProfile.subscriptionStartDate), "MMM d, yy")}</span>
+                    <span className="font-medium">{format(parseISO(subscriptionStartDate), "MMM d, yy")}</span>
                   </div>
                 )}
-                {userProfile.isPremium && userProfile.subscriptionNextBillingDate && (
+                {isPremium && subscriptionNextBillingDate && (
                   <>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-0.5 h-3 w-3"/>Next Bill:</span>
-                      <span className="font-medium">{format(parseISO(userProfile.subscriptionNextBillingDate), "MMM d, yy")}</span>
+                      <span className="font-medium">{format(parseISO(subscriptionNextBillingDate), "MMM d, yy")}</span>
                     </div>
                      {timeRemainingToNextBilling && (
                         <div className="flex justify-between items-center pt-0.5 border-t border-dashed mt-0.5">
-                            <span className="text-muted-foreground flex items-center"><Clock className="mr-0.5 h-3 w-3"/>Renewal:</span>
+                            <span className="text-muted-foreground flex items-center"><Clock className="mr-0.5 h-3 w-3"/>Renewal in:</span>
                             <span className="font-semibold">{timeRemainingToNextBilling}</span>
                         </div>
                     )}
                   </>
                 )}
-                {userProfile.analysisAttempts >= 2 /* MAX_FREE_ATTEMPTS */ && !userProfile.isPremium && (
+                {analysisAttempts >= MAX_FREE_ATTEMPTS && !isPremium && (
                     <div className="p-1.5 border border-destructive/50 rounded text-xs flex items-center bg-destructive/10 text-destructive">
                         <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
-                        Free attempts used. Upgrade.
+                        All free attempts used. Upgrade for more.
                     </div>
                 )}
               </CardContent>
@@ -292,7 +338,7 @@ export default function ProfilePage() {
         </CardContent>
         <CardFooter className="p-3 md:p-4 border-t">
             <div className="w-full space-y-1.5">
-                {userProfile.isPremium ? (
+                {isPremium ? (
                      <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-sm h-8">
                         Switch to Free Plan (Simulated)
                     </Button>
@@ -306,12 +352,12 @@ export default function ProfilePage() {
                           {isRedirectingToCheckout ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Upgrade to Premium"}
                       </Button>
                       <Button onClick={handleCopyCheckoutLink} variant="outline" size="sm" className="w-full text-xs h-7" disabled={!isStripeKeySet}>
-                        <Copy className="mr-1 h-3 w-3" /> Copy Payment Link
+                        <Copy className="mr-1 h-3 w-3" /> Copy Payment Link (for testing)
                       </Button>
                     </div>
                 )}
-                {!isStripeKeySet && ( <p className="text-xs text-center text-destructive">Stripe not configured. Payments disabled.</p> )}
-                <p className="text-xs text-center text-muted-foreground">Terms apply (not created).</p>
+                {!isStripeKeySet && ( <p className="text-xs text-center text-destructive">Stripe is not configured. Payments are disabled.</p> )}
+                <p className="text-xs text-center text-muted-foreground">Terms and conditions apply (not yet created).</p>
                 <Button variant="ghost" onClick={() => router.push('/dashboard')} className="w-full text-sm h-8">Back to Dashboard</Button>
             </div>
         </CardFooter>
@@ -319,4 +365,6 @@ export default function ProfilePage() {
     </div>
   );
 }
+    
+
     
