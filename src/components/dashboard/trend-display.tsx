@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { PredictMarketTrendOutput, TrendAnalysisDetails, CandlestickPatternInfo, VolumeAndMomentumInfo, RiskRewardAnalysis } from '@/types'; // Updated import
@@ -9,13 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label'; 
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertTriangle, CheckCircle2, Eye, HelpCircle, ListChecks, Loader2, LogIn, MinusCircle, OctagonX, ShieldAlert, ShieldCheck, ShieldQuestion, Target, TrendingDown, TrendingUp, ZoomIn, Edit3, DollarSign, Info, Brain, ChevronsUpDown, Maximize, BarChartHorizontal, Users, Activity, Wind, CandlestickChart, BookOpen, Scaling
 } from 'lucide-react';
 import React, { useState } from 'react';
 import Link from 'next/link';
+import { cn } from "@/lib/utils"; // Added import for cn
 
 interface TrendDisplayProps {
   prediction: PredictMarketTrendOutput | null;
@@ -178,7 +178,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
     );
   }
 
-  const recommendationColorClasses = 
+  const recommendationColorClasses =
     prediction.tradingRecommendation === 'buy' ? 'bg-green-500/10 text-green-700 border-green-500/30' :
     prediction.tradingRecommendation === 'avoid' ? 'bg-red-500/10 text-red-700 border-red-500/30' :
     prediction.tradingRecommendation === 'hold' ? 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30' :
@@ -219,13 +219,13 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
         </div>
         <div className="mt-1.5">
             <Label htmlFor="confidenceScore" className="text-xs text-current/80">Confidence: {Math.round(prediction.confidence * 100)}%</Label>
-            <Progress value={prediction.confidence * 100} id="confidenceScore" className="h-1.5 mt-0.5" 
+            <Progress value={prediction.confidence * 100} id="confidenceScore" className="h-1.5 mt-0.5"
              indicatorClassName={
-                prediction.confidence > 0.7 ? "bg-green-500" : 
+                prediction.confidence > 0.7 ? "bg-green-500" :
                 prediction.confidence > 0.4 ? "bg-yellow-500" : "bg-red-500"} />
         </div>
       </CardHeader>
-      
+
       <CardContent className="p-2 space-y-2 text-sm">
         {/* Timeframe Selector - UI Placeholder */}
         <div className="flex items-center justify-end space-x-1.5 text-xs">
@@ -285,7 +285,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                     <p><span className="font-semibold">MACD Est:</span> {prediction.volumeAndMomentum.macdEstimate}</p>
                 </AccordionContent>
             </AccordionItem>
-            
+
             {/* Risk/Reward Logic Panel */}
             <AccordionItem value="risk-reward">
                 <AccordionTrigger className="text-sm font-medium hover:no-underline py-1.5 px-2 rounded data-[state=open]:bg-muted/50">
@@ -294,7 +294,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                 <AccordionContent className="pt-1 pb-0 px-1 text-xs space-y-2">
                     <TradeAssessmentBar assessment={prediction.riskRewardDetails.tradeAssessment} />
                     <p className="text-muted-foreground text-center text-[0.7rem]">{prediction.riskRewardDetails.assessmentReasoning}</p>
-                    
+
                     <div className="grid grid-cols-3 gap-1.5 text-center mt-1">
                         <div>
                             <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Entry</Label>
@@ -377,7 +377,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
 const ScrollArea: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
   <div className={cn("overflow-y-auto", className)}>{children}</div>
 );
-const { cn } = React.useContext( // Mock cn for this component context if not globally available.
-    React.createContext<{ cn: (...inputs: any[]) => string }>({ cn: (...inputs) => inputs.filter(Boolean).join(' ') })
-);
 
+// Removed the incorrect cn definition from here
+// const { cn } = React.useContext( ... );
+// It should use the imported `cn` from "@/lib/utils"`
