@@ -5,7 +5,7 @@ import type { NewsArticle } from '@/types';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 // import { Badge } from '@/components/ui/badge'; // Sentiment Badge no longer used
-import Image from 'next/image';
+// Removed: import Image from 'next/image';
 import { Heart, ExternalLink, CalendarDays } from 'lucide-react'; // Removed sentiment icons
 import { formatDistanceToNow, parseISO } from 'date-fns';
 
@@ -23,29 +23,25 @@ export function NewsCard({ article, isWatchlisted, onToggleWatchlist }: NewsCard
 
   return (
     <Card className="flex flex-col overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 h-full border border-border/20 rounded-lg">
-      {article.imageUrl && (
-        <div className="relative w-full h-48 bg-muted"> {/* Added bg-muted as fallback */}
-          <Image
+      {article.imageUrl ? (
+        <div className="relative w-full h-48 bg-muted"> {/* Parent needs to be relative for absolute positioning of img */}
+          <img
             src={article.imageUrl}
             alt={article.headline}
-            layout="fill"
-            objectFit="cover"
+            className="absolute top-0 left-0 w-full h-full object-cover" // CSS for fill and cover
             data-ai-hint={article.imageHint || 'news image'}
             onError={(e) => {
-              // Fallback for broken image links, common with news APIs
-              e.currentTarget.srcset = "https://placehold.co/600x400.png";
-              e.currentTarget.src = "https://placehold.co/600x400.png";
+              // Fallback for broken image links
+              (e.target as HTMLImageElement).src = "https://placehold.co/600x400.png";
             }}
           />
         </div>
-      )}
-      {!article.imageUrl && ( // Placeholder if no image URL
+      ) : ( // Placeholder if no image URL
           <div className="relative w-full h-48 bg-muted flex items-center justify-center">
-             <Image
+             <img
                 src="https://placehold.co/600x400.png" // Default placeholder
                 alt="Default news placeholder"
-                layout="fill"
-                objectFit="cover"
+                className="absolute top-0 left-0 w-full h-full object-cover"
                 data-ai-hint={article.imageHint || 'news image abstract'}
              />
           </div>
