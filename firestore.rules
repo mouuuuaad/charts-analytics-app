@@ -1,28 +1,16 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Feedback Collection Rules
-    match /feedback/{document=**} {
-      // Allow any authenticated user to read the feedback collection
-      allow read: if request.auth != null;
-      // Allow authenticated users to create feedback, but only for themselves
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    // Feedback Collection: Logged-in users can read all and create new feedback.
+    match /feedback/{docId} {
+      allow read, create: if request.auth != null;
     }
 
-    // Users Collection Rules
+    // Users Collection: Users can only read and write their OWN document.
+    // 'write' covers create, update, and delete.
     match /users/{userId} {
-      // Users can create their own profile
-      allow create: if request.auth.uid == userId;
-      // Users can read their own profile
-      allow read: if request.auth.uid == userId;
-      // Users can update their own profile
-      allow update: if request.auth.uid == userId;
-      // Disallow deletion of profiles for now
-      allow delete: if false;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-
   }
 }

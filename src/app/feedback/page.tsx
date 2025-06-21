@@ -34,7 +34,7 @@ export default function FeedbackPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchFeedback = useCallback(async () => {
-        setIsLoading(true);
+        // No need to set isLoading to true here, as it's handled by the initial state
         try {
             const feedback = await getAllFeedback();
             setFeedbackList(feedback);
@@ -51,8 +51,15 @@ export default function FeedbackPage() {
     }, [toast]);
 
     useEffect(() => {
-        fetchFeedback();
-    }, [fetchFeedback]);
+        // Only fetch feedback if we have a logged-in user.
+        if (user) {
+            fetchFeedback();
+        } else if (!authLoading) {
+            // If auth is done and there's no user, stop the loading spinner.
+            // The useRequireAuth hook will handle the redirect.
+            setIsLoading(false);
+        }
+    }, [user, authLoading, fetchFeedback]);
 
     const handleFeedbackSubmit = async () => {
         if (!newFeedback.trim()) {
@@ -73,7 +80,9 @@ export default function FeedbackPage() {
         if (resultId) {
             toast({ title: 'Feedback Submitted', description: 'Thank you for your thoughts!' });
             setNewFeedback('');
-            await fetchFeedback(); // Refresh the list
+            // Refetch feedback without setting loading to true, for a smoother update
+            const updatedFeedback = await getAllFeedback();
+            setFeedbackList(updatedFeedback);
         } else {
             toast({ variant: 'destructive', title: 'Submission Failed', description: 'Could not save your feedback. Please try again.' });
         }
