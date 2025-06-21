@@ -1,16 +1,57 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Feedback Collection: Logged-in users can read all and create new feedback.
-    match /feedback/{docId} {
-      allow read, create: if request.auth != null;
+  
+    // Helper function to check if the user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
     }
 
-    // Users Collection: Users can only read and write their OWN document.
-    // 'write' covers create, update, and delete.
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth.token.email == 'mouaadidoufkir2@gmail.com';
+    }
+
+    // Rules for the 'users' collection
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Allow a user to read and update their own profile.
+      // Allow creation only if the user is creating their own document.
+      allow read, update: if isAuthenticated() && isOwner(userId);
+      allow create: if isAuthenticated() && isOwner(userId);
+      // Deny deletion of user profiles.
+      allow delete: if false;
+    }
+
+    // Rules for the 'feedback' collection
+    match /feedback/{feedbackId} {
+      // Any authenticated user can read feedback.
+      allow read: if isAuthenticated();
+      // Any authenticated user can create feedback.
+      // The `isOwner` check ensures they can't post on behalf of someone else.
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      // Only the feedback owner or an admin can delete their feedback.
+      allow delete: if isAuthenticated() && (isOwner(resource.data.userId) || isAdmin());
+      // Authenticated users can update the reactions field. No other fields can be updated.
+      allow update: if isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
+      
+      // Rules for the 'replies' subcollection
+      match /replies/{replyId} {
+        // Any authenticated user can read replies.
+        allow read: if isAuthenticated();
+        // Only an admin can create replies.
+        allow create: if isAdmin() && isOwner(request.resource.data.userId);
+        // Only the reply author (who must be an admin) can delete a reply.
+        allow delete: if isAdmin() && isOwner(resource.data.userId);
+        // Deny updates to replies.
+        allow update: if false;
+      }
     }
   }
 }

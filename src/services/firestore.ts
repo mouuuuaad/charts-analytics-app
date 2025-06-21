@@ -1,6 +1,6 @@
 
 import { db } from '@/config/firebase';
-import type { Feedback, UserLevel, UserProfileData } from '@/types';
+import type { Feedback, FeedbackReply, ReactionType, UserLevel, UserProfileData } from '@/types';
 import {
   collection,
   addDoc,
@@ -13,10 +13,14 @@ import {
   getDoc,
   updateDoc,
   increment,
+  runTransaction,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 
 const USERS_COLLECTION = 'users';
 const FEEDBACK_COLLECTION = 'feedback';
+const REPLIES_SUBCOLLECTION = 'replies';
 
 
 // --- User Profile Functions ---
@@ -49,7 +53,6 @@ export async function getUserProfile(userId: string): Promise<UserProfileData | 
       return docSnap.data() as UserProfileData;
     } else {
       console.log("No user profile found for user:", userId);
-      // Optional: Could create a profile here if it's missing for an existing auth user
       return null;
     }
   } catch (error) {
@@ -84,8 +87,7 @@ export async function updateUserPremiumStatus(userId: string, isPremium: boolean
     try {
         await updateDoc(userDocRef, {
             isPremium: isPremium,
-            // Reset attempts if they become premium
-            analysisAttempts: isPremium ? 0 : increment(0), // No change if not becoming premium
+            analysisAttempts: isPremium ? 0 : increment(0),
             subscriptionStartDate: startDate,
             subscriptionNextBillingDate: nextBillingDate,
         });
@@ -114,6 +116,8 @@ export async function addFeedback(
       photoURL: photoURL || null,
       text: text.trim(),
       createdAt: serverTimestamp(),
+      reactions: {}, // Initialize with empty reactions map
+      replyCount: 0,
     });
     return docRef.id;
   } catch (error) {
@@ -135,7 +139,7 @@ export async function getAllFeedback(): Promise<Feedback[]> {
       feedbackList.push({
         id: doc.id,
         ...data,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(), // Keep as Date object
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
       } as Feedback);
     });
     return feedbackList;
@@ -143,4 +147,79 @@ export async function getAllFeedback(): Promise<Feedback[]> {
     console.error('Error fetching feedback from Firestore: ', error);
     return [];
   }
+}
+
+export async function toggleFeedbackReaction(feedbackId: string, userId: string, reactionType: ReactionType): Promise<void> {
+    const feedbackDocRef = doc(db, FEEDBACK_COLLECTION, feedbackId);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const feedbackDoc = await transaction.get(feedbackDocRef);
+            if (!feedbackDoc.exists()) {
+                throw "Document does not exist!";
+            }
+            const currentReactions = feedbackDoc.data().reactions || {};
+            const userReactionList = currentReactions[reactionType] || [];
+            const reactionField = `reactions.${reactionType}`;
+
+            if (userReactionList.includes(userId)) {
+                // User has already reacted, so remove the reaction
+                transaction.update(feedbackDocRef, { [reactionField]: arrayRemove(userId) });
+            } else {
+                // User has not reacted, so add the reaction
+                transaction.update(feedbackDocRef, { [reactionField]: arrayUnion(userId) });
+            }
+        });
+    } catch (e) {
+        console.error("Transaction failed: ", e);
+        throw new Error("Could not update reaction.");
+    }
+}
+
+export async function addReplyToFeedback(
+    feedbackId: string,
+    userId: string,
+    username: string,
+    photoURL: string | null | undefined,
+    text: string,
+    isAdmin: boolean
+): Promise<string | null> {
+    if (!text.trim()) return null;
+    const feedbackDocRef = doc(db, FEEDBACK_COLLECTION, feedbackId);
+    const repliesCollectionRef = collection(feedbackDocRef, REPLIES_SUBCOLLECTION);
+    try {
+        const replyDocRef = await addDoc(repliesCollectionRef, {
+            userId,
+            username,
+            photoURL: photoURL || null,
+            text: text.trim(),
+            isAdmin,
+            createdAt: serverTimestamp(),
+        });
+        await updateDoc(feedbackDocRef, { replyCount: increment(1) });
+        return replyDocRef.id;
+    } catch (e) {
+        console.error("Error adding reply:", e);
+        return null;
+    }
+}
+
+export async function getRepliesForFeedback(feedbackId: string): Promise<FeedbackReply[]> {
+    const repliesCollectionRef = collection(db, FEEDBACK_COLLECTION, feedbackId, REPLIES_SUBCOLLECTION);
+    const q = query(repliesCollectionRef, orderBy('createdAt', 'asc'));
+    try {
+        const querySnapshot = await getDocs(q);
+        const replies: FeedbackReply[] = [];
+        querySnapshot.forEach((doc) => {
+            const data = doc.data();
+            replies.push({
+                id: doc.id,
+                ...data,
+                createdAt: data.createdAt?.toDate() ? data.createdAt.toDate() : new Date(),
+            } as FeedbackReply);
+        });
+        return replies;
+    } catch (e) {
+        console.error("Error fetching replies:", e);
+        return [];
+    }
 }

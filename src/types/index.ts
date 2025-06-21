@@ -1,6 +1,8 @@
 
 import type { PredictMarketTrendOutput as OldPredictMarketTrendOutput } from '@/ai/flows/predict-market-trend'; // Keep old for reference if needed, or remove if fully replaced
 
+export const ADMIN_EMAIL = "mouaadidoufkir2@gmail.com";
+
 export interface AuthFormData {
   email: string;
   password: string;
@@ -118,6 +120,18 @@ export interface UserProfileData {
   subscriptionNextBillingDate: string | null; 
 }
 
+export type ReactionType = 'like' | 'love';
+
+export interface FeedbackReply {
+  id: string;
+  userId: string;
+  username: string;
+  photoURL?: string | null;
+  text: string;
+  createdAt: any; // Firestore Timestamp
+  isAdmin: boolean;
+}
+
 export interface Feedback {
   id: string;
   userId: string;
@@ -125,4 +139,8 @@ export interface Feedback {
   photoURL?: string | null;
   text: string;
   createdAt: any; // Firestore Timestamp
+  reactions: {
+    [key in ReactionType]?: string[]; // Array of user IDs who reacted
+  };
+  replyCount?: number;
 }
