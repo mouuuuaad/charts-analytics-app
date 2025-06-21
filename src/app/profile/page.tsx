@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Copy, Clock, CalendarDays } from 'lucide-react';
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Copy, Clock, CalendarDays, MessageSquare } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
@@ -294,6 +294,9 @@ export default function ProfilePage() {
                 )}
                 {!isStripeKeySet && ( <p className="text-xs text-center text-destructive">Stripe is not configured. Payments are disabled.</p> )}
                 <p className="text-xs text-center text-muted-foreground">Terms and conditions apply (not yet created).</p>
+                <Button variant="ghost" onClick={() => router.push('/feedback')} className="w-full text-sm h-8">
+                  <MessageSquare className="mr-2 h-4 w-4" /> Share Feedback
+                </Button>
                 <Button variant="ghost" onClick={() => router.push('/dashboard')} className="w-full text-sm h-8">Back to Dashboard</Button>
             </div>
         </CardFooter>

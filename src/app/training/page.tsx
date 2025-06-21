@@ -5,11 +5,12 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Loader2, Lightbulb, BookHeart } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award, Loader2, Lightbulb, BookHeart, LineChart } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateQuizQuestions, type QuizQuestion, type GenerateQuizInput } from '@/ai/flows/generate-quiz-questions-flow';
 import { useToast } from '@/hooks/use-toast';
 import { inspirationalContent, type InspirationalContent } from '@/lib/inspirationalContent';
+import Link from 'next/link';
 
 type QuizStatus = 'not_started' | 'loading_questions' | 'error_loading' | 'in_progress' | 'feedback_shown' | 'completed';
 type UserLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Not Assessed';
@@ -172,7 +173,7 @@ export default function TrainingQuizPage() {
             <p className="text-md"> Your Level: <span className="font-semibold">{userLevel}</span> </p>
             <div className="flex flex-col sm:flex-row gap-1.5 justify-center">
               <Button onClick={startQuiz} variant="outline" size="sm" className="text-sm h-8"><RefreshCw className="mr-1 h-3.5 w-3.5" /> Retake Quiz</Button>
-              <Button size="sm" disabled className="text-sm h-8"> Start Learning <ChevronRight className="ml-1 h-3.5 w-3.5" /> </Button>
+              <Button size="sm" asChild className="text-sm h-8"><Link href="/training/charts"><LineChart className="mr-1 h-3.5 w-3.5" />Practice Charts</Link></Button>
             </div>
           </CardContent>
         </Card>
@@ -264,13 +265,16 @@ export default function TrainingQuizPage() {
           </motion.div>
         </AnimatePresence>
 
-        <CardFooter className="pt-3 p-2 md:p-3">
+        <CardFooter className="pt-3 p-2 md:p-3 flex flex-col gap-1.5">
           {quizStatus === 'feedback_shown' && (
             <Button onClick={handleNextQuestion} size="sm" className="w-full text-sm h-8">
               {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
-              <ChevronRight className="mr-1 h-3.5 w-3.5" />
+              <ChevronRight className="ml-1 h-3.5 w-3.5" />
             </Button>
           )}
+           <Button variant="secondary" size="sm" className="w-full text-sm h-8" asChild>
+                <Link href="/training/charts"><LineChart className="mr-1 h-3.5 w-3.5" /> Practice on Charts</Link>
+            </Button>
         </CardFooter>
       </Card>
        <p className="text-xs text-center text-muted-foreground mt-2 px-1">
