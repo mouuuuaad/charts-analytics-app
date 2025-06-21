@@ -134,7 +134,7 @@ export function AnalysisSection() {
           variant: 'destructive', title: 'Free Limit Reached',
           description: ( <div className="flex flex-col gap-1.5"> <p>Used all {MAX_FREE_ATTEMPTS} free attempts. Upgrade for unlimited analyses.</p> 
                             <Button size="sm" asChild className="h-7 text-xs">
-                              <Link href="/profile" legacyBehavior passHref><a>Upgrade</a></Link>
+                              <Link href="/profile">Upgrade</Link>
                             </Button> 
                         </div> ),
           duration: 8000,
@@ -182,7 +182,7 @@ export function AnalysisSection() {
         setUserProfile(prev => prev ? { ...prev, analysisAttempts: attemptsAfterIncrement } : { ...profileForChecks, analysisAttempts: attemptsAfterIncrement });
         
         if (attemptsAfterIncrement >= MAX_FREE_ATTEMPTS) {
-            toast({ title: "Last Free Attempt Used", description: "You've used all your free analyses. Upgrade for unlimited access.", action: (<Button size="sm" asChild className="h-7 text-xs"><Link href="/profile" legacyBehavior passHref><a>Upgrade</a></Link></Button>), duration: 7000 });
+            toast({ title: "Last Free Attempt Used", description: "You've used all your free analyses. Upgrade for unlimited access.", action: (<Button size="sm" asChild className="h-7 text-xs"><Link href="/profile">Upgrade</Link></Button>), duration: 7000 });
         } else {
             toast({ title: "Analysis Successful", description: `${MAX_FREE_ATTEMPTS - attemptsAfterIncrement} free attempts remaining.`, duration: 4000 });
         }

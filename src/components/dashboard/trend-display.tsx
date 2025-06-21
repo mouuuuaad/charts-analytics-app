@@ -364,7 +364,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
         <div className="flex space-x-1.5 w-full">
             <Button size="sm" variant="outline" className="flex-1 text-xs h-7" disabled>Simulate Trade</Button>
             <Button variant="outline" size="sm" className="flex-1 text-xs h-7" asChild>
-                <Link href="/training" legacyBehavior passHref><a><Brain className="h-3 w-3 mr-1"/>Training</a></Link>
+                <Link href="/training"><Brain className="h-3 w-3 mr-1"/>Training</Link>
             </Button>
         </div>
       </CardFooter>
