@@ -34,7 +34,7 @@ export default function LoginPage() {
   if (loading || user) { // Show loader while checking auth or if user exists (will redirect)
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <Loader2 className="h-12 w-12 animate-spin mb-4" />
         <p className="text-lg text-muted-foreground">Loading...</p>
       </div>
     );
@@ -45,8 +45,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <CardTitle className="text-3xl font-headline text-primary">Welcome Back</CardTitle>
-          <CardDescription>Sign in to access your ChartSight AI dashboard.</CardDescription>
+          <CardTitle className="text-3xl font-headline">Welcome Back</CardTitle>
+          <CardDescription>Sign in to access your Oday Ai dashboard.</CardDescription>
         </CardHeader>
         <CardContent>
           <LoginForm />

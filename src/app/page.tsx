@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/auth-context';
 import { Button } from '@/components/ui/button';
-import { Loader2, BarChart3 } from 'lucide-react'; // Removed Zap, ShieldCheck, Brain
+import { Loader2, BarChart3, ShieldCheck, Brain, Zap } from 'lucide-react';
 
 const GoogleIcon = () => (
   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
@@ -49,8 +49,8 @@ export default function LandingPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <Loader2 className="h-10 w-10 animate-spin" /> {/* Removed text-primary */}
-        <p className="mt-2 text-sm">Loading...</p> {/* Simplified text */}
+        <Loader2 className="h-10 w-10 animate-spin" />
+        <p className="mt-2 text-sm text-muted-foreground">Loading...</p>
       </div>
     );
   }
@@ -58,8 +58,8 @@ export default function LandingPage() {
   if (user) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center p-4">
-        <Loader2 className="h-10 w-10 animate-spin" /> {/* Removed text-primary */}
-        <p className="mt-2 text-sm">Redirecting...</p> {/* Simplified text */}
+        <Loader2 className="h-10 w-10 animate-spin" />
+        <p className="mt-2 text-sm text-muted-foreground">Redirecting...</p>
       </div>
     );
   }
@@ -69,8 +69,8 @@ export default function LandingPage() {
       <header className="py-3 px-4 md:px-6 absolute top-0 left-0 right-0 z-10">
         <div className="container mx-auto flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6" /> {/* Removed text-primary */}
-            <h1 className="text-lg font-semibold">ChartSight AI</h1> {/* Simplified */}
+            <BarChart3 className="h-6 w-6" />
+            <h1 className="text-lg font-semibold">Oday Ai</h1>
           </div>
           <Button variant="outline" onClick={handleGoogleSignIn} size="sm">
              Sign In
@@ -79,17 +79,17 @@ export default function LandingPage() {
       </header>
 
       <main className="flex-grow flex flex-col items-center justify-center text-center px-4 py-16 relative">
-        <div className="relative z-10 max-w-xl"> {/* Reduced max-width */}
-            <h2 className="text-3xl md:text-4xl font-bold mb-4"> {/* Simplified text size */}
+        <div className="relative z-10 max-w-xl">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">
             Unlock Market Insights
             </h2>
-            <p className="text-md text-muted-foreground mb-6 max-w-md mx-auto"> {/* Simplified */}
+            <p className="text-md text-muted-foreground mb-6 max-w-md mx-auto">
             AI to analyze financial charts, predict trends, and assess risk.
             </p>
             <Button
             size="lg"
             onClick={handleGoogleSignIn}
-            className="text-md px-6 py-2.5" // Simplified button classes
+            className="text-md px-6 py-2.5"
             >
             <GoogleIcon />
             Login with Google
@@ -98,22 +98,22 @@ export default function LandingPage() {
         </div>
       </main>
 
-       <section className="py-10 md:py-12"> {/* Simplified padding */}
+       <section className="py-10 md:py-12">
         <div className="container mx-auto px-4">
-          <h3 className="text-xl font-semibold text-center mb-8">Why ChartSight AI?</h3> {/* Simplified */}
-          <div className="grid md:grid-cols-3 gap-4"> {/* Reduced gap */}
-            <div className="flex flex-col items-center text-center p-3 border rounded-md"> {/* Simplified */}
-              {/* <Zap className="h-8 w-8 mb-2" /> Removed text-primary */}
+          <h3 className="text-xl font-semibold text-center mb-8">Why Oday Ai?</h3>
+          <div className="grid md:grid-cols-3 gap-4">
+            <div className="flex flex-col items-center text-center p-3 border rounded-md">
+              <Zap className="h-8 w-8 mb-2" />
               <h4 className="text-md font-medium mb-1">Instant Analysis</h4>
               <p className="text-sm text-muted-foreground">Upload a chart, get AI insights.</p>
             </div>
-            <div className="flex flex-col items-center text-center p-3 border rounded-md"> {/* Simplified */}
-              {/* <ShieldCheck className="h-8 w-8 mb-2" /> Removed text-primary */}
+            <div className="flex flex-col items-center text-center p-3 border rounded-md">
+              <ShieldCheck className="h-8 w-8 mb-2" />
               <h4 className="text-md font-medium mb-1">Risk & Opportunity</h4>
               <p className="text-sm text-muted-foreground">Understand risks, get recommendations.</p>
             </div>
-            <div className="flex flex-col items-center text-center p-3 border rounded-md"> {/* Simplified */}
-              {/* <Brain className="h-8 w-8 mb-2" /> Removed text-primary */}
+            <div className="flex flex-col items-center text-center p-3 border rounded-md">
+              <Brain className="h-8 w-8 mb-2" />
               <h4 className="text-md font-medium mb-1">Personalized Learning</h4>
               <p className="text-sm text-muted-foreground">Access tailored training.</p>
             </div>
@@ -121,8 +121,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <footer className="py-5 text-center border-t"> {/* Simplified */}
-        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} ChartSight AI.</p> {/* Simplified */}
+      <footer className="py-5 text-center border-t">
+        <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} Oday Ai. Created and developped by Mouaad idoufkir.</p>
       </footer>
     </div>
   );

@@ -7,6 +7,7 @@ import { AuthProvider } from '@/contexts/auth-context';
 import { AppShell } from '@/components/layout/app-shell';
 import { usePathname } from 'next/navigation';
 import { GlobalInspirationNotifier } from '@/components/layout/GlobalInspirationNotifier';
+import NextNProgress from 'nextjs-toploader';
 
 export default function RootLayout({
   children,
@@ -19,11 +20,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>ChartSight AI</title>
+        <title>Oday Ai</title>
         <meta name="description" content="AI chart analysis" />
         {/* Removing Google Fonts for a more "system" feel */}
       </head>
       <body className="antialiased">
+        <NextNProgress color="#000000" height={2} showSpinner={false} />
         <AuthProvider>
           {isLandingPage ? (
             <>

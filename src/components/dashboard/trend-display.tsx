@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { PredictMarketTrendOutput, TrendAnalysisDetails, CandlestickPatternInfo, VolumeAndMomentumInfo, RiskRewardAnalysis } from '@/types'; // Updated import
@@ -28,60 +29,59 @@ interface TrendDisplayProps {
 const TrendIcon: React.FC<{ trend: PredictMarketTrendOutput['trendPrediction'] | TrendAnalysisDetails['direction'] }> = ({ trend }) => {
   const normalizedTrend = typeof trend === 'string' ? trend.toLowerCase() : 'neutral';
   switch (normalizedTrend) {
-    case 'up': case 'uptrend': return <TrendingUp className="w-5 h-5 text-green-500" />;
-    case 'down': case 'downtrend': return <TrendingDown className="w-5 h-5 text-red-500" />;
-    case 'sideways': return <MinusCircle className="w-5 h-5 text-yellow-500" />;
-    case 'neutral': return <HelpCircle className="w-5 h-5 text-gray-500" />;
-    default: return <HelpCircle className="w-5 h-5 text-gray-500" />;
+    case 'up': case 'uptrend': return <TrendingUp className="w-5 h-5" />;
+    case 'down': case 'downtrend': return <TrendingDown className="w-5 h-5" />;
+    case 'sideways': return <MinusCircle className="w-5 h-5" />;
+    case 'neutral': return <HelpCircle className="w-5 h-5" />;
+    default: return <HelpCircle className="w-5 h-5" />;
   }
 };
 
 const RecommendationIcon: React.FC<{ recommendation: PredictMarketTrendOutput['tradingRecommendation'] }> = ({ recommendation }) => {
   switch (recommendation) {
-    case 'buy': return <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />;
-    case 'hold': return <Eye className="w-3.5 h-3.5 text-yellow-600" />;
-    case 'avoid': return <ShieldAlert className="w-3.5 h-3.5 text-red-500" />;
-    case 'neutral': return <HelpCircle className="w-3.5 h-3.5 text-gray-500" />;
-    default: return <HelpCircle className="w-3.5 h-3.5 text-gray-500" />;
+    case 'buy': return <CheckCircle2 className="w-3.5 h-3.5" />;
+    case 'hold': return <Eye className="w-3.5 h-3.5" />;
+    case 'avoid': return <ShieldAlert className="w-3.5 h-3.5" />;
+    case 'neutral': return <HelpCircle className="w-3.5 h-3.5" />;
+    default: return <HelpCircle className="w-3.5 h-3.5" />;
   }
 };
 
 const RiskLevelBadge: React.FC<{ level: PredictMarketTrendOutput['riskLevel'] }> = ({ level }) => {
-  let Icon = ShieldQuestion; let text = "Unknown Risk"; let color = "text-gray-500 border-gray-400";
+  let Icon = ShieldQuestion; let text = "Unknown Risk";
   switch (level) {
-    case 'low': Icon = ShieldCheck; text = "Low Risk"; color="text-green-600 border-green-500 bg-green-50"; break;
-    case 'medium': Icon = ShieldQuestion; text = "Medium Risk"; color="text-yellow-600 border-yellow-500 bg-yellow-50"; break;
-    case 'high': Icon = ShieldAlert; text = "High Risk"; color="text-red-600 border-red-500 bg-red-50"; break;
+    case 'low': Icon = ShieldCheck; text = "Low Risk"; break;
+    case 'medium': Icon = ShieldQuestion; text = "Medium Risk"; break;
+    case 'high': Icon = ShieldAlert; text = "High Risk"; break;
   }
-  return <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${color}`}><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
+  return <Badge variant="outline" className="text-xs px-1.5 py-0.5"><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
 };
 
 const VolatilityBadge: React.FC<{ level?: PredictMarketTrendOutput['volatilityLevel'] }> = ({ level }) => {
   if (!level || level === 'normal') return null;
   let text = `Volatility: ${level.charAt(0).toUpperCase() + level.slice(1)}`;
-  let color = "text-gray-500 border-gray-400";
-  if (level === 'low') { text = "Low Volatility"; color="text-sky-600 border-sky-500 bg-sky-50"; }
-  else if (level === 'high') { text = `High Volatility`; color="text-orange-600 border-orange-500 bg-orange-50"; }
-  else if (level === 'extreme') { text = `Extreme Volatility!`; color="text-red-700 border-red-600 bg-red-100"; }
-  return <Badge variant="outline" className={`text-xs px-1.5 py-0.5 ${color}`}><Wind className="mr-1 h-3 w-3" />{text}</Badge>;
+  if (level === 'low') text = "Low Volatility";
+  else if (level === 'high') text = `High Volatility`;
+  else if (level === 'extreme') text = `Extreme Volatility!`;
+  return <Badge variant="outline" className="text-xs px-1.5 py-0.5"><Wind className="mr-1 h-3 w-3" />{text}</Badge>;
 };
 
 const TradeAssessmentBar: React.FC<{ assessment: RiskRewardAnalysis['tradeAssessment'] }> = ({ assessment }) => {
-  let barColor = 'bg-gray-300';
+  let barColor = 'bg-muted-foreground';
   let text = 'Neutral';
   let width = 'w-1/2'; // Default for neutral/medium
 
   switch (assessment) {
-    case 'Good': barColor = 'bg-green-500'; text = 'Good'; width = 'w-full'; break;
-    case 'Medium': barColor = 'bg-yellow-500'; text = 'Medium'; width = 'w-2/3'; break;
-    case 'Bad': barColor = 'bg-red-500'; text = 'Bad'; width = 'w-1/3'; break;
-    case 'Neutral': barColor = 'bg-slate-400'; text = 'Neutral'; width = 'w-1/2'; break;
+    case 'Good': barColor = 'bg-foreground'; text = 'Good'; width = 'w-full'; break;
+    case 'Medium': barColor = 'bg-muted-foreground'; text = 'Medium'; width = 'w-2/3'; break;
+    case 'Bad': barColor = 'bg-destructive'; text = 'Bad'; width = 'w-1/3'; break;
+    case 'Neutral': barColor = 'bg-muted-foreground'; text = 'Neutral'; width = 'w-1/2'; break;
   }
   return (
     <div>
         <div className="flex justify-between items-center mb-0.5">
             <Label className="text-xs text-muted-foreground">Trade Setup Assessment</Label>
-            <span className={`text-xs font-semibold ${assessment === 'Good' ? 'text-green-600' : assessment === 'Medium' ? 'text-yellow-600' : assessment === 'Bad' ? 'text-red-600' : 'text-slate-500'}`}>{text}</span>
+            <span className="text-xs font-semibold">{text}</span>
         </div>
       <div className="h-2 w-full bg-muted rounded-full overflow-hidden border">
         <div className={`h-full rounded-full ${barColor} ${width} transition-all duration-300`}></div>
@@ -178,11 +178,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
     );
   }
 
-  const recommendationColorClasses =
-    prediction.tradingRecommendation === 'buy' ? 'bg-green-500/10 text-green-700 border-green-500/30' :
-    prediction.tradingRecommendation === 'avoid' ? 'bg-red-500/10 text-red-700 border-red-500/30' :
-    prediction.tradingRecommendation === 'hold' ? 'bg-yellow-500/10 text-yellow-700 border-yellow-500/30' :
-    'bg-slate-500/10 text-slate-700 border-slate-500/30';
+  const recommendationColorClasses = 'bg-muted/30 border-border';
 
   const opportunityPercent = Math.round((prediction.opportunityScore || 0) * 100);
 
@@ -210,7 +206,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                 </Dialog>
             )}
         </div>
-        <CardDescription className={`text-xs mt-1 ${prediction.tradingRecommendation === 'buy' ? 'text-green-600' : prediction.tradingRecommendation === 'avoid' ? 'text-red-600' : prediction.tradingRecommendation === 'hold' ? 'text-yellow-600' : 'text-slate-600'}`}>
+        <CardDescription className="text-xs mt-1 text-foreground">
             {prediction.explanationSummary || "No concise summary provided."}
         </CardDescription>
          <div className="flex items-center space-x-2 mt-1.5 pt-1.5 border-t border-current/30">
@@ -220,9 +216,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
         <div className="mt-1.5">
             <Label htmlFor="confidenceScore" className="text-xs text-current/80">Confidence: {Math.round(prediction.confidence * 100)}%</Label>
             <Progress value={prediction.confidence * 100} id="confidenceScore" className="h-1.5 mt-0.5"
-             indicatorClassName={
-                prediction.confidence > 0.7 ? "bg-green-500" :
-                prediction.confidence > 0.4 ? "bg-yellow-500" : "bg-red-500"} />
+             indicatorClassName="bg-foreground" />
         </div>
       </CardHeader>
 
@@ -265,9 +259,9 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                     {prediction.candlestickAnalysis.summary && <p className="italic text-muted-foreground mb-1">{prediction.candlestickAnalysis.summary}</p>}
                     {prediction.candlestickAnalysis.patterns.length > 0 ? (
                         prediction.candlestickAnalysis.patterns.map((p, i) => (
-                            <div key={i} className={`p-1 rounded border ${p.isStatisticallyWeakOrNeutral ? 'border-dashed border-amber-500/50 bg-amber-50/50' : 'border-slate-200 bg-slate-50/50'}`}>
+                            <div key={i} className={`p-1 rounded border ${p.isStatisticallyWeakOrNeutral ? 'border-dashed border-border bg-accent/30' : 'border-border bg-muted/30'}`}>
                                 <span className="font-semibold">{p.name}</span> ({p.candleCount} candles): {p.implications}
-                                {p.isStatisticallyWeakOrNeutral && <span className="text-amber-700"> (Considered weak/neutral in context)</span>}
+                                {p.isStatisticallyWeakOrNeutral && <span className="text-muted-foreground"> (Considered weak/neutral in context)</span>}
                             </div>
                         ))
                     ) : <p className="text-muted-foreground">No specific strong candlestick patterns identified recently.</p>}
@@ -303,12 +297,12 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                         </div>
                         <div>
                             <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Take Profit</Label>
-                             {prediction.takeProfitLevels.map((tp,i)=><p key={i} className="font-semibold text-green-600 text-[0.7rem] leading-tight">{tp}</p>)}
+                             {prediction.takeProfitLevels.map((tp,i)=><p key={i} className="font-semibold text-foreground text-[0.7rem] leading-tight">{tp}</p>)}
                              {prediction.takeProfitLevels.length === 0 && <p className="font-semibold text-[0.7rem]">-</p>}
                         </div>
                         <div>
                             <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Stop Loss</Label>
-                            {prediction.stopLossLevels.map((sl,i)=><p key={i} className="font-semibold text-red-600 text-[0.7rem] leading-tight">{sl}</p>)}
+                            {prediction.stopLossLevels.map((sl,i)=><p key={i} className="font-semibold text-destructive text-[0.7rem] leading-tight">{sl}</p>)}
                             {prediction.stopLossLevels.length === 0 && <p className="font-semibold text-[0.7rem]">-</p>}
                         </div>
                     </div>
@@ -377,7 +371,3 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
 const ScrollArea: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
   <div className={cn("overflow-y-auto", className)}>{children}</div>
 );
-
-// Removed the incorrect cn definition from here
-// const { cn } = React.useContext( ... );
-// It should use the imported `cn` from "@/lib/utils"`

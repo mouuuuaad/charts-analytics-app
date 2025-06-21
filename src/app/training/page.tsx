@@ -229,7 +229,7 @@ export default function TrainingQuizPage() {
                   className={`p-2 rounded border text-xs space-y-2.5 ${ isCorrect ? 'border-foreground/50 bg-background' : 'border-destructive/50 bg-destructive/10' }`}
                 >
                   <div className="flex items-start">
-                    {isCorrect ? <CheckCircle2 className="h-4 w-4 mr-1.5 mt-0.5 text-green-500 shrink-0" /> : <AlertCircle className="h-4 w-4 mr-1.5 mt-0.5 text-destructive shrink-0" />}
+                    {isCorrect ? <CheckCircle2 className="h-4 w-4 mr-1.5 mt-0.5 shrink-0" /> : <AlertCircle className="h-4 w-4 mr-1.5 mt-0.5 text-destructive shrink-0" />}
                     <div>
                       <span className={`font-semibold ${isCorrect ? 'text-foreground' : 'text-destructive'}`}>{motivationalMessage}</span>
                       <p className={`mt-1 text-left ${isCorrect ? 'text-foreground' : 'text-destructive'}`}>{currentQuestion.explanation}</p>
@@ -248,7 +248,7 @@ export default function TrainingQuizPage() {
                             </div>
                           ) : (
                             <div className="flex items-start">
-                                <Lightbulb className="h-4 w-4 mr-1.5 mt-0.5 text-yellow-500 shrink-0"/>
+                                <Lightbulb className="h-4 w-4 mr-1.5 mt-0.5 text-muted-foreground shrink-0"/>
                                 <div>
                                     <span className="font-semibold">Tip:</span>
                                     <p className="italic">{currentInspiration.text}</p>

@@ -142,7 +142,7 @@ export default function NewsPage() {
         </CardHeader>
       </Card>
       
-      {/* <BreakingNewsSection /> */} {/* Temporarily commented out */}
+      {/* <BreakingNewsSection /> */}
 
       <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full max-w-[80%] mx-auto">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 p-0.5 h-auto">
@@ -225,4 +225,3 @@ export default function NewsPage() {
     </div>
   );
 }
-

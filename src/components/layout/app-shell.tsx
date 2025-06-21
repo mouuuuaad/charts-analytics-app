@@ -29,10 +29,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
 
 const Logo = () => (
-  <Link href="/dashboard" className="flex items-center gap-1.5 px-1.5 py-1" aria-label="ChartSight AI Home">
+  <Link href="/dashboard" className="flex items-center gap-1.5 px-1.5 py-1" aria-label="Oday Ai Home">
      <BarChart3 className="h-6 w-6" />
     <h1 className="text-lg font-semibold group-data-[collapsible=icon]:hidden">
-      ChartSight AI
+      Oday Ai
     </h1>
   </Link>
 );
@@ -136,6 +136,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 p-2 md:p-4">
           {children}
         </main>
+        <footer className="py-4 text-center border-t">
+            <p className="text-xs text-muted-foreground">Created and developped by Mouaad idoufkir</p>
+        </footer>
       </div>
     </SidebarProvider>
   );
