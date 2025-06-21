@@ -3,14 +3,16 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Newspaper, GraduationCap, History, UserCircle } from 'lucide-react';
+import { Home, Newspaper, GraduationCap, History, UserCircle, MessageSquare, LineChart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/news', label: 'News', icon: Newspaper },
-  { href: '/training', label: 'Training', icon: GraduationCap },
+  { href: '/training/quiz', label: 'Quiz', icon: GraduationCap },
+  { href: '/training/charts', label: 'Charts', icon: LineChart },
   { href: '/history', label: 'History', icon: History },
+  { href: '/feedback', label: 'Feedback', icon: MessageSquare },
   { href: '/profile', label: 'Profile', icon: UserCircle },
 ];
 
@@ -21,7 +23,6 @@ export function BottomNavBar() {
     <nav className="fixed bottom-0 left-0 right-0 z-40 block border-t bg-background/95 backdrop-blur-sm md:hidden">
       <div className="flex h-16 items-center justify-around">
         {navItems.map((item) => {
-          // Highlight '/training' and its sub-pages when on Training tab
           const isActive = pathname.startsWith(item.href);
           
           const Icon = item.icon;
