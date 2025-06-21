@@ -1,6 +1,6 @@
 
 import { db } from '@/config/firebase';
-import type { Analysis, Feedback } from '@/types'; // UserProfileData type is removed
+import type { Analysis, Feedback } from '@/types';
 import {
   collection,
   addDoc,
@@ -9,23 +9,11 @@ import {
   orderBy,
   getDocs,
   serverTimestamp,
-  // doc, // No longer used for user profiles here
-  // getDoc, // No longer used for user profiles here
-  // setDoc, // No longer used for user profiles here
-  // updateDoc, // No longer used for user profiles here
-  // increment, // No longer used for user profiles here
 } from 'firebase/firestore';
 
 const ANALYSES_COLLECTION = 'analyses';
 const FEEDBACK_COLLECTION = 'feedback';
-// const USER_PROFILES_COLLECTION = 'userProfiles'; // Removed
-// const MAX_FREE_ATTEMPTS = 2; // Removed, managed in components with localStorage
 
-// --- User Profile Functions ---
-// All user profile related Firestore functions are removed as per request to revert.
-// getUserProfile, updateUserProfile, incrementUserAnalysisAttempts,
-// resetUserAnalysisAttempts, setUserPremiumStatus, setUserTradingLevel
-// are all removed.
 
 // --- Analysis History Functions (Kept for potential future use) ---
 
