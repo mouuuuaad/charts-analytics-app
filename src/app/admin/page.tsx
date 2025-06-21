@@ -15,6 +15,8 @@ import { Loader2, ShieldCheck, MessageSquare, ThumbsUp, Heart } from 'lucide-rea
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
+const LAST_SEEN_FEEDBACK_KEY = 'lastSeenFeedbackTimestamp';
+
 // Simplified FeedbackItem for Admin view - no actions, just display.
 const AdminFeedbackItem = ({ item }: { item: Feedback }) => {
     const getInitials = (displayName: string | null | undefined): string => {
@@ -94,6 +96,26 @@ export default function AdminDashboardPage() {
         try {
             const feedback = await getAllFeedback();
             setFeedbackList(feedback);
+
+            // --- In-App Notification Logic ---
+            if (feedback.length > 0 && typeof window !== 'undefined') {
+                const lastSeenTimestamp = localStorage.getItem(LAST_SEEN_FEEDBACK_KEY);
+                const newestFeedback = feedback[0]; // Assumes feedback is sorted descending
+                const newestTimestamp = newestFeedback.createdAt.getTime();
+
+                // Only show notification if there was a previously seen item and the new one is newer.
+                if (lastSeenTimestamp && newestTimestamp > parseInt(lastSeenTimestamp, 10)) {
+                    toast({
+                        title: 'New Feedback Received!',
+                        description: `"${newestFeedback.text.substring(0, 50)}..."`,
+                        duration: 6000,
+                    });
+                }
+                
+                // Always update the last seen timestamp to the latest one.
+                localStorage.setItem(LAST_SEEN_FEEDBACK_KEY, newestTimestamp.toString());
+            }
+
         } catch (error) {
             console.error("Error fetching feedback:", error);
             toast({
