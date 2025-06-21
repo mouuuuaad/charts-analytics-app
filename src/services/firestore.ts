@@ -1,6 +1,6 @@
 
 import { db } from '@/config/firebase';
-import type { Analysis } from '@/types'; // UserProfileData type is removed
+import type { Analysis, Feedback } from '@/types'; // UserProfileData type is removed
 import {
   collection,
   addDoc,
@@ -17,6 +17,7 @@ import {
 } from 'firebase/firestore';
 
 const ANALYSES_COLLECTION = 'analyses';
+const FEEDBACK_COLLECTION = 'feedback';
 // const USER_PROFILES_COLLECTION = 'userProfiles'; // Removed
 // const MAX_FREE_ATTEMPTS = 2; // Removed, managed in components with localStorage
 
@@ -80,4 +81,52 @@ export async function getAnalysesForUserFromFirestore(userId: string): Promise<A
 }
 
 
-    
+// --- Feedback Functions ---
+
+export async function addFeedback(
+  userId: string,
+  username: string,
+  photoURL: string | null | undefined,
+  text: string
+): Promise<string | null> {
+  if (!text.trim()) {
+    console.error('Feedback text cannot be empty');
+    return null;
+  }
+  try {
+    const docRef = await addDoc(collection(db, FEEDBACK_COLLECTION), {
+      userId,
+      username,
+      photoURL: photoURL || null,
+      text: text.trim(),
+      createdAt: serverTimestamp(),
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error adding feedback to Firestore: ', error);
+    return null;
+  }
+}
+
+export async function getAllFeedback(): Promise<Feedback[]> {
+  try {
+    const q = query(
+      collection(db, FEEDBACK_COLLECTION),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    const feedbackList: Feedback[] = [];
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      feedbackList.push({
+        id: doc.id,
+        ...data,
+        createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(), // Keep as Date object
+      } as Feedback);
+    });
+    return feedbackList;
+  } catch (error) {
+    console.error('Error fetching feedback from Firestore: ', error);
+    return [];
+  }
+}

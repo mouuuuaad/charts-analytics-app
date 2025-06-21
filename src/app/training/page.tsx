@@ -9,37 +9,24 @@ import { AlertCircle, CheckCircle2, ChevronRight, RefreshCw, SkipForward, Award,
 import { motion, AnimatePresence } from 'framer-motion';
 import { generateQuizQuestions, type QuizQuestion, type GenerateQuizInput } from '@/ai/flows/generate-quiz-questions-flow';
 import { useToast } from '@/hooks/use-toast';
+import { inspirationalContent, type InspirationalContent } from '@/lib/inspirationalContent';
 
 type QuizStatus = 'not_started' | 'loading_questions' | 'error_loading' | 'in_progress' | 'feedback_shown' | 'completed';
-type UserLevel = 'مبتدئ' | 'متوسط' | 'متقدم' | 'لم يتم التقييم';
-type InspirationalContent = { type: 'quote' | 'tip'; text: string; source?: string };
+type UserLevel = 'Beginner' | 'Intermediate' | 'Advanced' | 'Not Assessed';
 
-// --- المحتوى العربي ---
 const correctFeedbackMessages = [
-  "أحسنت! إجابة موفقة.",
-  "رائع! أنت تسير على الطريق الصحيح.",
-  "ممتاز! استمر في هذا التقدم.",
-  "إجابة صحيحة! معرفتك ممتازة.",
+  "Excellent! That's the right answer.",
+  "Great job! You're on the right track.",
+  "Perfect! Keep up the great work.",
+  "Correct! Your knowledge is impressive.",
 ];
 
 const incorrectFeedbackMessages = [
-  "لا بأس، كل خطأ هو فرصة للتعلم.",
-  "إجابة غير صحيحة، لكن لا تستسلم. حاول مرة أخرى!",
-  "هذه نقطة جيدة للتعلم. تابع الشرح.",
-  "لا تقلق، المثابرة هي مفتاح النجاح.",
+  "That's okay, every mistake is a learning opportunity.",
+  "Not quite, but don't give up. Try again!",
+  "This is a good point to learn from. Check the explanation.",
+  "No worries, persistence is the key to success.",
 ];
-
-const inspirationalContent: InspirationalContent[] = [
-    { type: 'quote', text: '﴿ وَأَحَلَّ اللَّهُ الْبَيْعَ وَحَرَّمَ الرِّبَا ﴾', source: 'سورة البقرة: 275' },
-    { type: 'quote', text: 'عن أبي هريرة رضي الله عنه أن رسول الله ﷺ قال: "مَنْ غَشَّ فَلَيْسَ مِنِّي"', source: 'صحيح مسلم' },
-    { type: 'quote', text: '﴿ وَلَا تَأْكُلُوا أَمْوَالَكُم بَيْنَكُم بِالْـبَاطِلِ ﴾', source: 'سورة البقرة: 188' },
-    { type: 'quote', text: 'قال رسول الله ﷺ: "التاجر الصدوق الأمين مع النبيين والصديقين والشهداء"', source: 'سنن الترمذي' },
-    { type: 'tip', text: 'الصبر في التداول ليس مجرد انتظار، بل هو القدرة على الحفاظ على هدوئك واتخاذ قرارات سليمة تحت الضغط.' },
-    { type: 'tip', text: 'لا تخاطر أبداً بأكثر مما يمكنك تحمل خسارته في صفقة واحدة. إدارة المخاطر هي أساس البقاء في السوق.' },
-    { type: 'tip', text: 'التحليل الفني هو قراءة نفسية السوق من خلال الرسوم البيانية. تعلم قراءتها جيداً.' },
-    { type: 'tip', 'text': 'الخوف والطمع هما أكبر عدوين للمتداول. اتخذ قراراتك بناءً على تحليلك وليس على مشاعرك.'},
-];
-// --- نهاية المحتوى ---
 
 export default function TrainingQuizPage() {
   const [questions, setQuestions] = useState<QuizQuestion[]>([]);
@@ -50,7 +37,7 @@ export default function TrainingQuizPage() {
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [quizStatus, setQuizStatus] = useState<QuizStatus>('not_started');
   const [score, setScore] = useState(0);
-  const [userLevel, setUserLevel] = useState<UserLevel>('لم يتم التقييم');
+  const [userLevel, setUserLevel] = useState<UserLevel>('Not Assessed');
   const { toast } = useToast();
 
   const [motivationalMessage, setMotivationalMessage] = useState<string>('');
@@ -73,12 +60,12 @@ export default function TrainingQuizPage() {
       if (generatedQuestions && generatedQuestions.length > 0) {
         setQuestions(shuffleArray(generatedQuestions)); 
         setCurrentQuestionIndex(0); setSelectedOption(null); setAnswers({});
-        setIsCorrect(null); setScore(0); setUserLevel('لم يتم التقييم');
+        setIsCorrect(null); setScore(0); setUserLevel('Not Assessed');
         setQuizStatus('in_progress');
       } else { throw new Error("AI returned no questions."); }
     } catch (error: any) {
       console.error("Failed to load AI questions:", error);
-      toast({ variant: 'destructive', title: 'خطأ في تحميل الأسئلة', description: error.message || 'فشل تحميل أسئلة الاختبار.', duration: 5000 });
+      toast({ variant: 'destructive', title: 'Error Loading Questions', description: error.message || 'Failed to load quiz questions.', duration: 5000 });
       setQuizStatus('error_loading');
     }
   }, [toast]);
@@ -125,9 +112,9 @@ export default function TrainingQuizPage() {
 
   const calculateUserLevel = () => {
     const percentageScore = (score / questions.length) * 100;
-    if (percentageScore >= 75) setUserLevel('متقدم');
-    else if (percentageScore >= 40) setUserLevel('متوسط');
-    else setUserLevel('مبتدئ');
+    if (percentageScore >= 75) setUserLevel('Advanced');
+    else if (percentageScore >= 40) setUserLevel('Intermediate');
+    else setUserLevel('Beginner');
   };
 
   if (quizStatus === 'not_started' || quizStatus === 'loading_questions') {
@@ -135,15 +122,15 @@ export default function TrainingQuizPage() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3">
         <Card className="w-full max-w-xs text-center border p-3">
           <CardHeader className="p-2">
-            <CardTitle className="text-lg">اختبار التداول</CardTitle>
-            <CardDescription className="text-xs">يقوم الذكاء الاصطناعي بإعداد اختبارك...</CardDescription>
+            <CardTitle className="text-lg">Trading Quiz</CardTitle>
+            <CardDescription className="text-xs">The AI is preparing your quiz...</CardDescription>
           </CardHeader>
           <CardContent className="h-24 flex flex-col items-center justify-center">
             <Loader2 className="w-10 h-10 animate-spin" />
-            <p className="mt-1.5 text-xs text-muted-foreground">جاري التحميل...</p>
+            <p className="mt-1.5 text-xs text-muted-foreground">Loading...</p>
           </CardContent>
            <CardFooter className="p-2">
-            <Button onClick={startQuiz} size="sm" className="w-full text-sm h-8" disabled>ابدأ</Button>
+            <Button onClick={startQuiz} size="sm" className="w-full text-sm h-8" disabled>Start</Button>
           </CardFooter>
         </Card>
       </div>
@@ -155,16 +142,16 @@ export default function TrainingQuizPage() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3">
         <Card className="w-full max-w-xs text-center border p-3">
           <CardHeader className="p-2">
-            <CardTitle className="text-lg text-destructive">حدث خطأ</CardTitle>
-            <CardDescription className="text-xs">فشل تحميل أسئلة الاختبار.</CardDescription>
+            <CardTitle className="text-lg text-destructive">An Error Occurred</CardTitle>
+            <CardDescription className="text-xs">Failed to load quiz questions.</CardDescription>
           </CardHeader>
           <CardContent className="h-24 flex flex-col items-center justify-center">
             <AlertCircle className="w-10 h-10 text-destructive mb-1.5" />
-            <p className="text-xs text-muted-foreground">الرجاء المحاولة مرة أخرى.</p>
+            <p className="text-xs text-muted-foreground">Please try again.</p>
           </CardContent>
           <CardFooter className="p-2">
             <Button onClick={startQuiz} size="sm" className="w-full text-sm h-8">
-              <RefreshCw className="mr-1 h-3.5 w-3.5" /> حاول مجدداً
+              <RefreshCw className="mr-1 h-3.5 w-3.5" /> Try Again
             </Button>
           </CardFooter>
         </Card>
@@ -176,16 +163,16 @@ export default function TrainingQuizPage() {
     return (
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3">
         <Card className="w-full max-w-xs text-center border p-3">
-          <CardHeader className="p-2"> <CardTitle className="text-lg">نتيجة الاختبار</CardTitle> </CardHeader>
+          <CardHeader className="p-2"> <CardTitle className="text-lg">Quiz Result</CardTitle> </CardHeader>
           <CardContent className="space-y-3 p-2">
             <Award className="w-16 h-16 mx-auto text-muted-foreground" />
             <p className="text-lg font-medium">
-              نتيجتك: {score} / {questions.length} ( {questions.length > 0 ? ((score / questions.length) * 100).toFixed(0) : 0}% )
+              Your Score: {score} / {questions.length} ( {questions.length > 0 ? ((score / questions.length) * 100).toFixed(0) : 0}% )
             </p>
-            <p className="text-md"> مستواك: <span className="font-semibold">{userLevel}</span> </p>
+            <p className="text-md"> Your Level: <span className="font-semibold">{userLevel}</span> </p>
             <div className="flex flex-col sm:flex-row gap-1.5 justify-center">
-              <Button onClick={startQuiz} variant="outline" size="sm" className="text-sm h-8"><RefreshCw className="mr-1 h-3.5 w-3.5" /> إعادة الاختبار</Button>
-              <Button size="sm" disabled className="text-sm h-8"> ابدأ التعلم <ChevronRight className="ml-1 h-3.5 w-3.5" /> </Button>
+              <Button onClick={startQuiz} variant="outline" size="sm" className="text-sm h-8"><RefreshCw className="mr-1 h-3.5 w-3.5" /> Retake Quiz</Button>
+              <Button size="sm" disabled className="text-sm h-8"> Start Learning <ChevronRight className="ml-1 h-3.5 w-3.5" /> </Button>
             </div>
           </CardContent>
         </Card>
@@ -194,7 +181,7 @@ export default function TrainingQuizPage() {
   }
   
   if (!currentQuestion && quizStatus === 'in_progress') {
-     return ( <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3"> <Loader2 className="w-10 h-10 animate-spin" /> <p className="mt-1.5 text-xs text-muted-foreground">جاري تحضير السؤال...</p> </div> );
+     return ( <div className="flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] p-3"> <Loader2 className="w-10 h-10 animate-spin" /> <p className="mt-1.5 text-xs text-muted-foreground">Preparing question...</p> </div> );
   }
 
   return (
@@ -202,8 +189,8 @@ export default function TrainingQuizPage() {
       <Card className="overflow-hidden border">
         <CardHeader className="pb-2 p-2 md:p-3">
           <div className="flex justify-between items-center mb-1">
-            <CardTitle className="text-md"> السؤال {currentQuestionIndex + 1} من {questions.length} </CardTitle>
-            <Button variant="ghost" size="sm" onClick={handleSkipQuestion} disabled={quizStatus === 'feedback_shown'} className="text-xs h-7 px-1.5"> تخطي <SkipForward className="ml-0.5 h-3 w-3" /> </Button>
+            <CardTitle className="text-md"> Question {currentQuestionIndex + 1} of {questions.length} </CardTitle>
+            <Button variant="ghost" size="sm" onClick={handleSkipQuestion} disabled={quizStatus === 'feedback_shown'} className="text-xs h-7 px-1.5"> Skip <SkipForward className="ml-0.5 h-3 w-3" /> </Button>
           </div>
           <Progress value={progressPercentage} className="w-full h-1" />
         </CardHeader>
@@ -239,20 +226,20 @@ export default function TrainingQuizPage() {
 
               {quizStatus === 'feedback_shown' && (
                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} transition={{ duration: 0.15 }}
-                  className={`p-2 rounded border text-xs space-y-2.5 ${ isCorrect ? 'border-foreground/50 bg-background' : 'border-destructive/50 bg-destructive/10 text-destructive' }`}
+                  className={`p-2 rounded border text-xs space-y-2.5 ${ isCorrect ? 'border-foreground/50 bg-background' : 'border-destructive/50 bg-destructive/10' }`}
                 >
                   <div className="flex items-start">
                     {isCorrect ? <CheckCircle2 className="h-4 w-4 mr-1.5 mt-0.5 text-green-500 shrink-0" /> : <AlertCircle className="h-4 w-4 mr-1.5 mt-0.5 text-destructive shrink-0" />}
                     <div>
-                      <span className="font-semibold">{motivationalMessage}</span>
-                      <p className={`mt-1 text-left ${isCorrect ? 'text-foreground' : ''}`}>{currentQuestion.explanation}</p>
+                      <span className={`font-semibold ${isCorrect ? 'text-foreground' : 'text-destructive'}`}>{motivationalMessage}</span>
+                      <p className={`mt-1 text-left ${isCorrect ? 'text-foreground' : 'text-destructive'}`}>{currentQuestion.explanation}</p>
                     </div>
                   </div>
                   
                   {currentInspiration && (
                       <div className="pt-2.5 border-t border-dashed">
                           {currentInspiration.type === 'quote' ? (
-                            <div className="flex items-start text-right">
+                            <div dir="rtl" className="flex items-start text-right">
                                 <BookHeart className="h-4 w-4 ml-1.5 mt-0.5 text-muted-foreground shrink-0"/>
                                 <div>
                                     <p className="italic">"{currentInspiration.text}"</p>
@@ -263,7 +250,7 @@ export default function TrainingQuizPage() {
                             <div className="flex items-start">
                                 <Lightbulb className="h-4 w-4 mr-1.5 mt-0.5 text-yellow-500 shrink-0"/>
                                 <div>
-                                    <span className="font-semibold">نصيحة:</span>
+                                    <span className="font-semibold">Tip:</span>
                                     <p className="italic">{currentInspiration.text}</p>
                                 </div>
                             </div>
@@ -280,18 +267,15 @@ export default function TrainingQuizPage() {
         <CardFooter className="pt-3 p-2 md:p-3">
           {quizStatus === 'feedback_shown' && (
             <Button onClick={handleNextQuestion} size="sm" className="w-full text-sm h-8">
-              {currentQuestionIndex < questions.length - 1 ? 'السؤال التالي' : 'إنهاء الاختبار'}
+              {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Quiz'}
               <ChevronRight className="mr-1 h-3.5 w-3.5" />
             </Button>
           )}
         </CardFooter>
       </Card>
        <p className="text-xs text-center text-muted-foreground mt-2 px-1">
-         ملاحظة: هذا الاختبار تعليمي. تم إنشاء الأسئلة بواسطة الذكاء الاصطناعي وقد تحتوي على أخطاء.
+         Note: This is an educational quiz. Questions are generated by an AI and may contain errors.
        </p>
     </div>
   );
 }
-
-
-    

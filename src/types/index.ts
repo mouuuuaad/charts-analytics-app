@@ -118,3 +118,11 @@ export type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 //   subscriptionNextBillingDate: string | null; 
 // }
 
+export interface Feedback {
+  id: string;
+  userId: string;
+  username: string;
+  photoURL?: string | null;
+  text: string;
+  createdAt: any; // Firestore Timestamp
+}

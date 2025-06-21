@@ -23,7 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft, LineChart, Settings } from 'lucide-react'; // Added Settings
+import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft, LineChart, Settings, MessageSquare } from 'lucide-react'; // Added Settings, MessageSquare
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -91,8 +91,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
     { href: '/training', label: 'AI Quiz', icon: GraduationCap, tooltip: 'Training Quiz' },
     { href: '/training/charts', label: 'Practice Charts', icon: LineChart, tooltip: 'Interactive Charts' },
+    { href: '/feedback', label: 'Feedback', icon: MessageSquare, tooltip: 'Public Feedback' },
     { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
-    { href: '/settings', label: 'Settings', icon: Settings, tooltip: 'App Settings' }, // New Settings item
+    { href: '/settings', label: 'Settings', icon: Settings, tooltip: 'App Settings' },
   ];
 
   return (

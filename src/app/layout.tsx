@@ -6,6 +6,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
 import { AppShell } from '@/components/layout/app-shell';
 import { usePathname } from 'next/navigation';
+import { GlobalInspirationNotifier } from '@/components/layout/GlobalInspirationNotifier';
 
 export default function RootLayout({
   children,
@@ -33,6 +34,7 @@ export default function RootLayout({
               {children}
             </AppShell>
           )}
+          <GlobalInspirationNotifier />
           <Toaster />
         </AuthProvider>
       </body>
