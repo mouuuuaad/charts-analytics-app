@@ -109,14 +109,14 @@ export interface WatchlistItem {
 
 export type UserLevel = 'beginner' | 'intermediate' | 'advanced';
 
-// UserProfileData interface removed as per rollback request
-// export interface UserProfileData {
-//   analysisAttempts: number;
-//   isPremium: boolean;
-//   userLevel: UserLevel | null; 
-//   subscriptionStartDate: string | null; 
-//   subscriptionNextBillingDate: string | null; 
-// }
+// UserProfileData interface is back for Firestore integration
+export interface UserProfileData {
+  analysisAttempts: number;
+  isPremium: boolean;
+  userLevel: UserLevel | null; 
+  subscriptionStartDate: string | null; 
+  subscriptionNextBillingDate: string | null; 
+}
 
 export interface Feedback {
   id: string;

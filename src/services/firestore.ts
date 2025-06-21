@@ -1,71 +1,97 @@
 
 import { db } from '@/config/firebase';
-import type { Analysis, Feedback } from '@/types';
+import type { Feedback, UserLevel, UserProfileData } from '@/types';
 import {
   collection,
   addDoc,
   query,
-  where,
   orderBy,
   getDocs,
   serverTimestamp,
+  doc,
+  setDoc,
+  getDoc,
+  updateDoc,
+  increment,
 } from 'firebase/firestore';
 
-const ANALYSES_COLLECTION = 'analyses';
+const USERS_COLLECTION = 'users';
 const FEEDBACK_COLLECTION = 'feedback';
 
 
-// --- Analysis History Functions (Kept for potential future use) ---
+// --- User Profile Functions ---
 
-// This function is no longer used by the core analysis history feature with localStorage.
-// It's kept here in case direct Firestore interaction is needed elsewhere or in the future.
-export async function addAnalysisToFirestore( // Renamed to avoid confusion
-  userId: string,
-  imageUrl: string,
-  extractedData: string | undefined | null,
-  prediction: Analysis['prediction'],
-  chartFileName?: string,
-): Promise<string | null> {
+// Creates a user profile document, typically on first sign-up.
+export async function createUserProfile(userId: string, email: string | null, displayName: string | null): Promise<void> {
+  const userDocRef = doc(db, USERS_COLLECTION, userId);
   try {
-    const docRef = await addDoc(collection(db, ANALYSES_COLLECTION), {
-      userId,
-      imageUrl,
-      extractedData: extractedData || null,
-      prediction,
-      chartFileName: chartFileName || 'N/A',
-      createdAt: serverTimestamp(), 
+    await setDoc(userDocRef, {
+      email: email || '',
+      displayName: displayName || 'Anonymous User',
+      createdAt: serverTimestamp(),
+      analysisAttempts: 0,
+      isPremium: false,
+      userLevel: null,
+      subscriptionStartDate: null,
+      subscriptionNextBillingDate: null,
     });
-    return docRef.id;
   } catch (error) {
-    console.error('Error adding analysis to Firestore: ', error);
+    console.error("Error creating user profile in Firestore: ", error);
+  }
+}
+
+// Fetches a user's profile data.
+export async function getUserProfile(userId: string): Promise<UserProfileData | null> {
+  const userDocRef = doc(db, USERS_COLLECTION, userId);
+  try {
+    const docSnap = await getDoc(userDocRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as UserProfileData;
+    } else {
+      console.log("No user profile found for user:", userId);
+      // Optional: Could create a profile here if it's missing for an existing auth user
+      return null;
+    }
+  } catch (error) {
+    console.error("Error fetching user profile from Firestore: ", error);
     return null;
   }
 }
 
-// This function is no longer used by the core analysis history feature with localStorage.
-// It's kept here in case direct Firestore interaction is needed elsewhere or in the future.
-export async function getAnalysesForUserFromFirestore(userId: string): Promise<Analysis[]> { // Renamed
-  try {
-    const q = query(
-      collection(db, ANALYSES_COLLECTION),
-      where('userId', '==', userId),
-      orderBy('createdAt', 'desc')
-    );
-    const querySnapshot = await getDocs(q);
-    const analyses: Analysis[] = [];
-    querySnapshot.forEach((doc) => {
-      const data = doc.data();
-      analyses.push({ 
-        id: doc.id, 
-        ...data,
-        createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : new Date().toISOString(),
-      } as Analysis); 
-    });
-    return analyses;
-  } catch (error) {
-    console.error('Error fetching analyses from Firestore: ', error);
-    return [];
-  }
+// Sets or updates the user's trading level.
+export async function setUserTradingLevel(userId: string, level: UserLevel): Promise<void> {
+    const userDocRef = doc(db, USERS_COLLECTION, userId);
+    try {
+        await updateDoc(userDocRef, { userLevel: level });
+    } catch (error) {
+        console.error("Error updating user trading level in Firestore:", error);
+    }
+}
+
+// Increments the analysis attempts for a user.
+export async function incrementUserAnalysisAttempts(userId: string): Promise<void> {
+    const userDocRef = doc(db, USERS_COLLECTION, userId);
+    try {
+        await updateDoc(userDocRef, { analysisAttempts: increment(1) });
+    } catch (error) {
+        console.error("Error incrementing user analysis attempts:", error);
+    }
+}
+
+// Updates a user's premium status and subscription dates.
+export async function updateUserPremiumStatus(userId: string, isPremium: boolean, startDate: string | null, nextBillingDate: string | null): Promise<void> {
+    const userDocRef = doc(db, USERS_COLLECTION, userId);
+    try {
+        await updateDoc(userDocRef, {
+            isPremium: isPremium,
+            // Reset attempts if they become premium
+            analysisAttempts: isPremium ? 0 : increment(0), // No change if not becoming premium
+            subscriptionStartDate: startDate,
+            subscriptionNextBillingDate: nextBillingDate,
+        });
+    } catch (error) {
+        console.error("Error updating user premium status in Firestore:", error);
+    }
 }
 
 

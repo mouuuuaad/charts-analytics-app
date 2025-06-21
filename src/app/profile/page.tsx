@@ -12,17 +12,17 @@ import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
-import { loadStripe, type Stripe } from '@stripe/stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
 import Link from 'next/link';
 import { format, addDays, differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns';
-import type { UserLevel } from '@/types';
-// Removed Firestore service imports for user profile
+import type { UserLevel, UserProfileData } from '@/types';
+import { getUserProfile, setUserTradingLevel, updateUserPremiumStatus } from '@/services/firestore';
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
 const stripePriceIdValue = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID || 'price_1RbmIqDBVAJnzUOxV5JLIsGE'; 
 const stripePromise = stripePublishableKeyValue ? loadStripe(stripePublishableKeyValue) : Promise.resolve(null);
 
-const MAX_FREE_ATTEMPTS = 2; // Define it here or import from a shared constants file
+const MAX_FREE_ATTEMPTS = 2;
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
@@ -31,13 +31,8 @@ export default function ProfilePage() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
 
-  const [userLevel, setUserLevel] = useState<UserLevel | null>(null);
-  const [isPremium, setIsPremium] = useState(false);
-  const [analysisAttempts, setAnalysisAttempts] = useState(0);
-  const [subscriptionStartDate, setSubscriptionStartDate] = useState<string | null>(null);
-  const [subscriptionNextBillingDate, setSubscriptionNextBillingDate] = useState<string | null>(null);
-  
-  const [isLoadingProfileData, setIsLoadingProfileData] = useState(true); // For initial localStorage load
+  const [profileData, setProfileData] = useState<UserProfileData | null>(null);
+  const [isLoadingProfileData, setIsLoadingProfileData] = useState(true);
   const [showSurveyModal, setShowSurveyModal] = useState(false);
   const [isRedirectingToCheckout, setIsRedirectingToCheckout] = useState(false);
   const [isStripeKeySet, setIsStripeKeySet] = useState(false);
@@ -57,82 +52,42 @@ export default function ProfilePage() {
     }
   }, []);
 
-  const loadProfileFromLocalStorage = useCallback(() => {
-    if (typeof window !== 'undefined') {
+  const fetchProfileData = useCallback(async () => {
+    if (user) {
       setIsLoadingProfileData(true);
       fetchSetIsStripeKey();
       try {
-        const savedLevel = localStorage.getItem('userTradingLevel') as UserLevel | null;
-        const savedIsPremium = localStorage.getItem('isUserPremium') === 'true';
-        const savedAttempts = parseInt(localStorage.getItem('analysisAttempts') || '0', 10);
-        const savedStartDate = localStorage.getItem('subscriptionStartDate');
-        const savedNextBillingDate = localStorage.getItem('subscriptionNextBillingDate');
-
-        if (savedLevel && ['beginner', 'intermediate', 'advanced'].includes(savedLevel)) {
-            setUserLevel(savedLevel);
-        } else {
-            setUserLevel(null);
-        }
-        setIsPremium(savedIsPremium);
-        setAnalysisAttempts(savedAttempts);
-        setSubscriptionStartDate(savedStartDate);
-        setSubscriptionNextBillingDate(savedNextBillingDate);
-
+        const data = await getUserProfile(user.uid);
+        setProfileData(data);
       } catch (e) {
-        console.error("Failed to load profile from localStorage:", e);
-        toast({ variant: 'destructive', title: 'Profile Error', description: "Could not load your profile settings from local storage." });
-        // Set defaults if localStorage fails
-        setUserLevel(null);
-        setIsPremium(false);
-        setAnalysisAttempts(0);
-        setSubscriptionStartDate(null);
-        setSubscriptionNextBillingDate(null);
+        console.error("Failed to load profile from Firestore:", e);
+        toast({ variant: 'destructive', title: 'Profile Error', description: "Could not load your profile from the database." });
       } finally {
         setIsLoadingProfileData(false);
       }
     }
-  }, [toast, fetchSetIsStripeKey]);
-
+  }, [user, toast, fetchSetIsStripeKey]);
 
   useEffect(() => {
-    if (!authLoading && user) { // Ensure user context is resolved before loading from localStorage
-        loadProfileFromLocalStorage();
-    } else if (!authLoading && !user) {
-        // If no user, clear local states or set defaults (already handled by useState defaults)
-        setIsLoadingProfileData(false); 
+    if (user) {
+        fetchProfileData();
     }
-  }, [user, authLoading, loadProfileFromLocalStorage]);
+  }, [user, fetchProfileData]);
 
-
-  const handlePaymentSuccess = useCallback(() => {
-    if (user && searchParams.get('payment_success') === 'true' && typeof window !== 'undefined') {
+  const handlePaymentSuccess = useCallback(async () => {
+    if (user && searchParams.get('payment_success') === 'true') {
       const today = new Date();
       const startDateISO = today.toISOString();
-      const nextBillingDate = addDays(today, 30); // Example: 30-day subscription
+      const nextBillingDate = addDays(today, 30);
       const nextBillingDateISO = nextBillingDate.toISOString();
       
-      setIsLoadingProfileData(true);
-      try {
-        localStorage.setItem('isUserPremium', 'true');
-        localStorage.setItem('analysisAttempts', '0'); // Reset attempts
-        localStorage.setItem('subscriptionStartDate', startDateISO);
-        localStorage.setItem('subscriptionNextBillingDate', nextBillingDateISO);
-
-        setIsPremium(true);
-        setAnalysisAttempts(0);
-        setSubscriptionStartDate(startDateISO);
-        setSubscriptionNextBillingDate(nextBillingDateISO);
-        
-        toast({ title: 'Payment Successful!', description: 'Welcome to Premium!', duration: 6000 });
-      } catch (error) {
-        console.error("Error updating premium status in localStorage:", error);
-        toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to update premium status locally.'});
-      } finally {
-        setIsLoadingProfileData(false);
-        router.replace('/profile', { scroll: false }); // Clear URL params
-      }
+      await updateUserPremiumStatus(user.uid, true, startDateISO, nextBillingDateISO);
+      await fetchProfileData(); // Re-fetch data to update UI
+      
+      toast({ title: 'Payment Successful!', description: 'Welcome to Premium!', duration: 6000 });
+      router.replace('/profile', { scroll: false }); // Clear URL params
     }
-  }, [user, searchParams, router, toast]);
+  }, [user, searchParams, router, toast, fetchProfileData]);
 
   const handlePaymentCanceled = useCallback(() => {
     if (searchParams.get('payment_canceled') === 'true') {
@@ -142,21 +97,20 @@ export default function ProfilePage() {
   }, [searchParams, router, toast]);
 
   useEffect(() => {
-    if (user && !authLoading) { // Ensure user context is available
+    if (user && !authLoading) {
         handlePaymentSuccess();
         handlePaymentCanceled();
     }
   }, [user, authLoading, searchParams, handlePaymentSuccess, handlePaymentCanceled]);
 
-
   useEffect(() => {
-    if (!subscriptionNextBillingDate) {
+    if (!profileData?.subscriptionNextBillingDate) {
       setTimeRemainingToNextBilling(null);
       return;
     }
     const calculateRemaining = () => {
       const now = new Date();
-      const nextBilling = parseISO(subscriptionNextBillingDate);
+      const nextBilling = parseISO(profileData.subscriptionNextBillingDate!);
       if (now >= nextBilling) {
         setTimeRemainingToNextBilling("Renewal due");
         return;
@@ -167,10 +121,9 @@ export default function ProfilePage() {
       setTimeRemainingToNextBilling(`${days}d ${hours}h ${minutes}m`);
     };
     calculateRemaining();
-    const intervalId = setInterval(calculateRemaining, 60000); // Update every minute
+    const intervalId = setInterval(calculateRemaining, 60000);
     return () => clearInterval(intervalId);
-  }, [subscriptionNextBillingDate]);
-
+  }, [profileData?.subscriptionNextBillingDate]);
 
   const getInitials = (displayName: string | null | undefined, email: string | null | undefined): string => {
     if (displayName) { const names = displayName.split(' '); return names.length > 1 ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase() : displayName.substring(0, 2).toUpperCase(); }
@@ -183,16 +136,11 @@ export default function ProfilePage() {
   }
 
   const handleSurveyComplete = async (levelValue: UserLevel) => {
-    if (user && typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('userTradingLevel', levelValue);
-        setUserLevel(levelValue);
-        setShowSurveyModal(false);
-        toast({ title: "Level Updated", description: `Your trading level is now: ${getLevelDisplayName(levelValue)}.` });
-      } catch (error) {
-        console.error("Error saving level to localStorage:", error);
-        toast({ variant: 'destructive', title: 'Save Error', description: 'Could not save your trading level locally.' });
-      }
+    if (user) {
+      await setUserTradingLevel(user.uid, levelValue);
+      setShowSurveyModal(false);
+      await fetchProfileData(); // Re-fetch to update UI
+      toast({ title: "Level Updated", description: `Your trading level is now: ${getLevelDisplayName(levelValue)}.` });
     }
   };
   
@@ -227,30 +175,18 @@ export default function ProfilePage() {
   };
 
   const handleDowngradeToFree = async () => {
-    if (user && typeof window !== 'undefined') {
-        try {
-            localStorage.setItem('isUserPremium', 'false');
-            localStorage.setItem('analysisAttempts', '0'); // Reset attempts for free plan as well
-            localStorage.removeItem('subscriptionStartDate');
-            localStorage.removeItem('subscriptionNextBillingDate');
-
-            setIsPremium(false);
-            setAnalysisAttempts(0); 
-            setSubscriptionStartDate(null);
-            setSubscriptionNextBillingDate(null);
-            
-            toast({ title: 'Subscription Changed', description: 'You are now on the Free plan (Simulated).', });
-        } catch (error) {
-            console.error("Error downgrading in localStorage:", error);
-            toast({ variant: 'destructive', title: 'Update Error', description: 'Failed to switch to free plan locally.'});
-        }
+    if (user) {
+        await updateUserPremiumStatus(user.uid, false, null, null);
+        await fetchProfileData();
+        toast({ title: 'Subscription Changed', description: 'You are now on the Free plan.', });
     }
   };
 
-  if (authLoading || isLoadingProfileData || !user) { // Check !user as well
+  if (authLoading || isLoadingProfileData || !user || !profileData) {
     return ( <div className="flex h-[calc(100vh-theme(spacing.12))] items-center justify-center"> <Loader2 className="h-8 w-8 animate-spin" /> </div> );
   }
 
+  const { userLevel, isPremium, analysisAttempts, subscriptionStartDate, subscriptionNextBillingDate } = profileData;
 
   return (
     <div className="container mx-auto py-4 px-2 md:px-0 max-w-lg">
@@ -340,7 +276,7 @@ export default function ProfilePage() {
             <div className="w-full space-y-1.5">
                 {isPremium ? (
                      <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-sm h-8">
-                        Switch to Free Plan (Simulated)
+                        Switch to Free Plan
                     </Button>
                 ) : (
                     <div className="space-y-1">
@@ -365,6 +301,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-    
-
-    

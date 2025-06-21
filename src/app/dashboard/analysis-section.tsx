@@ -7,7 +7,7 @@ import { TrendDisplay } from '@/components/dashboard/trend-display';
 import { extractChartData, type ExtractChartDataOutput } from '@/ai/flows/extract-chart-data';
 import { predictMarketTrend, type PredictMarketTrendOutput } from '@/ai/flows/predict-market-trend';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import type { Analysis, UserProfileData, UserLevel } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -115,6 +115,10 @@ export function AnalysisSection() {
     try {
         const refreshedProfile = await getUserProfile(user.uid);
         setUserProfile(refreshedProfile); // Update the main state
+        if (!refreshedProfile) {
+            toast({ variant: 'destructive', title: 'Profile Sync Error', description: 'Could not verify your profile. Please try logging out and in again.'});
+            return;
+        }
         profileForChecks = refreshedProfile; // Use this for immediate checks
     } catch (refreshError) {
         console.error("Failed to refresh profile for analysis check:", refreshError);
@@ -123,7 +127,7 @@ export function AnalysisSection() {
     }
     
     // This check relies on the profileForChecks that was just fetched
-    if (profileForChecks.userLevel === null) { // Simplified: if level is null, show modal (or remind if already shown)
+    if (profileForChecks.userLevel === null) {
       setShowSurveyModal(true);
       toast({ variant: 'destructive', title: 'Assessment Required', description: 'Please complete the trading level assessment before analyzing charts.' });
       return;
@@ -178,8 +182,10 @@ export function AnalysisSection() {
 
       if (!profileForChecks.isPremium) {
         await incrementUserAnalysisAttempts(user.uid);
-        const attemptsAfterIncrement = profileForChecks.analysisAttempts + 1; // Optimistic update based on pre-increment value
-        setUserProfile(prev => prev ? { ...prev, analysisAttempts: attemptsAfterIncrement } : { ...profileForChecks, analysisAttempts: attemptsAfterIncrement });
+        const attemptsAfterIncrement = profileForChecks.analysisAttempts + 1;
+        // Re-fetch profile to get the most up-to-date state after increment
+        const updatedProfileData = await getUserProfile(user.uid);
+        setUserProfile(updatedProfileData);
         
         if (attemptsAfterIncrement >= MAX_FREE_ATTEMPTS) {
             toast({ title: "Last Free Attempt Used", description: "You've used all your free analyses. Upgrade for unlimited access.", action: (<Button size="sm" asChild className="h-7 text-xs"><Link href="/profile">Upgrade</Link></Button>), duration: 7000 });
@@ -200,7 +206,6 @@ export function AnalysisSection() {
     }
   };
 
-  // Show loader if auth is loading OR profile is loading AND userProfile hasn't been populated yet.
   if (authLoading || (isLoadingProfile && !userProfile)) { 
     return (
       <div className="flex h-[calc(100vh-theme(spacing.14))] items-center justify-center">
@@ -212,7 +217,6 @@ export function AnalysisSection() {
 
   return (
     <>
-      {/* Show modal if userProfile is loaded, userLevel is null, and auth is not loading. */}
       <LevelAssessmentModal 
         isOpen={showSurveyModal && userProfile !== null && userProfile.userLevel === null && !authLoading} 
         onComplete={handleSurveyComplete} 

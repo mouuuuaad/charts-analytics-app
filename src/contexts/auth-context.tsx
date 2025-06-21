@@ -15,6 +15,7 @@ import {
 } from 'firebase/auth';
 import type { AuthFormData } from '@/types';
 import { useRouter } from 'next/navigation';
+import { createUserProfile, getUserProfile } from '@/services/firestore'; // Import Firestore services
 
 interface AuthContextType {
   user: FirebaseUser | null;
@@ -34,19 +35,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
+      if (currentUser) {
+          // Check if a user profile exists in Firestore. If not, create it.
+          // This handles the case where a user signs up but profile creation fails,
+          // or for existing users before this logic was added.
+          const userProfile = await getUserProfile(currentUser.uid);
+          if (!userProfile) {
+              await createUserProfile(currentUser.uid, currentUser.email, currentUser.displayName);
+          }
+      }
       setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
+  const handleSuccessfulSignIn = async (userCredential: UserCredential) => {
+    const firestoreUser = userCredential.user;
+    const userProfile = await getUserProfile(firestoreUser.uid);
+    if (!userProfile) {
+        await createUserProfile(firestoreUser.uid, firestoreUser.email, firestoreUser.displayName);
+    }
+    setUser(firestoreUser);
+    return userCredential;
+  }
+
   const signUp = async (data: AuthFormData): Promise<UserCredential | string> => {
     setLoading(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      setUser(userCredential.user);
-      return userCredential;
+      return await handleSuccessfulSignIn(userCredential);
     } catch (error: any) {
       return error.message || 'Failed to sign up';
     } finally {
@@ -58,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+      // User profile existence is checked by onAuthStateChanged, so no need to repeat here.
       setUser(userCredential.user);
       return userCredential;
     } catch (error: any) {
@@ -72,14 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const provider = new GoogleAuthProvider();
     try {
       const result = await signInWithPopup(auth, provider);
+      // The onAuthStateChanged listener will handle profile creation if needed
       setUser(result.user);
       return result;
     } catch (error: any) {
-      // Handle specific Google sign-in errors if needed
-      // const errorCode = error.code;
-      // const errorMessage = error.message;
-      // const email = error.customData?.email;
-      // const credential = GoogleAuthProvider.credentialFromError(error);
       return error.message || 'Failed to sign in with Google';
     } finally {
       setLoading(false);
