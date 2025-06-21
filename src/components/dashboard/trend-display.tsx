@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { cn } from "@/lib/utils"; // Added import for cn
+import { cn } from "@/lib/utils";
 
 interface TrendDisplayProps {
   prediction: PredictMarketTrendOutput | null;
@@ -29,33 +29,48 @@ interface TrendDisplayProps {
 const TrendIcon: React.FC<{ trend: PredictMarketTrendOutput['trendPrediction'] | TrendAnalysisDetails['direction'] }> = ({ trend }) => {
   const normalizedTrend = typeof trend === 'string' ? trend.toLowerCase() : 'neutral';
   switch (normalizedTrend) {
-    case 'up': case 'uptrend': return <TrendingUp className="w-5 h-5" />;
-    case 'down': case 'downtrend': return <TrendingDown className="w-5 h-5" />;
-    case 'sideways': return <MinusCircle className="w-5 h-5" />;
-    case 'neutral': return <HelpCircle className="w-5 h-5" />;
-    default: return <HelpCircle className="w-5 h-5" />;
+    case 'up': case 'uptrend': return <TrendingUp className="w-5 h-5 text-success" />;
+    case 'down': case 'downtrend': return <TrendingDown className="w-5 h-5 text-destructive" />;
+    case 'sideways': return <MinusCircle className="w-5 h-5 text-warning" />;
+    case 'neutral': return <HelpCircle className="w-5 h-5 text-muted-foreground" />;
+    default: return <HelpCircle className="w-5 h-5 text-muted-foreground" />;
   }
 };
 
-const RecommendationIcon: React.FC<{ recommendation: PredictMarketTrendOutput['tradingRecommendation'] }> = ({ recommendation }) => {
+const RecommendationIcon: React.FC<{ recommendation: PredictMarketTrendOutput['tradingRecommendation'], className?: string }> = ({ recommendation, className }) => {
   switch (recommendation) {
-    case 'buy': return <CheckCircle2 className="w-3.5 h-3.5" />;
-    case 'hold': return <Eye className="w-3.5 h-3.5" />;
-    case 'avoid': return <ShieldAlert className="w-3.5 h-3.5" />;
-    case 'neutral': return <HelpCircle className="w-3.5 h-3.5" />;
-    default: return <HelpCircle className="w-3.5 h-3.5" />;
+    case 'buy': return <CheckCircle2 className={cn("w-3.5 h-3.5", className)} />;
+    case 'hold': return <Eye className={cn("w-3.5 h-3.5", className)} />;
+    case 'avoid': return <ShieldAlert className={cn("w-3.5 h-3.5", className)} />;
+    case 'neutral': return <HelpCircle className={cn("w-3.5 h-3.5", className)} />;
+    default: return <HelpCircle className={cn("w-3.5 h-3.5", className)} />;
   }
 };
 
 const RiskLevelBadge: React.FC<{ level: PredictMarketTrendOutput['riskLevel'] }> = ({ level }) => {
-  let Icon = ShieldQuestion; let text = "Unknown Risk";
+  let Icon = ShieldQuestion;
+  let text = "Unknown Risk";
+  let className = "border-muted-foreground text-muted-foreground";
   switch (level) {
-    case 'low': Icon = ShieldCheck; text = "Low Risk"; break;
-    case 'medium': Icon = ShieldQuestion; text = "Medium Risk"; break;
-    case 'high': Icon = ShieldAlert; text = "High Risk"; break;
+    case 'low': 
+      Icon = ShieldCheck; 
+      text = "Low Risk"; 
+      className="border-success/80 text-success";
+      break;
+    case 'medium': 
+      Icon = ShieldQuestion; 
+      text = "Medium Risk"; 
+      className="border-warning/80 text-warning";
+      break;
+    case 'high': 
+      Icon = ShieldAlert; 
+      text = "High Risk"; 
+      className="border-destructive/80 text-destructive";
+      break;
   }
-  return <Badge variant="outline" className="text-xs px-1.5 py-0.5"><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
+  return <Badge variant="outline" className={cn("text-xs px-1.5 py-0.5", className)}><Icon className="mr-1 h-3 w-3" />{text}</Badge>;
 };
+
 
 const VolatilityBadge: React.FC<{ level?: PredictMarketTrendOutput['volatilityLevel'] }> = ({ level }) => {
   if (!level || level === 'normal') return null;
@@ -63,17 +78,17 @@ const VolatilityBadge: React.FC<{ level?: PredictMarketTrendOutput['volatilityLe
   if (level === 'low') text = "Low Volatility";
   else if (level === 'high') text = `High Volatility`;
   else if (level === 'extreme') text = `Extreme Volatility!`;
-  return <Badge variant="outline" className="text-xs px-1.5 py-0.5"><Wind className="mr-1 h-3 w-3" />{text}</Badge>;
+  return <Badge variant="outline" className="text-xs px-1.5 py-0.5 border-info text-info-foreground"><Wind className="mr-1 h-3 w-3" />{text}</Badge>;
 };
 
 const TradeAssessmentBar: React.FC<{ assessment: RiskRewardAnalysis['tradeAssessment'] }> = ({ assessment }) => {
   let barColor = 'bg-muted-foreground';
   let text = 'Neutral';
-  let width = 'w-1/2'; // Default for neutral/medium
+  let width = 'w-1/2'; 
 
   switch (assessment) {
-    case 'Good': barColor = 'bg-foreground'; text = 'Good'; width = 'w-full'; break;
-    case 'Medium': barColor = 'bg-muted-foreground'; text = 'Medium'; width = 'w-2/3'; break;
+    case 'Good': barColor = 'bg-success'; text = 'Good'; width = 'w-full'; break;
+    case 'Medium': barColor = 'bg-warning'; text = 'Medium'; width = 'w-2/3'; break;
     case 'Bad': barColor = 'bg-destructive'; text = 'Bad'; width = 'w-1/3'; break;
     case 'Neutral': barColor = 'bg-muted-foreground'; text = 'Neutral'; width = 'w-1/2'; break;
   }
@@ -94,7 +109,7 @@ const TradeAssessmentBar: React.FC<{ assessment: RiskRewardAnalysis['tradeAssess
 export function TrendDisplay({ prediction, isLoading, error, currentChartImage, userLevel }: TrendDisplayProps) {
   const [showChartModal, setShowChartModal] = useState(false);
   const [showFullAnalysisModal, setShowFullAnalysisModal] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("1D"); // UI Only for now
+  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("1D"); 
 
   // What-if state
   const [whatIfEntry, setWhatIfEntry] = useState('');
@@ -157,7 +172,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
           <CardTitle className="text-sm font-medium flex items-center text-destructive">
             <AlertTriangle className="mr-1.5 h-4 w-4" /> Analysis Error
           </CardTitle>
-          <p className="text-sm mt-1 text-destructive-foreground">{error}</p>
+          <p className="text-sm mt-1">{error}</p>
       </Card>
     );
   }
@@ -178,24 +193,37 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
     );
   }
 
-  const recommendationColorClasses = 'bg-muted/30 border-border';
+  const recommendation = prediction.tradingRecommendation;
+  const recommendationBgClasses = {
+      buy: 'bg-success/10 border-success/30',
+      avoid: 'bg-destructive/10 border-destructive/30',
+      hold: 'bg-warning/10 border-warning/30',
+      neutral: 'bg-warning/10 border-warning/30',
+  }[recommendation] || 'bg-muted/30 border-border';
 
-  const opportunityPercent = Math.round((prediction.opportunityScore || 0) * 100);
+  const recommendationTextClasses = {
+      buy: 'text-success',
+      avoid: 'text-destructive',
+      hold: 'text-warning',
+      neutral: 'text-warning',
+  }[recommendation] || 'text-foreground';
+  
+  const confidenceColorClass = prediction.confidence > 0.7 ? 'bg-success' : prediction.confidence > 0.4 ? 'bg-warning' : 'bg-destructive';
 
   return (
     <>
     <Card className="w-full border">
       {/* Chart Preview Area - Simplified */}
-      <CardHeader className={`pb-2 pt-2 px-2 rounded-t-md ${recommendationColorClasses}`}>
+      <CardHeader className={cn("pb-2 pt-2 px-2 rounded-t-md", recommendationBgClasses)}>
         <div className="flex justify-between items-center">
-            <CardTitle className="text-base font-semibold flex items-center">
-                <RecommendationIcon recommendation={prediction.tradingRecommendation}/>
-                <span className="ml-1.5 capitalize">{prediction.tradingRecommendation}</span>
+            <CardTitle className={cn("text-base font-semibold flex items-center", recommendationTextClasses)}>
+                <RecommendationIcon recommendation={recommendation} className="text-current"/>
+                <span className="ml-1.5 capitalize">{recommendation}</span>
             </CardTitle>
             {currentChartImage && (
                 <Dialog open={showChartModal} onOpenChange={setShowChartModal}>
                     <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-current hover:bg-black/10">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-current hover:bg-black/10 dark:hover:bg-white/10">
                             <Maximize className="h-4 w-4" />
                         </Button>
                     </DialogTrigger>
@@ -206,7 +234,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                 </Dialog>
             )}
         </div>
-        <CardDescription className="text-xs mt-1 text-foreground">
+        <CardDescription className="text-xs mt-1 text-muted-foreground">
             {prediction.explanationSummary || "No concise summary provided."}
         </CardDescription>
          <div className="flex items-center space-x-2 mt-1.5 pt-1.5 border-t border-current/30">
@@ -214,9 +242,9 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
             <VolatilityBadge level={prediction.volatilityLevel} />
         </div>
         <div className="mt-1.5">
-            <Label htmlFor="confidenceScore" className="text-xs text-current/80">Confidence: {Math.round(prediction.confidence * 100)}%</Label>
+            <Label htmlFor="confidenceScore" className="text-xs text-muted-foreground">Confidence: {Math.round(prediction.confidence * 100)}%</Label>
             <Progress value={prediction.confidence * 100} id="confidenceScore" className="h-1.5 mt-0.5"
-             indicatorClassName="bg-foreground" />
+             indicatorClassName={confidenceColorClass} />
         </div>
       </CardHeader>
 
@@ -297,7 +325,7 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
                         </div>
                         <div>
                             <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Take Profit</Label>
-                             {prediction.takeProfitLevels.map((tp,i)=><p key={i} className="font-semibold text-foreground text-[0.7rem] leading-tight">{tp}</p>)}
+                             {prediction.takeProfitLevels.map((tp,i)=><p key={i} className="font-semibold text-success text-[0.7rem] leading-tight">{tp}</p>)}
                              {prediction.takeProfitLevels.length === 0 && <p className="font-semibold text-[0.7rem]">-</p>}
                         </div>
                         <div>
