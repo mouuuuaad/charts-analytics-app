@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Clock, CalendarDays, MessageSquare, Settings } from 'lucide-react';
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Clock, CalendarDays, MessageSquare, Settings, Bell } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
@@ -38,6 +38,8 @@ export default function ProfilePage() {
   const [isStripeKeySet, setIsStripeKeySet] = useState(false);
   const [stripePriceId, setStripePriceId] = useState<string>(stripePriceIdValue);
   const [timeRemainingToNextBilling, setTimeRemainingToNextBilling] = useState<string | null>(null);
+  const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
+
 
   const fetchSetIsStripeKey = useCallback(() => {
     if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") && !stripePublishableKeyValue.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
@@ -174,6 +176,46 @@ export default function ProfilePage() {
     }
   };
 
+  const handleEnableNotifications = async () => {
+    if (!user) return;
+    setIsEnablingNotifications(true);
+
+    // Dynamically import the messaging utility only on the client-side
+    const { initializeFirebaseMessaging } = await import('@/lib/firebase-messaging-util');
+    const result = await initializeFirebaseMessaging(user.uid);
+
+    switch (result) {
+      case 'success':
+        toast({ title: 'Notifications Enabled!', description: 'You will now receive alerts for new feedback.' });
+        break;
+      case 'permission-denied':
+        toast({
+          variant: 'destructive',
+          title: 'Permission Denied',
+          description: 'To get notifications, you need to allow them in your browser settings.',
+          duration: 7000,
+        });
+        break;
+      case 'vapid-key-missing':
+        toast({
+          variant: 'destructive',
+          title: 'Configuration Error',
+          description: 'The application is not configured for push notifications.',
+        });
+        break;
+      case 'no-token':
+      case 'error':
+      default:
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'An unexpected error occurred while enabling notifications.',
+        });
+        break;
+    }
+    setIsEnablingNotifications(false);
+  };
+
   if (authLoading || isLoadingProfileData || !user || !profileData) {
     return ( <div className="flex h-[calc(100vh-theme(spacing.12))] items-center justify-center"> <Loader2 className="h-8 w-8 animate-spin" /> </div> );
   }
@@ -284,6 +326,22 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
       
+      <Card>
+        <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center"><Bell className="mr-2 h-5 w-5" /> Notifications</CardTitle>
+            <CardDescription>Enable push notifications for important app events.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Button onClick={handleEnableNotifications} disabled={isEnablingNotifications}>
+                {isEnablingNotifications ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                Notify Me About New Feedback
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2 px-1">
+                This will ask for permission to send you push notifications. You can manage this in your browser settings at any time.
+            </p>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardContent className="p-3 flex flex-col space-y-2">
             <Button variant="ghost" asChild className="justify-start">

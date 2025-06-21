@@ -96,6 +96,21 @@ export async function updateUserPremiumStatus(userId: string, isPremium: boolean
     }
 }
 
+// Saves a user's FCM token to their profile if it's not already there.
+export async function saveUserFCMToken(userId: string, token: string): Promise<void> {
+  if (!userId || !token) return;
+  const userDocRef = doc(db, USERS_COLLECTION, userId);
+  try {
+    // arrayUnion adds an element to an array but only if it's not already present.
+    await updateDoc(userDocRef, {
+      fcmTokens: arrayUnion(token)
+    });
+  } catch (error) {
+    console.error("Error saving FCM token to user profile:", error);
+    throw error; // Re-throw to let the caller handle it, e.g., show a toast.
+  }
+}
+
 
 // --- Feedback Functions ---
 
@@ -116,7 +131,7 @@ export async function addFeedback(
       photoURL: photoURL || null,
       text: text.trim(),
       createdAt: serverTimestamp(),
-      reactions: {}, // Initialize with empty reactions map
+      reactions: { like: [], love: [] }, // Initialize with empty reactions map
       replyCount: 0,
     });
     return docRef.id;
@@ -139,7 +154,7 @@ export async function getAllFeedback(): Promise<Feedback[]> {
       feedbackList.push({
         id: doc.id,
         ...data,
-        reactions: data.reactions || {}, // Fix: Ensure reactions object always exists.
+        reactions: data.reactions || { like: [], love: [] }, // Fix: Ensure reactions object always exists.
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
       } as Feedback);
     });

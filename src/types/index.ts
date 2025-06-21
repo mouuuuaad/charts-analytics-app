@@ -118,6 +118,7 @@ export interface UserProfileData {
   userLevel: UserLevel | null; 
   subscriptionStartDate: string | null; 
   subscriptionNextBillingDate: string | null; 
+  fcmTokens?: string[]; // Array of Firebase Cloud Messaging tokens
 }
 
 export type ReactionType = 'like' | 'love';
