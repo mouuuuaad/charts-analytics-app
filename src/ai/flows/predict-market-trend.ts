@@ -90,6 +90,9 @@ const PredictMarketTrendOutputSchema = z.object({
 });
 export type PredictMarketTrendOutput = z.infer<typeof PredictMarketTrendOutputSchema>;
 
+// Lenient schema for the prompt output to handle incomplete AI responses gracefully.
+const PartialPredictMarketTrendOutputSchema = PredictMarketTrendOutputSchema.deepPartial();
+
 
 export async function predictMarketTrend(input: PredictMarketTrendInput): Promise<PredictMarketTrendOutput> {
   return predictMarketTrendFlow_v5_expert_analyst(input);
@@ -100,7 +103,7 @@ const MANDATORY_DISCLAIMER = "This analysis is based on the provided chart data 
 const prompt = ai.definePrompt({
   name: 'predictMarketTrendPrompt_v5_expert_analyst', 
   input: {schema: PredictMarketTrendInputSchema},
-  output: {schema: PredictMarketTrendOutputSchema},
+  output: {schema: PartialPredictMarketTrendOutputSchema}, // Use the lenient schema for the AI output
   prompt: `You are an **EXPERT-LEVEL financial technical analyst AI**, a master of chart interpretation. Your primary directive is to evolve beyond simple observations into providing a flawless, comprehensive, and trustworthy assessment. You will receive DETAILED JSON in \\\`{{{extractedData}}}\\\`, which includes descriptions of candles, price action, volume, and any visible indicators like EMAs, RSI, or MACD. This JSON in \\\`{{{extractedData}}}\\\` is your SOLE source of truth. Do NOT invent data or use external knowledge.
 
 **Core Task:** From the JSON provided in \\\`{{{extractedData}}}\\\`, perform a deep, multi-layered analysis to:
@@ -120,7 +123,7 @@ Input Data:
 {{#if userDefinedStopLoss}}- User Defined Stop Loss: {{{userDefinedStopLoss}}}{{/if}}
 {{#if userDefinedTakeProfit}}- User Defined Take Profit: {{{userDefinedTakeProfit}}}{{/if}}
 
-Your output MUST strictly conform to the 'PredictMarketTrendOutputSchema' JSON structure. All fields are mandatory unless marked optional.
+Your output MUST strictly conform to the JSON structure. All fields are mandatory unless marked optional.
 
 **Analytical Requirements & Output Structure (Referencing the JSON in \\\`{{{extractedData}}}\\\`):**
 
@@ -281,7 +284,7 @@ const predictMarketTrendFlow_v5_expert_analyst = ai.defineFlow(
               finalOutput.trendAnalysis.direction = aiOutput.trendAnalysis.direction;
           }
           if (typeof aiOutput.trendAnalysis.candleCountBasis === 'number' && aiOutput.trendAnalysis.candleCountBasis >= 5) {
-              finalOutput.trendAnalysis.candleCountBasis = aiOutput.trendAnalysis.candleCountBasis;
+              finalOutput.trendAnalysis.candleCountBasis = Math.floor(aiOutput.trendAnalysis.candleCountBasis); // Ensure integer
           } else {
               finalOutput.trendAnalysis.candleCountBasis = baseOutput.trendAnalysis.candleCountBasis; // Ensure min 5
           }
@@ -388,3 +391,6 @@ const predictMarketTrendFlow_v5_expert_analyst = ai.defineFlow(
 
     
 
+
+
+    
