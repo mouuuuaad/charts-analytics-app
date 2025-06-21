@@ -11,7 +11,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarTrigger,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -23,10 +22,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, PanelLeft, LineChart, Settings, MessageSquare } from 'lucide-react'; // Added Settings, MessageSquare
+import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, LineChart, Settings, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
+import { BottomNavBar } from './BottomNavBar';
 
 const Logo = () => (
   <Link href="/dashboard" className="flex items-center gap-1.5 px-1.5 py-1" aria-label="Oday Ai Home">
@@ -106,9 +106,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu className="gap-0.5">
             {navItems.map(item => {
               const Icon = item.icon;
+              // For desktop, we can have more specific active states
+              const isActive = pathname === item.href;
               return (
                 <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton asChild isActive={pathname === item.href} tooltip={item.tooltip} size="sm" className="h-8">
+                  <SidebarMenuButton asChild isActive={isActive} tooltip={item.tooltip} size="sm" className="h-8">
                     <Link href={item.href}>
                       <span className="flex items-center gap-2">
                         <Icon className="h-4 w-4" />
@@ -125,9 +127,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
            {/* Footer can be empty or have a simple trigger */}
         </SidebarFooter>
       </Sidebar>
-      <div className="flex min-h-svh flex-1 flex-col md:ml-[var(--sidebar-width-icon)] group-data-[state=expanded]:md:ml-[var(--sidebar-width)] transition-[margin-left] duration-150 ease-linear">
-         <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-2 border-b px-3 sm:px-4 py-1.5">
-            <SidebarTrigger className="md:hidden h-7 w-7 p-0" />
+      <div className="flex min-h-svh flex-1 flex-col md:ml-[var(--sidebar-width-icon)] group-data-[state=expanded]:md:ml-[var(--sidebar-width)] transition-[margin-left] duration-150 ease-linear pb-16 md:pb-0">
+         <header className="sticky top-0 z-30 flex h-12 items-center justify-between gap-2 border-b bg-background/80 px-3 py-1.5 backdrop-blur-sm sm:px-4">
              <div className="md:hidden">
                 <Logo />
             </div>
@@ -139,6 +140,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <footer className="py-4 text-center border-t">
             <p className="text-xs text-muted-foreground">Created and developped by Mouaad idoufkir</p>
         </footer>
+        <BottomNavBar />
       </div>
     </SidebarProvider>
   );

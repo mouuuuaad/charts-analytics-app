@@ -176,7 +176,7 @@ const Sidebar = React.forwardRef<
     },
     ref
   ) => {
-    const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
+    const { isMobile } = useSidebar()
 
     if (collapsible === "none") {
       return (
@@ -194,25 +194,12 @@ const Sidebar = React.forwardRef<
     }
 
     if (isMobile) {
-      return (
-        <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
-          <SheetContent
-            data-sidebar="sidebar"
-            data-mobile="true"
-            className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-            style={
-              {
-                "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
-              } as React.CSSProperties
-            }
-            side={side}
-          >
-            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-            <div className="flex h-full w-full flex-col">{children}</div>
-          </SheetContent>
-        </Sheet>
-      )
+      // On mobile, we render the new BottomNavBar instead of a sidebar sheet.
+      // The logic is moved to AppShell, so we render nothing here.
+      return null;
     }
+
+    const { state } = useSidebar()
 
     return (
       <div
