@@ -22,11 +22,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, Settings, MessageSquare } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, Settings, MessageSquare, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
 import { BottomNavBar } from './BottomNavBar';
+import { ADMIN_EMAIL } from '@/types';
 
 const Logo = () => (
   <Link href="/dashboard" className="flex items-center gap-1.5 px-1.5 py-1" aria-label="Oday Ai Home">
@@ -73,6 +74,11 @@ const UserMenu = () => {
         <DropdownMenuItem onClick={() => router.push('/settings')} className="text-sm py-1 px-1.5">
           <Settings className="mr-1.5 h-3.5 w-3.5" /> Settings
         </DropdownMenuItem>
+        {user.email === ADMIN_EMAIL && (
+            <DropdownMenuItem onClick={() => router.push('/admin')} className="text-sm py-1 px-1.5 font-semibold text-primary focus:text-primary">
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" /> Admin Panel
+            </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={async () => { await logOut(); }} className="text-sm py-1 px-1.5">
           <LogOut className="mr-1.5 h-3.5 w-3.5" /> Log out
@@ -84,6 +90,7 @@ const UserMenu = () => {
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useAuth();
   
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home, tooltip: 'Dashboard' },
@@ -122,7 +129,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </SidebarMenu>
         </SidebarContent>
         <SidebarFooter className="p-1">
-           {/* Footer can be empty or have a simple trigger */}
+           {user?.email === ADMIN_EMAIL && (
+                <SidebarMenu>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton asChild tooltip="Admin Dashboard" size="sm" className="h-8 text-primary hover:bg-primary/10 hover:text-primary">
+                             <Link href="/admin">
+                                <ShieldCheck className="h-4 w-4" />
+                                <span className="group-data-[collapsible=icon]:hidden">Admin Panel</span>
+                            </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                </SidebarMenu>
+           )}
         </SidebarFooter>
       </Sidebar>
       <div className="flex min-h-svh flex-1 flex-col md:ml-[var(--sidebar-width-icon)] group-data-[state=expanded]:md:ml-[var(--sidebar-width)] transition-[margin-left] duration-150 ease-linear pb-16 md:pb-0">

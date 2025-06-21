@@ -21,10 +21,7 @@ export function GlobalInspirationNotifier() {
         toast({
             title: (
                 <div className="flex items-center">
-                    {item.type === 'quote' ? 
-                        <BookHeart className="mr-2 h-5 w-5 text-primary" /> : 
-                        <Lightbulb className="mr-2 h-5 w-5 text-primary" />
-                    }
+                    <Bot className="mr-2 h-5 w-5 text-primary" />
                     <span>{item.type === 'quote' ? 'Moment of Reflection' : 'Quick Tip'}</span>
                 </div>
             ),
