@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Copy, Clock, CalendarDays, MessageSquare } from 'lucide-react';
+import { Loader2, User, Mail, BarChart3, ShieldCheck, Edit3, AlertTriangle, Star, Clock, CalendarDays, MessageSquare, Settings } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { LevelAssessmentModal } from '@/components/survey/LevelAssessmentModal';
 import { useToast } from '@/hooks/use-toast';
@@ -165,14 +165,6 @@ export default function ProfilePage() {
     catch (error: any) { toast({ title: "Checkout Failed", description: error.message || "Could not initiate checkout.", variant: "destructive", duration: 8000 }); }
     setIsRedirectingToCheckout(false);
   };
-  
-  const handleCopyCheckoutLink = async () => {
-    try {
-      const response = await fetch('/api/create-checkout-session', { method: 'POST', headers: { 'Content-Type': 'application/json', }, body: JSON.stringify({ priceId: stripePriceId, successUrl: `${window.location.origin}/profile?payment_success=true`, cancelUrl: `${window.location.origin}/profile?payment_canceled=true`, }), });
-      if (!response.ok) throw new Error('Failed to create session');
-      const { url } = await response.json(); if (url) { await navigator.clipboard.writeText(url); toast({ title: "Link Copied!", description: "You can paste the link in a new tab to complete payment.", duration: 4000 }); }
-    } catch (error) { toast({ title: "Error", description: "Failed to create payment link.", variant: "destructive", }); }
-  };
 
   const handleDowngradeToFree = async () => {
     if (user) {
@@ -189,7 +181,7 @@ export default function ProfilePage() {
   const { userLevel, isPremium, analysisAttempts, subscriptionStartDate, subscriptionNextBillingDate } = profileData;
 
   return (
-    <div className="container mx-auto py-4 px-2 md:px-0 max-w-lg">
+    <div className="container mx-auto py-4 px-2 md:px-0 max-w-lg space-y-4">
        <LevelAssessmentModal isOpen={showSurveyModal} onComplete={handleSurveyComplete} />
       <Card className="overflow-hidden border">
         <CardHeader className="p-3 md:p-4">
@@ -269,37 +261,38 @@ export default function ProfilePage() {
                     </div>
                 )}
               </CardContent>
-            </Card>
-          </div>
-        </CardContent>
-        <CardFooter className="p-3 md:p-4 border-t">
-            <div className="w-full space-y-1.5">
+               <CardFooter className="p-2 border-t">
                 {isPremium ? (
-                     <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-sm h-8">
+                    <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-xs h-7">
                         Switch to Free Plan
                     </Button>
                 ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-1 w-full">
                       <Button
                           onClick={handleUpgradeToPremiumViaStripe}
-                          className="w-full text-sm h-9"
+                          className="w-full text-sm h-8"
                           disabled={isRedirectingToCheckout || !isStripeKeySet}
                       >
                           {isRedirectingToCheckout ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : "Upgrade to Premium"}
                       </Button>
-                      <Button onClick={handleCopyCheckoutLink} variant="outline" size="sm" className="w-full text-xs h-7" disabled={!isStripeKeySet}>
-                        <Copy className="mr-1 h-3 w-3" /> Copy Payment Link (for testing)
-                      </Button>
+                      {!isStripeKeySet && ( <p className="text-xs text-center text-destructive">Payments disabled.</p> )}
                     </div>
                 )}
-                {!isStripeKeySet && ( <p className="text-xs text-center text-destructive">Stripe is not configured. Payments are disabled.</p> )}
-                <p className="text-xs text-center text-muted-foreground">Terms and conditions apply (not yet created).</p>
-                <Button variant="ghost" onClick={() => router.push('/feedback')} className="w-full text-sm h-8">
-                  <MessageSquare className="mr-2 h-4 w-4" /> Share Feedback
-                </Button>
-                <Button variant="ghost" onClick={() => router.push('/dashboard')} className="w-full text-sm h-8">Back to Dashboard</Button>
-            </div>
-        </CardFooter>
+               </CardFooter>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardContent className="p-3 flex flex-col space-y-2">
+            <Button variant="ghost" asChild className="justify-start">
+              <Link href="/settings"><Settings className="mr-2 h-4 w-4" /> App Settings</Link>
+            </Button>
+            <Button variant="ghost" asChild className="justify-start">
+              <Link href="/feedback"><MessageSquare className="mr-2 h-4 w-4" /> Share Feedback</Link>
+            </Button>
+        </CardContent>
       </Card>
     </div>
   );

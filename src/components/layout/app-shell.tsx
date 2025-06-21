@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, LineChart, Settings, MessageSquare } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, Settings, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -88,9 +88,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home, tooltip: 'Dashboard' },
     { href: '/news', label: 'News', icon: Newspaper, tooltip: 'Market News' },
+    { href: '/training', label: 'Training', icon: GraduationCap, tooltip: 'Training Center' },
     { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
-    { href: '/training', label: 'AI Quiz', icon: GraduationCap, tooltip: 'Training Quiz' },
-    { href: '/training/charts', label: 'Practice Charts', icon: LineChart, tooltip: 'Interactive Charts' },
     { href: '/feedback', label: 'Feedback', icon: MessageSquare, tooltip: 'Public Feedback' },
     { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
     { href: '/settings', label: 'Settings', icon: Settings, tooltip: 'App Settings' },
@@ -106,8 +105,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu className="gap-0.5">
             {navItems.map(item => {
               const Icon = item.icon;
-              // For desktop, we can have more specific active states
-              const isActive = pathname === item.href;
+              // Highlight parent route for training section
+              const isActive = pathname.startsWith(item.href) && (item.href !== '/dashboard' || pathname === '/dashboard');
+              
               return (
                 <SidebarMenuItem key={item.href}>
                   <SidebarMenuButton asChild isActive={isActive} tooltip={item.tooltip} size="sm" className="h-8">

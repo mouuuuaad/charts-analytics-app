@@ -2,8 +2,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Training Center',
-  description: 'Sharpen your trading skills with our AI-powered quiz and interactive practice charts.',
+  title: 'AI Training Quiz',
+  description: 'Test your trading knowledge with our AI-powered quiz.',
 };
 
 export default function Layout({ children }: { children: React.ReactNode }) {
