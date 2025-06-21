@@ -1,43 +1,30 @@
 
-'use client'; // Required for usePathname
-
+import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider } from '@/contexts/auth-context';
-import { AppShell } from '@/components/layout/app-shell';
-import { usePathname } from 'next/navigation';
-import { GlobalInspirationNotifier } from '@/components/layout/GlobalInspirationNotifier';
 import NextNProgress from 'nextjs-toploader';
+import { LayoutClientWrapper } from './layout-client-wrapper';
+
+export const metadata: Metadata = {
+  title: {
+    template: '%s | Oday Ai',
+    default: 'Oday Ai - Unlock Market Insights',
+  },
+  description: 'Use AI to analyze financial charts, predict trends, and assess risk. Your expert trading co-pilot.',
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-  const isLandingPage = pathname === '/';
-
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <title>Oday Ai</title>
-        <meta name="description" content="AI chart analysis" />
-        {/* Removing Google Fonts for a more "system" feel */}
-      </head>
+      <head />
       <body className="antialiased">
         <NextNProgress color="#000000" height={2} showSpinner={false} />
         <AuthProvider>
-          {isLandingPage ? (
-            <>
-              {children}
-            </>
-          ) : (
-            <AppShell>
-              {children}
-            </AppShell>
-          )}
-          <GlobalInspirationNotifier />
-          <Toaster />
+          <LayoutClientWrapper>{children}</LayoutClientWrapper>
         </AuthProvider>
       </body>
     </html>
