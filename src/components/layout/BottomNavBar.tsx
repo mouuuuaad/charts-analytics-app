@@ -3,14 +3,13 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Newspaper, GraduationCap, History, UserCircle, MessageSquare, LineChart } from 'lucide-react';
+import { Home, Newspaper, GraduationCap, History, UserCircle, MessageSquare } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/news', label: 'News', icon: Newspaper },
-  { href: '/training/quiz', label: 'Quiz', icon: GraduationCap },
-  { href: '/training/charts', label: 'Charts', icon: LineChart },
+  { href: '/training', label: 'Training', icon: GraduationCap },
   { href: '/history', label: 'History', icon: History },
   { href: '/feedback', label: 'Feedback', icon: MessageSquare },
   { href: '/profile', label: 'Profile', icon: UserCircle },

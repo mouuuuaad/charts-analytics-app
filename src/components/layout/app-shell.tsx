@@ -22,7 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, Settings, MessageSquare, LineChart } from 'lucide-react';
+import { Home, History, LogOut, BarChart3, UserCircle, GraduationCap, Newspaper, Loader2, Settings, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/auth-context';
 import { usePathname, useRouter } from 'next/navigation';
 import React from 'react';
@@ -88,8 +88,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home, tooltip: 'Dashboard' },
     { href: '/news', label: 'News', icon: Newspaper, tooltip: 'Market News' },
-    { href: '/training/quiz', label: 'AI Quiz', icon: GraduationCap, tooltip: 'AI Training Quiz' },
-    { href: '/training/charts', label: 'Practice Charts', icon: LineChart, tooltip: 'Interactive Charts' },
+    { href: '/training', label: 'Training', icon: GraduationCap, tooltip: 'Training Center' },
     { href: '/history', label: 'History', icon: History, tooltip: 'Analysis History' },
     { href: '/feedback', label: 'Feedback', icon: MessageSquare, tooltip: 'Public Feedback' },
     { href: '/profile', label: 'Profile', icon: UserCircle, tooltip: 'My Profile' },
