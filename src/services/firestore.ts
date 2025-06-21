@@ -139,6 +139,7 @@ export async function getAllFeedback(): Promise<Feedback[]> {
       feedbackList.push({
         id: doc.id,
         ...data,
+        reactions: data.reactions || {}, // Fix: Ensure reactions object always exists.
         createdAt: data.createdAt?.toDate ? data.createdAt.toDate() : new Date(),
       } as Feedback);
     });
