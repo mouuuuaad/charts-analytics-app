@@ -1,21 +1,19 @@
-
 'use client';
 
-import type { PredictMarketTrendOutput, TrendAnalysisDetails, CandlestickPatternInfo, VolumeAndMomentumInfo, RiskRewardAnalysis } from '@/types'; // Updated import
+import type { PredictMarketTrendOutput, TrendAnalysisDetails, CandlestickPatternInfo, VolumeAndMomentumInfo, RiskRewardAnalysis, StrategySessionOutput } from '@/types';
+import { generateStrategySession } from '@/ai/flows/generate-strategy-flow';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  AlertTriangle, CheckCircle2, Eye, HelpCircle, ListChecks, Loader2, LogIn, MinusCircle, OctagonX, ShieldAlert, ShieldCheck, ShieldQuestion, Target, TrendingDown, TrendingUp, ZoomIn, Edit3, DollarSign, Info, Brain, ChevronsUpDown, Maximize, BarChartHorizontal, Users, Activity, Wind, CandlestickChart, BookOpen, Scaling
+  AlertTriangle, CheckCircle2, Eye, HelpCircle, ListChecks, Loader2, MinusCircle, ShieldAlert, ShieldCheck, ShieldQuestion, Target, TrendingDown, TrendingUp, Maximize, BarChartHorizontal, Activity, Wind, CandlestickChart, BookOpen, BookHeart, Bot, ChevronsUpDown, Scaling, Brain
 } from 'lucide-react';
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { cn } from "@/lib/utils";
 
 interface TrendDisplayProps {
@@ -107,38 +105,37 @@ const TradeAssessmentBar: React.FC<{ assessment: RiskRewardAnalysis['tradeAssess
 
 
 export function TrendDisplay({ prediction, isLoading, error, currentChartImage, userLevel }: TrendDisplayProps) {
+  const [strategy, setStrategy] = useState<StrategySessionOutput | null>(null);
+  const [isLoadingStrategy, setIsLoadingStrategy] = useState(false);
   const [showChartModal, setShowChartModal] = useState(false);
   const [showFullAnalysisModal, setShowFullAnalysisModal] = useState(false);
-  const [selectedTimeframe, setSelectedTimeframe] = useState<string>("1D"); 
+  const [showStrategyModal, setShowStrategyModal] = useState(false);
+  const { toast } = useToast();
 
-  // What-if state
-  const [whatIfEntry, setWhatIfEntry] = useState('');
-  const [whatIfSL, setWhatIfSL] = useState('');
-  const [whatIfTP, setWhatIfTP] = useState('');
-  const [whatIfRR, setWhatIfRR] = useState<string | null>(null);
+  const handleGenerateStrategy = async () => {
+    if (!prediction) return;
+      
+    setShowStrategyModal(true);
+    if (strategy && !isLoadingStrategy) return;
 
-  const handleWhatIfCalculate = () => {
-    const entry = parseFloat(whatIfEntry);
-    const sl = parseFloat(whatIfSL);
-    const tp = parseFloat(whatIfTP);
-    if (!isNaN(entry) && !isNaN(sl) && !isNaN(tp) && sl !== entry) {
-      if ((tp > entry && sl < entry) || (tp < entry && sl > entry)) { // Valid long or short
-        const potentialReward = Math.abs(tp - entry);
-        const potentialRisk = Math.abs(entry - sl);
-        if (potentialRisk > 0) {
-          const ratio = potentialReward / potentialRisk;
-          setWhatIfRR(`${ratio.toFixed(2)} : 1`);
-        } else {
-          setWhatIfRR("Risk is zero?");
-        }
-      } else {
-        setWhatIfRR("Invalid levels");
-      }
-    } else {
-      setWhatIfRR(null);
+    setIsLoadingStrategy(true);
+    setStrategy(null);
+    try {
+      const strategyResult = await generateStrategySession(prediction);
+      if (!strategyResult) throw new Error("The AI returned an empty or invalid strategy.");
+      setStrategy(strategyResult);
+    } catch (strategyError: any) {
+      console.error("Strategy session generation failed:", strategyError);
+      toast({ 
+          variant: 'destructive', 
+          title: 'Strategy Error', 
+          description: strategyError.message || "Could not generate the AI strategy session." 
+      });
+      setShowStrategyModal(false);
+    } finally {
+      setIsLoadingStrategy(false);
     }
   };
-
 
   if (isLoading && !error) {
     return (
@@ -212,179 +209,238 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
 
   return (
     <>
-    <Card className="w-full border">
-      {/* Chart Preview Area - Simplified */}
-      <CardHeader className={cn("pb-2 pt-2 px-2 rounded-t-md", recommendationBgClasses)}>
-        <div className="flex justify-between items-center">
-            <CardTitle className={cn("text-base font-semibold flex items-center", recommendationTextClasses)}>
-                <RecommendationIcon recommendation={recommendation} className="text-current"/>
-                <span className="ml-1.5 capitalize">{recommendation}</span>
+    <Card className="w-full border-0 shadow-lg backdrop-blur-sm bg-gradient-to-br from-white/95 to-gray-50/95 dark:from-gray-900/95 dark:to-gray-800/95 overflow-hidden">
+      <CardHeader className={cn("pb-3 pt-4 px-4 relative overflow-hidden", recommendationBgClasses, "before:absolute before:inset-0 before:bg-gradient-to-r before:from-transparent before:via-white/10 before:to-transparent before:translate-x-[-100%] hover:before:translate-x-[100%] before:transition-transform before:duration-700")}>
+        <div className="flex justify-between items-center relative z-10">
+            <CardTitle className={cn("text-lg font-bold flex items-center gap-2", recommendationTextClasses, "drop-shadow-sm")}>
+                <div className="p-1.5 rounded-full bg-white/20 backdrop-blur-sm">
+                    <RecommendationIcon recommendation={recommendation} className="text-current w-5 h-5"/>
+                </div>
+                <span className="capitalize tracking-wide">{recommendation}</span>
             </CardTitle>
             {currentChartImage && (
                 <Dialog open={showChartModal} onOpenChange={setShowChartModal}>
                     <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-current hover:bg-black/10 dark:hover:bg-white/10">
+                        <Button variant="ghost" size="icon" className="h-9 w-9 shrink-0 text-current hover:bg-white/20 dark:hover:bg-black/20 rounded-full backdrop-blur-sm transition-all duration-200 hover:scale-105 hover:shadow-lg">
                             <Maximize className="h-4 w-4" />
                         </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-2xl p-1">
+                    <DialogContent className="max-w-3xl p-2 border-0 shadow-2xl backdrop-blur-xl bg-white/95 dark:bg-gray-900/95">
                         <DialogHeader className="sr-only"><DialogTitle>Chart Preview</DialogTitle></DialogHeader>
-                        <img src={currentChartImage} alt="Chart Preview" className="rounded object-contain max-h-[80vh] w-full" data-ai-hint="chart financial"/>
+                        <img src={currentChartImage} alt="Chart Preview" className="rounded-xl object-contain max-h-[80vh] w-full shadow-lg" data-ai-hint="chart financial"/>
                     </DialogContent>
                 </Dialog>
             )}
         </div>
-        <CardDescription className="text-xs mt-1 text-muted-foreground">
+        <CardDescription className="text-sm mt-3 text-gray-600 dark:text-gray-300 font-medium relative z-10">
             {prediction.explanationSummary || "No concise summary provided."}
         </CardDescription>
-         <div className="flex items-center space-x-2 mt-1.5 pt-1.5 border-t border-current/30">
+         <div className="flex items-center gap-3 mt-4 pt-3 border-t border-white/30 dark:border-gray-700/50 relative z-10">
             <RiskLevelBadge level={prediction.riskLevel} />
             <VolatilityBadge level={prediction.volatilityLevel} />
         </div>
-        <div className="mt-1.5">
-            <Label htmlFor="confidenceScore" className="text-xs text-muted-foreground">Confidence: {Math.round(prediction.confidence * 100)}%</Label>
-            <Progress value={prediction.confidence * 100} id="confidenceScore" className="h-1.5 mt-0.5"
-             indicatorClassName={confidenceColorClass} />
+        <div className="mt-4 relative z-10">
+            <Label htmlFor="confidenceScore" className="text-sm text-gray-600 dark:text-gray-300 font-semibold">Confidence: {Math.round(prediction.confidence * 100)}%</Label>
+            <Progress value={prediction.confidence * 100} id="confidenceScore" className="h-2 mt-2 bg-white/30 dark:bg-gray-700/50 backdrop-blur-sm rounded-full overflow-hidden"
+             indicatorClassName={cn(confidenceColorClass, "transition-all duration-500 ease-out rounded-full shadow-sm")} />
         </div>
       </CardHeader>
 
-      <CardContent className="p-2 space-y-2 text-sm">
-        {/* Timeframe Selector - UI Placeholder */}
-        <div className="flex items-center justify-end space-x-1.5 text-xs">
-            <Label htmlFor="timeframe-select" className="text-muted-foreground">Chart Timeframe:</Label>
-            <Select value={selectedTimeframe} onValueChange={setSelectedTimeframe} disabled>
-                <SelectTrigger id="timeframe-select" className="h-7 w-[70px] text-xs focus:ring-0">
-                    <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                    {["1m", "5m", "15m", "1H", "4H", "1D", "1W"].map(tf => <SelectItem key={tf} value={tf} className="text-xs">{tf}</SelectItem>)}
-                </SelectContent>
-            </Select>
-        </div>
-
-        <Accordion type="multiple" defaultValue={["trend-detection", "risk-reward"]} className="w-full">
-            {/* Trend Detection Panel */}
-            <AccordionItem value="trend-detection">
-                <AccordionTrigger className="text-sm font-medium hover:no-underline py-1.5 px-2 rounded data-[state=open]:bg-muted/50">
-                    <div className="flex items-center"><ChevronsUpDown className="h-4 w-4 mr-1.5" />Trend Detection</div>
+      <CardContent className="p-4 space-y-3 text-sm bg-gradient-to-b from-transparent to-gray-50/50 dark:to-gray-800/50">
+        
+        <Accordion type="multiple" defaultValue={["trend-detection", "risk-reward"]} className="w-full space-y-2">
+            <AccordionItem value="trend-detection" className="border border-gray-200/50 dark:border-gray-700/50 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm shadow-sm">
+                <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3 px-4 rounded-xl data-[state=open]:bg-gradient-to-r data-[state=open]:from-blue-50/80 data-[state=open]:to-indigo-50/80 dark:data-[state=open]:from-blue-900/30 dark:data-[state=open]:to-indigo-900/30 transition-all duration-200 hover:shadow-md">
+                    <div className="flex items-center gap-2"><ChevronsUpDown className="h-4 w-4" />Trend Detection</div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0 px-1 text-xs space-y-1">
-                    <div className="flex items-center">
+                <AccordionContent className="pt-2 pb-3 px-4 text-sm space-y-3 bg-gradient-to-b from-blue-50/30 to-transparent dark:from-blue-900/10">
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm">
                         <TrendIcon trend={prediction.trendAnalysis.direction} />
-                        <span className="ml-1.5 font-semibold">{prediction.trendAnalysis.direction}</span>
-                        <span className="ml-1 text-muted-foreground">(basis: {prediction.trendAnalysis.candleCountBasis} candles)</span>
+                        <span className="font-bold text-base">{prediction.trendAnalysis.direction}</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm">(basis: {prediction.trendAnalysis.candleCountBasis} candles)</span>
                     </div>
-                    <p className="text-muted-foreground"><span className="font-medium text-foreground">Visuals:</span> {prediction.trendAnalysis.trendlineDescription}</p>
+                    <p className="text-gray-600 dark:text-gray-300 leading-relaxed"><span className="font-semibold text-gray-900 dark:text-gray-100">Visuals:</span> {prediction.trendAnalysis.trendlineDescription}</p>
                 </AccordionContent>
             </AccordionItem>
 
-            {/* Candlestick Analysis Panel */}
-            <AccordionItem value="candlestick-analysis">
-                <AccordionTrigger className="text-sm font-medium hover:no-underline py-1.5 px-2 rounded data-[state=open]:bg-muted/50">
-                    <div className="flex items-center"><CandlestickChart className="h-4 w-4 mr-1.5" />Candlestick Analysis</div>
+            <AccordionItem value="candlestick-analysis" className="border border-gray-200/50 dark:border-gray-700/50 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm shadow-sm">
+                <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3 px-4 rounded-xl data-[state=open]:bg-gradient-to-r data-[state=open]:from-green-50/80 data-[state=open]:to-emerald-50/80 dark:data-[state=open]:from-green-900/30 dark:data-[state=open]:to-emerald-900/30 transition-all duration-200 hover:shadow-md">
+                    <div className="flex items-center gap-2"><CandlestickChart className="h-4 w-4" />Candlestick Analysis</div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0 px-1 text-xs space-y-1.5">
-                    {prediction.candlestickAnalysis.summary && <p className="italic text-muted-foreground mb-1">{prediction.candlestickAnalysis.summary}</p>}
+                <AccordionContent className="pt-2 pb-3 px-4 text-sm space-y-3 bg-gradient-to-b from-green-50/30 to-transparent dark:from-green-900/10">
+                    {prediction.candlestickAnalysis.summary && <p className="italic text-gray-600 dark:text-gray-300 p-2 rounded-lg bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm border-l-4 border-green-400">{prediction.candlestickAnalysis.summary}</p>}
                     {prediction.candlestickAnalysis.patterns.length > 0 ? (
                         prediction.candlestickAnalysis.patterns.map((p, i) => (
-                            <div key={i} className={`p-1 rounded border ${p.isStatisticallyWeakOrNeutral ? 'border-dashed border-border bg-accent/30' : 'border-border bg-muted/30'}`}>
-                                <span className="font-semibold">{p.name}</span> ({p.candleCount} candles): {p.implications}
-                                {p.isStatisticallyWeakOrNeutral && <span className="text-muted-foreground"> (Considered weak/neutral in context)</span>}
+                            <div key={i} className={`p-3 rounded-xl border backdrop-blur-sm transition-all duration-200 hover:shadow-md ${p.isStatisticallyWeakOrNeutral ? 'border-dashed border-amber-300 bg-amber-50/60 dark:bg-amber-900/20 dark:border-amber-600' : 'border-green-300 bg-green-50/60 dark:bg-green-900/20 dark:border-green-600'}`}>
+                                <span className="font-bold text-base">{p.name}</span> <span className="text-gray-500">({p.candleCount} candles)</span>
+                                <p className="mt-1 text-gray-700 dark:text-gray-200">{p.implications}</p>
+                                {p.isStatisticallyWeakOrNeutral && <span className="text-amber-600 dark:text-amber-400 text-sm mt-1 block"> (Considered weak/neutral in context)</span>}
                             </div>
                         ))
-                    ) : <p className="text-muted-foreground">No specific strong candlestick patterns identified recently.</p>}
+                    ) : <p className="text-gray-500 dark:text-gray-400 p-3 rounded-lg bg-gray-100/60 dark:bg-gray-700/60 text-center">No specific strong candlestick patterns identified recently.</p>}
                 </AccordionContent>
             </AccordionItem>
 
-            {/* Volume & Momentum Panel */}
-            <AccordionItem value="volume-momentum">
-                <AccordionTrigger className="text-sm font-medium hover:no-underline py-1.5 px-2 rounded data-[state=open]:bg-muted/50">
-                    <div className="flex items-center"><Activity className="h-4 w-4 mr-1.5" />Volume & Momentum</div>
+            <AccordionItem value="volume-momentum" className="border border-gray-200/50 dark:border-gray-700/50 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm shadow-sm">
+                <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3 px-4 rounded-xl data-[state=open]:bg-gradient-to-r data-[state=open]:from-purple-50/80 data-[state=open]:to-violet-50/80 dark:data-[state=open]:from-purple-900/30 dark:data-[state=open]:to-violet-900/30 transition-all duration-200 hover:shadow-md">
+                    <div className="flex items-center gap-2"><Activity className="h-4 w-4" />Volume & Momentum</div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0 px-1 text-xs space-y-1">
-                    <p><span className="font-semibold">Volume:</span> {prediction.volumeAndMomentum.volumeStatus}. {prediction.volumeAndMomentum.volumeInterpretation}</p>
-                    <p><span className="font-semibold">RSI Est:</span> {prediction.volumeAndMomentum.rsiEstimate}</p>
-                    <p><span className="font-semibold">MACD Est:</span> {prediction.volumeAndMomentum.macdEstimate}</p>
+                <AccordionContent className="pt-2 pb-3 px-4 text-sm space-y-3 bg-gradient-to-b from-purple-50/30 to-transparent dark:from-purple-900/10">
+                    <div className="space-y-2">
+                        <p className="p-2 rounded-lg bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm"><span className="font-bold">Volume:</span> {prediction.volumeAndMomentum.volumeStatus}. {prediction.volumeAndMomentum.volumeInterpretation}</p>
+                        <p className="p-2 rounded-lg bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm"><span className="font-bold">RSI Est:</span> {prediction.volumeAndMomentum.rsiEstimate}</p>
+                        <p className="p-2 rounded-lg bg-white/70 dark:bg-gray-700/70 backdrop-blur-sm"><span className="font-bold">MACD Est:</span> {prediction.volumeAndMomentum.macdEstimate}</p>
+                    </div>
                 </AccordionContent>
             </AccordionItem>
 
-            {/* Risk/Reward Logic Panel */}
-            <AccordionItem value="risk-reward">
-                <AccordionTrigger className="text-sm font-medium hover:no-underline py-1.5 px-2 rounded data-[state=open]:bg-muted/50">
-                    <div className="flex items-center"><Scaling className="h-4 w-4 mr-1.5" />Risk/Reward Analysis</div>
+            <AccordionItem value="risk-reward" className="border border-gray-200/50 dark:border-gray-700/50 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm shadow-sm">
+                <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3 px-4 rounded-xl data-[state=open]:bg-gradient-to-r data-[state=open]:from-orange-50/80 data-[state=open]:to-red-50/80 dark:data-[state=open]:from-orange-900/30 dark:data-[state=open]:to-red-900/30 transition-all duration-200 hover:shadow-md">
+                    <div className="flex items-center gap-2"><Scaling className="h-4 w-4" />Risk/Reward Analysis</div>
                 </AccordionTrigger>
-                <AccordionContent className="pt-1 pb-0 px-1 text-xs space-y-2">
+                <AccordionContent className="pt-2 pb-3 px-4 text-sm space-y-4 bg-gradient-to-b from-orange-50/30 to-transparent dark:from-orange-900/10">
                     <TradeAssessmentBar assessment={prediction.riskRewardDetails.tradeAssessment} />
-                    <p className="text-muted-foreground text-center text-[0.7rem]">{prediction.riskRewardDetails.assessmentReasoning}</p>
+                    <p className="text-gray-600 dark:text-gray-300 text-center text-sm p-2 rounded-lg bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm border-l-4 border-orange-400">{prediction.riskRewardDetails.assessmentReasoning}</p>
 
-                    <div className="grid grid-cols-3 gap-1.5 text-center mt-1">
-                        <div>
-                            <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Entry</Label>
-                            {prediction.suggestedEntryPoints.map((ep,i)=><p key={i} className="font-semibold text-[0.7rem] leading-tight">{ep}</p>)}
-                            {prediction.suggestedEntryPoints.length === 0 && <p className="font-semibold text-[0.7rem]">-</p>}
+                    <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-900/30 backdrop-blur-sm border border-blue-200/50 dark:border-blue-700/50">
+                            <Label className="block text-blue-700 dark:text-blue-300 text-sm font-semibold mb-2">Entry</Label>
+                            {prediction.suggestedEntryPoints.map((ep,i)=><p key={i} className="font-bold text-sm leading-tight text-blue-900 dark:text-blue-100">{ep}</p>)}
+                            {prediction.suggestedEntryPoints.length === 0 && <p className="font-bold text-sm text-gray-400">-</p>}
                         </div>
-                        <div>
-                            <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Take Profit</Label>
-                             {prediction.takeProfitLevels.map((tp,i)=><p key={i} className="font-semibold text-success text-[0.7rem] leading-tight">{tp}</p>)}
-                             {prediction.takeProfitLevels.length === 0 && <p className="font-semibold text-[0.7rem]">-</p>}
+                        <div className="p-3 rounded-xl bg-green-50/80 dark:bg-green-900/30 backdrop-blur-sm border border-green-200/50 dark:border-green-700/50">
+                            <Label className="block text-green-700 dark:text-green-300 text-sm font-semibold mb-2">Take Profit</Label>
+                             {prediction.takeProfitLevels.map((tp,i)=><p key={i} className="font-bold text-green-600 dark:text-green-400 text-sm leading-tight">{tp}</p>)}
+                             {prediction.takeProfitLevels.length === 0 && <p className="font-bold text-sm text-gray-400">-</p>}
                         </div>
-                        <div>
-                            <Label className="block text-muted-foreground text-[0.65rem] mb-0.5">Stop Loss</Label>
-                            {prediction.stopLossLevels.map((sl,i)=><p key={i} className="font-semibold text-destructive text-[0.7rem] leading-tight">{sl}</p>)}
-                            {prediction.stopLossLevels.length === 0 && <p className="font-semibold text-[0.7rem]">-</p>}
+                        <div className="p-3 rounded-xl bg-red-50/80 dark:bg-red-900/30 backdrop-blur-sm border border-red-200/50 dark:border-red-700/50">
+                            <Label className="block text-red-700 dark:text-red-300 text-sm font-semibold mb-2">Stop Loss</Label>
+                            {prediction.stopLossLevels.map((sl,i)=><p key={i} className="font-bold text-red-600 dark:text-red-400 text-sm leading-tight">{sl}</p>)}
+                            {prediction.stopLossLevels.length === 0 && <p className="font-bold text-sm text-gray-400">-</p>}
                         </div>
                     </div>
                     {prediction.rewardRiskRatio && (
-                        <div className="text-center mt-1">
-                            <Label className="text-muted-foreground text-[0.65rem]">Reward:Risk Ratio</Label>
-                            <p className="font-bold text-sm">{prediction.rewardRiskRatio.reward.toFixed(2)} : {prediction.rewardRiskRatio.risk.toFixed(2)}</p>
+                        <div className="text-center p-3 rounded-xl bg-gradient-to-r from-indigo-50/80 to-purple-50/80 dark:from-indigo-900/30 dark:to-purple-900/30 backdrop-blur-sm border border-indigo-200/50 dark:border-indigo-700/50">
+                            <Label className="text-indigo-700 dark:text-indigo-300 text-sm font-semibold">Reward:Risk Ratio</Label>
+                            <p className="font-bold text-lg mt-1 text-indigo-900 dark:text-indigo-100">{prediction.rewardRiskRatio.reward.toFixed(2)} : {prediction.rewardRiskRatio.risk.toFixed(2)}</p>
                         </div>
                     )}
-
-                    {/* What-if Simulation - UI Only */}
-                    <div className="mt-2 pt-2 border-t">
-                        <Label className="text-xs font-medium block mb-1">"What-if" Simulation:</Label>
-                        <div className="grid grid-cols-3 gap-1 items-end">
-                            <Input type="number" placeholder="Entry" value={whatIfEntry} onChange={e => setWhatIfEntry(e.target.value)} className="h-7 text-xs" />
-                            <Input type="number" placeholder="Stop Loss" value={whatIfSL} onChange={e => setWhatIfSL(e.target.value)} className="h-7 text-xs" />
-                            <Input type="number" placeholder="Take Profit" value={whatIfTP} onChange={e => setWhatIfTP(e.target.value)} className="h-7 text-xs" />
-                        </div>
-                        <Button onClick={handleWhatIfCalculate} size="sm" variant="outline" className="text-xs h-7 mt-1 w-full">Recalculate R:R</Button>
-                        {whatIfRR && <p className="text-center text-xs mt-1">Simulated R:R: <span className="font-semibold">{whatIfRR}</span></p>}
-                    </div>
                 </AccordionContent>
             </AccordionItem>
+            
+            {prediction.islamicFinanceConsiderations && (
+              <AccordionItem value="islamic-finance" className="border border-gray-200/50 dark:border-gray-700/50 rounded-xl overflow-hidden bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm shadow-sm">
+                  <AccordionTrigger className="text-sm font-semibold hover:no-underline py-3 px-4 rounded-xl data-[state=open]:bg-gradient-to-r data-[state=open]:from-teal-50/80 data-[state=open]:to-cyan-50/80 dark:data-[state=open]:from-teal-900/30 dark:data-[state=open]:to-cyan-900/30 transition-all duration-200 hover:shadow-md">
+                      <div className="flex items-center gap-2"><BookHeart className="h-4 w-4" />Ethical & Islamic Principles</div>
+                  </AccordionTrigger>
+                  <AccordionContent className="pt-2 pb-3 px-4 text-sm bg-gradient-to-b from-teal-50/30 to-transparent dark:from-teal-900/10">
+                      <p className="whitespace-pre-line text-gray-600 dark:text-gray-300 p-3 rounded-lg bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm border-l-4 border-teal-400 leading-relaxed">{prediction.islamicFinanceConsiderations}</p>
+                  </AccordionContent>
+              </AccordionItem>
+            )}
         </Accordion>
       </CardContent>
 
-      <CardFooter className="p-1.5 border-t flex flex-col space-y-1.5">
-        <Button size="sm" className="w-full text-xs h-8" onClick={() => setShowFullAnalysisModal(true)}>
-            <BookOpen className="mr-1.5 h-3.5 w-3.5" /> Detailed AI Explanation
+      <CardFooter className="p-4 border-t border-gray-200/50 dark:border-gray-700/50 flex flex-col space-y-3 bg-gradient-to-t from-gray-50/80 to-transparent dark:from-gray-800/80">
+        <Button size="sm" className="w-full text-sm h-10 font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200" onClick={handleGenerateStrategy} disabled={isLoadingStrategy}>
+            {isLoadingStrategy ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bot className="mr-2 h-4 w-4" />}
+            {isLoadingStrategy ? 'Generating Strategy...' : 'AI Strategy Session'}
         </Button>
-        <div className="flex space-x-1.5 w-full">
-            <Button size="sm" variant="outline" className="flex-1 text-xs h-7" disabled>Simulate Trade</Button>
-            <Button variant="outline" size="sm" className="flex-1 text-xs h-7" asChild>
-                <Link href="/training"><Brain className="h-3 w-3 mr-1"/>Training</Link>
-            </Button>
-        </div>
+        <Button size="sm" variant="outline" className="w-full text-sm h-9 font-medium rounded-xl border-2 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 hover:shadow-md transition-all duration-200" onClick={() => setShowFullAnalysisModal(true)}>
+            <BookOpen className="mr-2 h-4 w-4" /> Detailed Explanation
+        </Button>
       </CardFooter>
     </Card>
-     <p className="text-[0.65rem] text-muted-foreground text-center w-full mt-1.5 px-1">
+     <p className="text-xs text-gray-500 dark:text-gray-400 text-center w-full mt-3 px-2 leading-relaxed">
         <strong>Disclaimer:</strong> AI analysis for educational purposes. Not financial advice. Trading involves risk. DYOR.
     </p>
 
-    {/* Full Analysis Modal */}
     <Dialog open={showFullAnalysisModal} onOpenChange={setShowFullAnalysisModal}>
         <DialogContent className="max-w-2xl max-h-[85vh]">
             <DialogHeader>
-                <DialogTitle className="text-lg flex items-center"><Info className="h-5 w-5 mr-2 text-primary"/>Full Scientific AI Analysis</DialogTitle>
+                <DialogTitle className="text-lg flex items-center"><BookOpen className="h-5 w-5 mr-2 text-primary"/>Full Scientific AI Analysis</DialogTitle>
                 <DialogDescription className="text-xs">
                     User Level Context: <Badge variant="outline" className="text-xs px-1">{userLevel || 'Intermediate'}</Badge>
                 </DialogDescription>
             </DialogHeader>
             <ScrollArea className="max-h-[60vh] pr-3 text-xs">
-                 <div className="prose prose-xs max-w-none dark:prose-invert whitespace-pre-line" dangerouslySetInnerHTML={{ __html: prediction.fullScientificAnalysis.replace(/\n/g, '<br />') }} />
+                 <div className="prose prose-xs max-w-none dark:prose-invert whitespace-pre-line" dangerouslySetInnerHTML={{ __html: prediction.fullScientificAnalysis.replace(/\\n/g, '<br />') }} />
             </ScrollArea>
+            <DialogFooter className="pt-2">
+                <DialogClose asChild><Button type="button" variant="outline" size="sm">Close</Button></DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog open={showStrategyModal} onOpenChange={setShowStrategyModal}>
+        <DialogContent className="max-w-md">
+            <DialogHeader>
+                <DialogTitle className="text-xl flex items-center"><Bot className="h-6 w-6 mr-2 text-primary"/>AI Strategy Session</DialogTitle>
+                <DialogDescription>
+                    Your distilled action plan for this trade.
+                </DialogDescription>
+            </DialogHeader>
+            {isLoadingStrategy ? (
+                <div className="min-h-[200px] flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                </div>
+            ) : strategy ? (
+                <ScrollArea className="max-h-[70vh] pr-3 text-sm">
+                    <div className="space-y-4">
+                        <div className="space-y-1">
+                            <h4 className="font-semibold flex items-center"><Target className="h-4 w-4 mr-2 text-success"/>Primary Signal</h4>
+                            <div className="p-2 border-l-4 border-success bg-muted/50 rounded-r-md">
+                                <p className="font-bold text-base">{strategy.primarySignal.title}</p>
+                                <p className="text-xs text-muted-foreground">{strategy.primarySignal.description}</p>
+                            </div>
+                        </div>
+
+                        {strategy.conflictingSignals.length > 0 && (
+                            <div className="space-y-1">
+                                <h4 className="font-semibold flex items-center"><ShieldAlert className="h-4 w-4 mr-2 text-destructive"/>Risks & Conflicting Signals</h4>
+                                <ul className="space-y-1 text-xs">
+                                    {strategy.conflictingSignals.map((signal, index) => (
+                                        <li key={index} className="p-2 border rounded-md">
+                                            <p className="font-semibold">{signal.title}</p>
+                                            <p className="text-muted-foreground">{signal.description}</p>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="space-y-1">
+                            <h4 className="font-semibold flex items-center"><ListChecks className="h-4 w-4 mr-2 text-primary"/>Action Plan</h4>
+                            <ol className="space-y-2 text-xs list-inside">
+                                {strategy.actionPlan.map(item => (
+                                    <li key={item.step} className="flex">
+                                        <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground font-bold text-xs mr-2 shrink-0">{item.step}</span>
+                                        <div className="flex-1">
+                                            <p className="font-semibold">{item.instruction}</p>
+                                            <p className="text-muted-foreground italic">Rationale: {item.rationale}</p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ol>
+                        </div>
+                        
+                        <div className="space-y-1 pt-2 border-t">
+                            <h4 className="font-semibold flex items-center"><Brain className="h-4 w-4 mr-2"/>Psychological Briefing</h4>
+                            <div className="p-2 border rounded-md text-xs bg-accent/30">
+                                <p className="font-bold">{strategy.psychologicalBriefing.title}</p>
+                                <p className="mt-1">{strategy.psychologicalBriefing.advice}</p>
+                                <div className="mt-2 pt-2 border-t border-dashed flex items-start">
+                                    <BookHeart className="h-4 w-4 mr-2 mt-0.5 text-primary shrink-0"/>
+                                    <div>
+                                        <p className="font-semibold">{strategy.psychologicalBriefing.islamicPrinciple.name}</p>
+                                        <p className="text-muted-foreground">{strategy.psychologicalBriefing.islamicPrinciple.application}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </ScrollArea>
+            ) : null }
             <DialogFooter className="pt-2">
                 <DialogClose asChild><Button type="button" variant="outline" size="sm">Close</Button></DialogClose>
             </DialogFooter>
@@ -395,7 +451,6 @@ export function TrendDisplay({ prediction, isLoading, error, currentChartImage, 
 }
 
 
-// Helper component for ScrollArea within Dialog, if needed.
 const ScrollArea: React.FC<{ className?: string; children: React.ReactNode }> = ({ className, children }) => (
   <div className={cn("overflow-y-auto", className)}>{children}</div>
 );

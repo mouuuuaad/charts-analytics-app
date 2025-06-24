@@ -1,4 +1,3 @@
-
 import type { PredictMarketTrendOutput as OldPredictMarketTrendOutput } from '@/ai/flows/predict-market-trend'; // Keep old for reference if needed, or remove if fully replaced
 
 export const ADMIN_EMAIL = "mouaadidoufkir2@gmail.com";
@@ -20,6 +19,11 @@ export interface CandlestickPatternInfo {
   implications: string; // e.g., "Suggests potential reversal to upside.", "Indicates indecision."
   candleCount: number; // How many candles form this pattern
   isStatisticallyWeakOrNeutral: boolean;
+}
+
+export interface CandlestickAnalysis {
+    patterns: CandlestickPatternInfo[];
+    summary?: string; // Optional summary of candlestick sentiment
 }
 
 export interface VolumeAndMomentumInfo {
@@ -44,10 +48,7 @@ export interface PredictMarketTrendOutput {
   
   // Detailed Breakdown
   trendAnalysis: TrendAnalysisDetails;
-  candlestickAnalysis: {
-    patterns: CandlestickPatternInfo[];
-    summary?: string; // Optional summary of candlestick sentiment
-  };
+  candlestickAnalysis: CandlestickAnalysis;
   volumeAndMomentum: VolumeAndMomentumInfo;
   
   // Suggested Levels (can be refined/overridden by user in UI)
@@ -62,6 +63,7 @@ export interface PredictMarketTrendOutput {
   fullScientificAnalysis: string; // The comprehensive, detailed analysis text
   keyIndicators?: OldPredictMarketTrendOutput['keyIndicators']; // Keep for compatibility if needed, or phase out
   volatilityLevel?: OldPredictMarketTrendOutput['volatilityLevel']; // Keep for now
+  islamicFinanceConsiderations?: string; // NEW: Ethical/Islamic principles
 }
 
 
@@ -144,4 +146,70 @@ export interface Feedback {
     [key in ReactionType]?: string[]; // Array of user IDs who reacted
   };
   replyCount?: number;
+}
+
+// Prayer Time Types
+export type PrayerName = 'Fajr' | 'Dhuhr' | 'Asr' | 'Maghrib' | 'Isha';
+
+export interface PrayerTime {
+  name: PrayerName;
+  time: Date;
+}
+
+export interface PrayerTimesData {
+  Fajr: string;
+  Dhuhr: string;
+  Asr: string;
+  Maghrib: string;
+  Isha: string;
+  date?: {
+    gregorian: {
+        date: string;
+    }
+  }
+}
+
+export interface ActiveOverlay {
+  type: 'live' | 'catch-up';
+  prayerName: PrayerName;
+  endTime: number;
+}
+
+export interface PrayerTimeContextType {
+  prayerTimes: PrayerTime[];
+  nextPrayer: PrayerTime | null;
+  city: string | null;
+  country: string | null;
+  prayerDate: Date | null;
+  isLoading: boolean;
+  promptedMissedPrayer: PrayerName | null;
+  handlePrayerConfirmation: (prayerName: PrayerName) => void;
+  handlePrayerPostponement: (prayerName: PrayerName) => void;
+  activeOverlay: ActiveOverlay | null;
+  handleOverlayEnd: () => void;
+}
+
+// AI Strategy Session Types
+export interface StrategySessionOutput {
+  primarySignal: {
+    title: string;
+    description: string;
+  };
+  conflictingSignals: Array<{
+    title: string;
+    description: string;
+  }>;
+  actionPlan: Array<{
+    step: number;
+    instruction: string;
+    rationale: string;
+  }>;
+  psychologicalBriefing: {
+    title: string;
+    advice: string;
+    islamicPrinciple: {
+      name: 'Sabr (Patience)' | 'Shukr (Gratitude)' | 'Tawakkul (Trust in Allah)' | 'Ihsan (Excellence)';
+      application: string;
+    }
+  };
 }

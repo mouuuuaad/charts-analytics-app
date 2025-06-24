@@ -8,7 +8,6 @@ import { fetchNewsFromAPI } from '@/lib/newsService';
 import { NewsCard } from '@/components/news/NewsCard';
 import { TrendingTickersSidebar } from '@/components/news/TrendingTickersSidebar';
 import { FloatingAIButton } from '@/components/news/FloatingAIButton';
-// import { BreakingNewsSection } from '@/components/news/BreakingNewsSection'; // Commented out
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,6 +25,7 @@ export default function NewsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearchTerm = useDebounce(searchTerm, 500);
   const [newsArticles, setNewsArticles] = useState<NewsArticle[]>([]);
+  const [breakingNews, setBreakingNews] = useState<NewsArticle[]>([]);
   const [trendingTickers, setTrendingTickers] = useState<TrendingTicker[]>([]);
   const [isLoadingNews, setIsLoadingNews] = useState(false);
   const [isLoadingTickers, setIsLoadingTickers] = useState(false);
@@ -55,7 +55,7 @@ export default function NewsPage() {
   const fetchNews = useCallback(async (topic: NewsTopic, term?: string) => {
     setIsLoadingNews(true); setError(null);
     try {
-      const articles = await fetchNewsFromAPI(topic, term, false); // false for isBreakingNews
+      const articles = await fetchNewsFromAPI(topic, term, false);
       setNewsArticles(articles);
     } catch (err: any) {
       console.error("Failed to fetch news:", err);
@@ -66,6 +66,16 @@ export default function NewsPage() {
       setIsLoadingNews(false);
     }
   }, [toast]);
+
+  const fetchBreakingNews = useCallback(async () => {
+    try {
+      const articles = await fetchNewsFromAPI('breaking', undefined, true);
+      setBreakingNews(articles);
+    } catch (err: any) {
+      console.error("Failed to fetch breaking news:", err);
+      // Don't show a toast for this, as it's a background element.
+    }
+  }, []);
 
   const fetchTrendingTickers = useCallback(async () => {
     setIsLoadingTickers(true);
@@ -86,7 +96,8 @@ export default function NewsPage() {
 
   useEffect(() => {
     fetchTrendingTickers();
-  }, [fetchTrendingTickers]);
+    fetchBreakingNews(); // Fetch breaking news on initial load
+  }, [fetchTrendingTickers, fetchBreakingNews]);
 
   const handleToggleWatchlist = (article: NewsArticle) => {
     setWatchlist((prevWatchlist) => {
@@ -142,9 +153,7 @@ export default function NewsPage() {
         </CardHeader>
       </Card>
       
-      {/* <BreakingNewsSection /> */}
-
-      <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full max-w-[80%] mx-auto">
+      <Tabs value={selectedTopic} onValueChange={(value) => setSelectedTopic(value as NewsTopic)} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1 p-0.5 h-auto">
           {(Object.keys(topicLabels) as NewsTopic[]).map(topic => {
             const Icon = topicIcons[topic];
@@ -175,12 +184,12 @@ export default function NewsPage() {
             </div>
           )}
           {!isLoadingNews && error && (
-             <Card className="col-span-full border p-3">
+             <Card className="col-span-full border border-destructive/50 bg-destructive/10 p-3">
                 <CardContent className="py-8 flex flex-col items-center justify-center text-center">
-                    <AlertTriangle className="w-8 h-8 mb-2" />
-                    <p className="text-md font-medium">Error Loading News</p>
-                    <p className="text-sm text-muted-foreground whitespace-pre-line">{error}</p>
-                    <Button onClick={() => fetchNews(selectedTopic, debouncedSearchTerm)} className="mt-2 text-xs h-7">Try Again</Button>
+                    <AlertTriangle className="w-8 h-8 mb-2 text-destructive" />
+                    <p className="text-md font-medium text-destructive">Error Loading News</p>
+                    <p className="text-sm text-destructive/80 whitespace-pre-line">{error}</p>
+                    <Button onClick={() => fetchNews(selectedTopic, debouncedSearchTerm)} variant="destructive" className="mt-2 text-xs h-7">Try Again</Button>
                 </CardContent>
             </Card>
           )}
@@ -221,7 +230,7 @@ export default function NewsPage() {
           <TrendingTickersSidebar tickers={trendingTickers} isLoading={isLoadingTickers} />
       </div>
 
-      <FloatingAIButton />
+      <FloatingAIButton articles={breakingNews} />
     </div>
   );
 }

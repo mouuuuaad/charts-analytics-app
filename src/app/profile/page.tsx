@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -16,6 +15,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import Link from 'next/link';
 import { format, addDays, differenceInDays, differenceInHours, differenceInMinutes, parseISO } from 'date-fns';
 import type { UserLevel, UserProfileData } from '@/types';
+import { ADMIN_EMAIL } from '@/types'; // Import ADMIN_EMAIL
 import { getUserProfile, setUserTradingLevel, updateUserPremiumStatus } from '@/services/firestore';
 
 const stripePublishableKeyValue = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -40,6 +40,7 @@ export default function ProfilePage() {
   const [timeRemainingToNextBilling, setTimeRemainingToNextBilling] = useState<string | null>(null);
   const [isEnablingNotifications, setIsEnablingNotifications] = useState(false);
 
+  const isAdmin = user?.email === ADMIN_EMAIL; // Define isAdmin here
 
   const fetchSetIsStripeKey = useCallback(() => {
     if (stripePublishableKeyValue && stripePublishableKeyValue.trim() !== "" && !stripePublishableKeyValue.includes("YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE") && !stripePublishableKeyValue.includes("pk_test_YOUR_STRIPE_TEST_PUBLISHABLE_KEY_HERE")) {
@@ -59,7 +60,18 @@ export default function ProfilePage() {
       setIsLoadingProfileData(true);
       fetchSetIsStripeKey();
       try {
-        const data = await getUserProfile(user.uid);
+        let data = await getUserProfile(user.uid);
+        // Check for subscription expiration
+        if (data && data.isPremium && data.subscriptionNextBillingDate && new Date() > parseISO(data.subscriptionNextBillingDate)) {
+            toast({
+                title: "Subscription Expired",
+                description: "Your Premium plan has ended. You are now on the Free plan.",
+                variant: "destructive"
+            });
+            await updateUserPremiumStatus(user.uid, false, null, null);
+            // Re-fetch after update to show correct state
+            data = await getUserProfile(user.uid);
+        }
         setProfileData(data);
       } catch (e) {
         console.error("Failed to load profile from Firestore:", e);
@@ -220,7 +232,8 @@ export default function ProfilePage() {
     return ( <div className="flex h-[calc(100vh-theme(spacing.12))] items-center justify-center"> <Loader2 className="h-8 w-8 animate-spin" /> </div> );
   }
 
-  const { userLevel, isPremium, analysisAttempts, subscriptionStartDate, subscriptionNextBillingDate } = profileData;
+  const { userLevel, analysisAttempts, subscriptionStartDate, subscriptionNextBillingDate } = profileData;
+  const isEffectivelyPremium = profileData.isPremium || isAdmin;
 
   return (
     <div className="container mx-auto py-4 px-2 md:px-0 max-w-lg space-y-4">
@@ -236,6 +249,7 @@ export default function ProfilePage() {
               <CardTitle className="text-xl">{user.displayName || 'User'}</CardTitle>
               <CardDescription className="text-xs flex items-center mt-0.5">
                 <Mail className="mr-1 h-3 w-3" />{user.email}
+                {isAdmin && <Badge variant="destructive" className="ml-2 text-xs">Admin</Badge>}
               </CardDescription>
             </div>
           </div>
@@ -266,23 +280,23 @@ export default function ProfilePage() {
               <CardContent className="space-y-1.5 text-xs px-2 pb-2">
                 <div className="flex justify-between items-center">
                   <span className="text-muted-foreground">Plan:</span>
-                  <Badge variant={isPremium ? "default" : "destructive"} className={`text-xs px-1.5 py-0 ${isPremium ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"}`}>
-                    {isPremium ? <><Star className="mr-0.5 h-2.5 w-2.5"/>Premium</> : 'Free'}
+                  <Badge variant={isEffectivelyPremium ? "default" : "destructive"} className={`text-xs px-1.5 py-0 ${isEffectivelyPremium ? "bg-foreground text-background" : "bg-destructive text-destructive-foreground"}`}>
+                    {isEffectivelyPremium ? <><Star className="mr-0.5 h-2.5 w-2.5"/>Premium</> : 'Free'}
                   </Badge>
                 </div>
-                {!isPremium && (
+                {!isEffectivelyPremium && (
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-muted-foreground">Attempts:</span>
                     <span>{analysisAttempts} / {MAX_FREE_ATTEMPTS}</span>
                   </div>
                 )}
-                 {isPremium && subscriptionStartDate && (
+                 {isEffectivelyPremium && subscriptionStartDate && !isAdmin && (
                   <div className="flex justify-between items-center">
                     <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-0.5 h-3 w-3"/>Since:</span>
                     <span className="font-medium">{format(parseISO(subscriptionStartDate), "MMM d, yy")}</span>
                   </div>
                 )}
-                {isPremium && subscriptionNextBillingDate && (
+                {isEffectivelyPremium && subscriptionNextBillingDate && !isAdmin && (
                   <>
                     <div className="flex justify-between items-center">
                       <span className="text-muted-foreground flex items-center"><CalendarDays className="mr-0.5 h-3 w-3"/>Next Bill:</span>
@@ -296,18 +310,30 @@ export default function ProfilePage() {
                     )}
                   </>
                 )}
-                {analysisAttempts >= MAX_FREE_ATTEMPTS && !isPremium && (
+                {analysisAttempts >= MAX_FREE_ATTEMPTS && !isEffectivelyPremium && (
                     <div className="p-1.5 border border-destructive/50 rounded text-xs flex items-center bg-destructive/10 text-destructive">
                         <AlertTriangle className="h-3 w-3 mr-1 shrink-0" />
                         All free attempts used. Upgrade for more.
                     </div>
                 )}
+                {isAdmin && (
+                    <div className="p-1.5 border border-primary/50 rounded text-xs flex items-center bg-primary/10 text-primary-foreground">
+                        <ShieldCheck className="h-3 w-3 mr-1 shrink-0 text-primary" />
+                        <span className="text-primary">Admin access enabled.</span>
+                    </div>
+                )}
               </CardContent>
                <CardFooter className="p-2 border-t">
-                {isPremium ? (
-                    <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-xs h-7">
+                {isEffectivelyPremium ? (
+                  <>
+                    {isAdmin ? (
+                      <Button variant="outline" className="w-full text-xs h-7" disabled>Admin Plan Active</Button>
+                    ) : (
+                      <Button onClick={handleDowngradeToFree} variant="outline" className="w-full text-xs h-7">
                         Switch to Free Plan
-                    </Button>
+                      </Button>
+                    )}
+                  </>
                 ) : (
                     <div className="space-y-1 w-full">
                       <Button

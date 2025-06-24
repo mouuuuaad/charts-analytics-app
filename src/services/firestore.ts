@@ -81,13 +81,35 @@ export async function incrementUserAnalysisAttempts(userId: string): Promise<voi
     }
 }
 
+// Decrements the analysis attempts count, e.g., for a bonus.
+export async function decrementUserAnalysisAttempts(userId: string): Promise<void> {
+    const userDocRef = doc(db, USERS_COLLECTION, userId);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const userDoc = await transaction.get(userDocRef);
+            if (!userDoc.exists()) {
+                console.error("User profile not found for bonus attempt grant.");
+                return;
+            }
+            const currentAttempts = userDoc.data().analysisAttempts || 0;
+            // Only grant an attempt if they have used at least one.
+            if (currentAttempts > 0) {
+                transaction.update(userDocRef, { analysisAttempts: increment(-1) });
+            }
+        });
+    } catch (error) {
+        console.error("Error granting bonus analysis attempt:", error);
+    }
+}
+
 // Updates a user's premium status and subscription dates.
 export async function updateUserPremiumStatus(userId: string, isPremium: boolean, startDate: string | null, nextBillingDate: string | null): Promise<void> {
     const userDocRef = doc(db, USERS_COLLECTION, userId);
     try {
         await updateDoc(userDocRef, {
             isPremium: isPremium,
-            analysisAttempts: isPremium ? 0 : increment(0),
+            // When upgrading to premium, reset attempts. When downgrading, leave attempts as they are.
+            analysisAttempts: isPremium ? 0 : increment(0), 
             subscriptionStartDate: startDate,
             subscriptionNextBillingDate: nextBillingDate,
         });

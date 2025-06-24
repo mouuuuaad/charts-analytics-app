@@ -44,7 +44,7 @@ export function GlobalInspirationNotifier() {
     useEffect(() => {
         // Only run the notifier if the user is logged in
         if (user && !loading) {
-            const intervalId = setInterval(showInspirationalToast, 120000); // 2 minutes
+            const intervalId = setInterval(showInspirationalToast, 72000); 
             return () => clearInterval(intervalId);
         }
     }, [user, loading, showInspirationalToast]);

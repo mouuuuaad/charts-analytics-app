@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -18,16 +17,18 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2, Text, Settings as SettingsIcon } from 'lucide-react'; // Changed TextSize to Text
+import { Trash2, Text, Settings as SettingsIcon, Volume2, Loader2 } from 'lucide-react';
 
 const FONT_SCALE_CLASS = 'text-scale-large';
 const FONT_SCALE_STORAGE_KEY = 'settingsFontSizeLargeEnabled';
 const HISTORY_STORAGE_KEY = 'chartSightAnalysesHistory';
+const AUDIO_UNLOCKED_KEY = 'audioUnlocked';
 
 export default function SettingsPage() {
   const { toast } = useToast();
   const [largerTextEnabled, setLargerTextEnabled] = useState(false);
   const [showConfirmDeleteDialog, setShowConfirmDeleteDialog] = useState(false);
+  const [isUnlockingAudio, setIsUnlockingAudio] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -67,6 +68,28 @@ export default function SettingsPage() {
       setShowConfirmDeleteDialog(false);
     }
   };
+  
+  const handleEnableAudio = () => {
+    setIsUnlockingAudio(true);
+    try {
+      const audio = new Audio('https://www.islamcan.com/audio/adhan/azan2.mp3');
+      audio.muted = true;
+      audio.play().then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+          audio.muted = false;
+          localStorage.setItem(AUDIO_UNLOCKED_KEY, 'true');
+          toast({ title: "Sounds Enabled", description: "Adhan will now play automatically at prayer times." });
+          setIsUnlockingAudio(false);
+      }).catch(err => {
+          throw err;
+      });
+    } catch (err) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not enable sounds. Your browser may have blocked it.' });
+        console.error("Manual audio unlock failed:", err);
+        setIsUnlockingAudio(false);
+    }
+  };
 
   return (
     <div className="container mx-auto py-4 px-2 md:px-0 max-w-2xl space-y-6">
@@ -78,7 +101,7 @@ export default function SettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center">
-            <Text className="mr-2 h-5 w-5" /> {/* Changed TextSize to Text */}
+            <Text className="mr-2 h-5 w-5" /> 
             Appearance
           </CardTitle>
           <CardDescription>
@@ -102,6 +125,28 @@ export default function SettingsPage() {
           </p>
         </CardContent>
       </Card>
+      
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center">
+            <Volume2 className="mr-2 h-5 w-5" />
+            Sound Settings
+          </CardTitle>
+          <CardDescription>
+            Manage audio settings for the application.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+            <Button onClick={handleEnableAudio} disabled={isUnlockingAudio}>
+                {isUnlockingAudio ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Volume2 className="mr-2 h-4 w-4" />}
+                Enable Adhan Sounds
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2 px-1">
+                If Adhan sounds are not playing automatically, click this button. Browsers require a one-time user interaction to enable sound.
+            </p>
+        </CardContent>
+      </Card>
+
 
       <Card>
         <CardHeader>
