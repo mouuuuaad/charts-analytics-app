@@ -1,13 +1,5 @@
 
 'use server';
-/**
- * @fileOverview A Genkit flow to generate quiz questions on a given trading topic.
- *
- * - generateQuizQuestions - A function that handles the quiz question generation process.
- * - GenerateQuizInput - The input type for the generateQuizQuestions function.
- * - QuizQuestion - The structure for a single quiz question.
- * - GenerateQuizOutput - The return type (array of QuizQuestions) for the generateQuizQuestions function.
- */
 
 import { quizAi as ai } from '@/ai/genkit';
 import {z} from 'genkit';
