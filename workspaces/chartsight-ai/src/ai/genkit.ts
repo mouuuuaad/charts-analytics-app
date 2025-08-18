@@ -4,8 +4,7 @@ import {googleAI} from '@genkit-ai/googleai';
 const commonModel = 'googleai/gemini-1.5-flash-latest';
 
 // AI instance for chart analysis and data extraction
-// Uses GEMINI_ANALYSIS_API_KEY, falls back to GOOGLE_API_KEY if not set.
-export const analysisAi = genkit({
+
   plugins: [
     googleAI({apiKey: process.env.GEMINI_ANALYSIS_API_KEY}),
   ],
