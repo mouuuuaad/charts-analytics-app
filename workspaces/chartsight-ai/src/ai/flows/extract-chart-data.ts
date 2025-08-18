@@ -1,15 +1,6 @@
 
 'use server';
 
-/**
- * @fileOverview A flow to extract detailed data from a chart image, determine if it's a trading chart,
- * and assess image quality for comprehensive analysis.
- *
- * - extractChartData - A function that handles the chart data extraction process.
- * - ExtractChartDataInput - The input type for the extractChartData function.
- * - ExtractChartDataOutput - The return type for the extractChartData function.
- */
-
 import { analysisAi as ai } from '@/ai/genkit';
 import {z} from 'genkit';
 
