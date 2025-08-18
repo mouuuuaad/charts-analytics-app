@@ -11,6 +11,7 @@
  * - PredictMarketTrendOutput - The return type for the predictMarketTrend function.
  */
 
+
 import { analysisAi as ai } from '@/ai/genkit';
 import {z} from 'genkit';
 import type { TrendAnalysisDetails, CandlestickPatternInfo, CandlestickAnalysis, VolumeAndMomentumInfo, RewardRiskRatio, RiskRewardAnalysis, PredictMarketTrendOutput as PredictMarketTrendOutputType } from '@/types'; 
