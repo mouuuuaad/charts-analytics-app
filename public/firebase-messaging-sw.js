@@ -5,6 +5,7 @@
 // but for simple notifications, this is sufficient.
 
 // Listen for push events
+
 self.addEventListener('push', function(event) {
   console.log('[Service Worker] Push Received.');
   if (!event.data) {
